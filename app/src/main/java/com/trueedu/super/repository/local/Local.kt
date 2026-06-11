@@ -1,0 +1,39 @@
+package com.trueedu.`super`.repository.local
+
+import android.content.SharedPreferences
+import com.trueedu.`super`.extensions.boolean
+import com.trueedu.`super`.extensions.int
+import com.trueedu.`super`.extensions.long
+import com.trueedu.`super`.extensions.string
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * SharedPreferences 래퍼.
+ * 로컬에 저장하는 간단한 값들을 프로퍼티 위임으로 노출한다.
+ */
+@Singleton
+class Local @Inject constructor(private val preferences: SharedPreferences) {
+    private val latestVersion = 1
+    private var currentVersion by preferences.int(latestVersion)
+
+    // 앱 실행 횟수
+    var launchingCount by preferences.long(0)
+        private set
+
+    fun migrate() {
+        launchingCount++
+    }
+
+    // 인증 토큰
+    var accessToken by preferences.string("")
+    var accessTokenExpiredAt by preferences.long(0L)
+
+    // 확인한 notice 마지막 id
+    var appNoticeId by preferences.int(0)
+
+    // UI 설정
+    var forceDark by preferences.boolean(true)
+    var theme by preferences.int(1)
+    var keepScreenOn by preferences.boolean(false)
+}
