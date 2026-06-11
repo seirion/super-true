@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun MainScreen(
+    onAddAccount: () -> Unit = {},
     mainNavigation: @Composable (navController: NavHostController, innerPadding: PaddingValues) -> Unit,
 ) {
     val navController = rememberNavController()
@@ -38,9 +39,10 @@ fun MainScreen(
         drawerState = drawerState,
         gesturesEnabled = currentTab == BottomNavItem.Home,
         drawerContent = {
-            HomeDrawer {
-                scope.launch { drawerState.close() }
-            }
+            HomeDrawer(
+                onAddAccount = onAddAccount,
+                close = { scope.launch { drawerState.close() } },
+            )
         },
         content = {
             Scaffold(
