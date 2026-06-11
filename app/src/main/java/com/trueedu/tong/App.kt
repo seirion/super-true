@@ -1,4 +1,4 @@
-package com.trueedu.`super`
+package com.trueedu.tong
 
 import android.app.Application
 import android.content.Context
@@ -6,7 +6,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
-import com.trueedu.`super`.repository.local.Local
+import com.trueedu.tong.repository.local.Local
 import dagger.hilt.EntryPoint
 import dagger.hilt.EntryPoints
 import dagger.hilt.InstallIn

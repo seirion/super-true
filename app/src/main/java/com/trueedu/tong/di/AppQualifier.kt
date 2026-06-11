@@ -1,4 +1,4 @@
-package com.trueedu.`super`.di
+package com.trueedu.tong.di
 
 import javax.inject.Qualifier
 

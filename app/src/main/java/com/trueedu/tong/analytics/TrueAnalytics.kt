@@ -1,4 +1,4 @@
-package com.trueedu.`super`.analytics
+package com.trueedu.tong.analytics
 
 import android.app.Application
 import androidx.compose.runtime.staticCompositionLocalOf

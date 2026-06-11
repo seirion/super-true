@@ -1,4 +1,4 @@
-package com.trueedu.`super`
+package com.trueedu.tong
 
 import android.os.Bundle
 import androidx.activity.compose.setContent
@@ -13,7 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.trueedu.`super`.ui.theme.TrueSuperTheme
+import com.trueedu.tong.ui.theme.TrueSuperTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint

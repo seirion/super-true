@@ -12,11 +12,11 @@ plugins {
 }
 
 android {
-    namespace = "com.trueedu.super"
+    namespace = "com.trueedu.tong"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.trueedu.super"
+        applicationId = "com.trueedu.tong"
         minSdk = 29
         targetSdk = 36
         versionCode = getVersionCodeProvider().get()
@@ -33,10 +33,14 @@ android {
             keyPassword = "android"
         }
         register("release") {
-            storeFile = file(gradleLocalProperties(rootDir, providers).getProperty("STORE_FILE", System.getenv("RELEASE_STORE_FILE")))
-            storePassword = gradleLocalProperties(rootDir, providers).getProperty("STORE_PASSWORD", System.getenv("RELEASE_STORE_PASSWORD"))
-            keyAlias = gradleLocalProperties(rootDir, providers).getProperty("KEY_ALIAS", System.getenv("RELEASE_KEY_ALIAS"))
-            keyPassword = gradleLocalProperties(rootDir, providers).getProperty("KEY_PASSWORD", System.getenv("RELEASE_KEY_PASSWORD"))
+            val localProps = gradleLocalProperties(rootDir, providers)
+            val storeFilePath = localProps.getProperty("STORE_FILE") ?: System.getenv("RELEASE_STORE_FILE")
+            if (storeFilePath != null) {
+                storeFile = file(storeFilePath)
+                storePassword = localProps.getProperty("STORE_PASSWORD") ?: System.getenv("RELEASE_STORE_PASSWORD")
+                keyAlias = localProps.getProperty("KEY_ALIAS") ?: System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = localProps.getProperty("KEY_PASSWORD") ?: System.getenv("RELEASE_KEY_PASSWORD")
+            }
         }
     }
 
@@ -59,8 +63,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        compilerOptions {
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        }
     }
     buildFeatures {
         buildConfig = true
@@ -137,8 +143,8 @@ tasks.matching { it.name.startsWith("ksp") && it.name.endsWith("Kotlin") }.confi
     doFirst {
         val variantName = name.removePrefix("ksp").removeSuffix("Kotlin")
         val variantDir = variantName.replaceFirstChar { it.lowercase() }
-        file("$buildDir/generated/ksp/$variantDir/kotlin").mkdirs()
-        file("$buildDir/generated/ksp/$variantDir/java").mkdirs()
+        layout.buildDirectory.dir("generated/ksp/$variantDir/kotlin").get().asFile.mkdirs()
+        layout.buildDirectory.dir("generated/ksp/$variantDir/java").get().asFile.mkdirs()
     }
 }
 

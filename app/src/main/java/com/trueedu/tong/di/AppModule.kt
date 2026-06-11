@@ -1,12 +1,12 @@
-package com.trueedu.`super`.di
+package com.trueedu.tong.di
 
 import android.app.Application
 import android.content.ContentResolver
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import com.trueedu.`super`.analytics.TrueAnalytics
-import com.trueedu.`super`.repository.local.Local
+import com.trueedu.tong.analytics.TrueAnalytics
+import com.trueedu.tong.repository.local.Local
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

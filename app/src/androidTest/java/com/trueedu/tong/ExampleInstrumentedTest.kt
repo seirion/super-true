@@ -1,4 +1,4 @@
-package com.trueedu.`super`
+package com.trueedu.tong
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -17,6 +17,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.trueedu.super", appContext.packageName)
+        assertEquals("com.trueedu.tong", appContext.packageName)
     }
 }

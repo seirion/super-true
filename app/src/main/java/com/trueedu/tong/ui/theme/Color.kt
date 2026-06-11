@@ -1,4 +1,4 @@
-package com.trueedu.`super`.ui.theme
+package com.trueedu.tong.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

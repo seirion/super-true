@@ -1,4 +1,4 @@
-package com.trueedu.`super`.extensions
+package com.trueedu.tong.extensions
 
 import android.content.SharedPreferences
 import kotlin.properties.ReadWriteProperty

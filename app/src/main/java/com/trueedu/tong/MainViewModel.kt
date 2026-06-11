@@ -1,7 +1,7 @@
-package com.trueedu.`super`
+package com.trueedu.tong
 
 import androidx.lifecycle.ViewModel
-import com.trueedu.`super`.repository.local.Local
+import com.trueedu.tong.repository.local.Local
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 

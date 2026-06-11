@@ -1,10 +1,10 @@
-package com.trueedu.`super`.repository.local
+package com.trueedu.tong.repository.local
 
 import android.content.SharedPreferences
-import com.trueedu.`super`.extensions.boolean
-import com.trueedu.`super`.extensions.int
-import com.trueedu.`super`.extensions.long
-import com.trueedu.`super`.extensions.string
+import com.trueedu.tong.extensions.boolean
+import com.trueedu.tong.extensions.int
+import com.trueedu.tong.extensions.long
+import com.trueedu.tong.extensions.string
 import javax.inject.Inject
 import javax.inject.Singleton
 
