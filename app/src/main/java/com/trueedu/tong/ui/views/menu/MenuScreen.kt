@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ImportExport
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -35,6 +36,19 @@ fun MenuScreen(
         },
     ) { innerPadding ->
         LazyColumn(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            item {
+                ListItem(
+                    headlineContent = { Text("버전", style = MaterialTheme.typography.bodyMedium) },
+                    trailingContent = {
+                        Text(
+                            text = com.trueedu.tong.BuildConfig.VERSION_NAME,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                )
+                HorizontalDivider()
+            }
             item {
                 ListItem(
                     headlineContent = { Text("계좌 가져오기 / 내보내기") },
