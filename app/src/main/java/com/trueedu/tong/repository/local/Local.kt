@@ -39,4 +39,7 @@ class Local @Inject constructor(private val preferences: SharedPreferences) {
 
     // 홈화면 시세/평가 모드 (true=시세, false=평가)
     var marketPriceMode by preferences.boolean(true)
+
+    // 홈화면 요약 섹션 펼침 여부
+    var summaryExpanded by preferences.boolean(true)
 }
