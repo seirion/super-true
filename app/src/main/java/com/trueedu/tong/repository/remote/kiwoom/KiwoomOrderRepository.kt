@@ -22,7 +22,7 @@ class KiwoomOrderRepository @Inject constructor(
         val apiId = if (request.isBuy) "kt10000" else "kt10001"
         val headers = mapOf("authorization" to "Bearer $token", "api-id" to apiId, "cont-yn" to "N", "next-key" to "")
         val body = mapOf(
-            "stk_cd" to request.code,
+            "stk_cd" to request.code.removePrefix("A"),  // 키움은 A 접두사 없이
             "ord_qty" to request.quantity.toString(),
             "ord_uv" to request.price.toString(),          // 주문단가 (ord_unpr 아닌 ord_uv)
             "trde_tp" to if (request.isMarket) "3" else "0", // 0=보통(지정가), 3=시장가
