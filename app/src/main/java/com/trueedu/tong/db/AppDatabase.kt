@@ -5,7 +5,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.trueedu.tong.model.BrokerAccount
 
-@Database(entities = [BrokerAccount::class], version = 1)
+@Database(entities = [BrokerAccount::class], version = 2)
 @TypeConverters(BrokerTypeConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun brokerAccountDao(): BrokerAccountDao
