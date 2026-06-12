@@ -22,14 +22,11 @@ class KiwoomOrderRepository @Inject constructor(
         val apiId = if (request.isBuy) "kt10000" else "kt10001"
         val headers = mapOf("authorization" to "Bearer $token", "api-id" to apiId, "cont-yn" to "N", "next-key" to "")
         val body = mapOf(
-            "acnt_no" to account.accountNum,
-            "acnt_pw" to credentialStorage.getPassword(account.id),
             "stk_cd" to request.code,
             "ord_qty" to request.quantity.toString(),
-            "ord_unpr" to request.price.toString(),
-            "ord_dvsn" to if (request.isMarket) "3" else "0",
-            "trde_tp" to if (request.isBuy) "2" else "1",  // 매수=2, 매도=1
-            "dmst_stex_tp" to "KRX",
+            "ord_uv" to request.price.toString(),          // 주문단가 (ord_unpr 아닌 ord_uv)
+            "trde_tp" to if (request.isMarket) "3" else "0", // 0=보통(지정가), 3=시장가
+            "dmst_stex_tp" to "SOR",                       // KRX/NXT/SOR
         )
         val resp = service.order(headers, body)
         val body2 = resp.body() ?: error("키움 주문 응답 없음")
