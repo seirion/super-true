@@ -10,8 +10,7 @@ data class BrokerAccount(
     val name: String,
     val brokerType: BrokerType,
     val accountNum: String,
-    val appKey: String,
-    val appSecret: String,
     val isSelected: Boolean = false,
+    val isActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
 )

@@ -180,6 +180,9 @@ dependencies {
     implementation(libs.androidx.room.common)
     implementation(libs.androidx.room.ktx)
 
+    // Security
+    implementation(libs.androidx.security.crypto)
+
     // Network
     implementation(libs.retrofit)
     implementation(libs.retrofit.serialization)

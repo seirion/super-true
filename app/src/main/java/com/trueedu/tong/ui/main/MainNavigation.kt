@@ -11,7 +11,12 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.trueedu.tong.ui.views.account.AddAccountScreen
 import com.trueedu.tong.ui.views.home.BottomNavItem
+import kotlinx.serialization.Serializable
+
+@Serializable
+data object AddAccount
 
 @Composable
 fun MainNavigation(
@@ -36,6 +41,9 @@ fun MainNavigation(
         }
         composable<BottomNavItem.Menu> {
             PlaceholderScreen("더보기 화면")
+        }
+        composable<AddAccount> {
+            AddAccountScreen(onBack = { navController.popBackStack() })
         }
     }
 }
