@@ -42,9 +42,10 @@ data class LsDepositResponse(
 
 @Serializable
 data class LsDepositDetail(
-    @SerialName("MnyOrdAbleAmt") val depositD0: Long = 0L,   // 주문가능금액 (D+0)
-    @SerialName("D1Amt") val depositD1: Long = 0L,            // D+1 예수금
-    @SerialName("D2Amt") val depositD2: Long = 0L,            // D+2 예수금
-    @SerialName("EvalAmt") val totalEvalAmount: Long = 0L,    // 총평가금액
-    @SerialName("PchsAmt") val totalBuyAmount: Long = 0L,     // 총매입금액
+    @SerialName("Dps") val depositD0: Long = 0L,             // 예수금 (D+0)
+    @SerialName("D1Dps") val depositD1: Long = 0L,           // D+1 예수금
+    @SerialName("D2Dps") val depositD2: Long = 0L,           // D+2 예수금
+    @SerialName("MnyOrdAbleAmt") val mnyOrdAbleAmt: Long = 0L, // 현금주문가능금액
+    @SerialName("BalEvalAmt") val totalEvalAmount: Long = 0L, // 잔고평가금액
+    @SerialName("DpsastTotamt") val totalAsset: Long = 0L,   // 예탁자산총액
 )
