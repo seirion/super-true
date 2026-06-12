@@ -37,7 +37,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,13 +55,9 @@ import com.trueedu.tong.utils.NumberFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderScreen(
-    vm: OrderViewModel = hiltViewModel(),
+    vm: OrderViewModel = hiltViewModel(androidx.compose.ui.platform.LocalContext.current as androidx.activity.ComponentActivity),
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-
-    LaunchedEffect(Unit) {
-        vm.checkPendingStock()
-    }
 
     LaunchedEffect(vm.orderState) {
         when (val s = vm.orderState) {

@@ -46,4 +46,5 @@ class Local @Inject constructor(private val preferences: SharedPreferences) {
     // 주문 탭에서 선택된 종목코드/계좌ID
     var selectedOrderCode by preferences.string("")
     var selectedOrderAccountId by preferences.long(-1L)
+    var selectedOrderTimestamp by preferences.long(0L)  // 선택 시각 (변경 감지용)
 }

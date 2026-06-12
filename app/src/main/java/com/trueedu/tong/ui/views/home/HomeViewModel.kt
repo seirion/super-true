@@ -70,11 +70,7 @@ class HomeViewModel @Inject constructor(
         local.summaryExpanded = summaryExpanded
     }
 
-    /** 홈 종목 탭 시 주문 탭에 전달할 종목/계좌 저장 */
-    fun selectForOrder(code: String, accountId: Long) {
-        local.selectedOrderCode = code
-        local.selectedOrderAccountId = accountId
-    }
+
 
     // KIS 실시간 체결가 (종목코드 → 최신 체결). 체결 발생 시 갱신.
     // 일단 expose만 — UI 반영은 다음 단계.
