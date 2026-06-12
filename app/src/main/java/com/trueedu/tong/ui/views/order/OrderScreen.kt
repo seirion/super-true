@@ -247,7 +247,7 @@ private fun OrderEntryTab(
                 currentPrice = currentPrice,
                 prevClose = prevClose,
                 onPriceClick = { vm.setPrice(it) },
-                modifier = Modifier.width(190.dp).fillMaxHeight(),
+                modifier = Modifier.width(160.dp).fillMaxHeight(),
             )
             VerticalDivider()
             // 우: 주문 입력
