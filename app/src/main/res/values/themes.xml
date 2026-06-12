@@ -2,4 +2,10 @@
 <resources>
 
     <style name="Theme.TrueSuper" parent="Theme.Material3.DayNight.NoActionBar" />
+
+    <!-- 스플래시 테마 (Android 11 이하) -->
+    <style name="Theme.TrueSuper.Splash" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash_background</item>
+        <item name="postSplashScreenTheme">@style/Theme.TrueSuper</item>
+    </style>
 </resources>
