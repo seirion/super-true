@@ -42,4 +42,24 @@ class CredentialStorage @Inject constructor(
             .remove("${accountId}_appSecret")
             .apply()
     }
+
+    fun saveToken(accountId: Long, accessToken: String, expiredAtMs: Long) {
+        prefs.edit()
+            .putString("${accountId}_accessToken", accessToken)
+            .putLong("${accountId}_tokenExpiredAt", expiredAtMs)
+            .apply()
+    }
+
+    fun getAccessToken(accountId: Long): String =
+        prefs.getString("${accountId}_accessToken", "") ?: ""
+
+    fun getTokenExpiredAt(accountId: Long): Long =
+        prefs.getLong("${accountId}_tokenExpiredAt", 0L)
+
+    fun clearToken(accountId: Long) {
+        prefs.edit()
+            .remove("${accountId}_accessToken")
+            .remove("${accountId}_tokenExpiredAt")
+            .apply()
+    }
 }
