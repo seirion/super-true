@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +38,7 @@ import com.trueedu.tong.model.BrokerAccount
 fun HomeDrawer(
     vm: HomeDrawerViewModel = hiltViewModel(),
     onAddAccount: () -> Unit,
+    onEditAccount: (Long) -> Unit,
     close: () -> Unit,
 ) {
     val accounts by vm.accounts.collectAsStateWithLifecycle()
@@ -77,6 +79,7 @@ fun HomeDrawer(
                             vm.selectAccount(account.id)
                             close()
                         },
+                        onEdit = { onEditAccount(account.id) },
                         onDelete = { vm.deleteAccount(account) },
                     )
                 }
@@ -110,6 +113,7 @@ fun HomeDrawer(
 fun AccountItem(
     account: BrokerAccount,
     onSelect: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Row(
@@ -144,6 +148,13 @@ fun AccountItem(
                 text = "${account.brokerType.displayName} · ${account.accountNum}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        IconButton(onClick = onEdit) {
+            Icon(
+                imageVector = Icons.Filled.Edit,
+                contentDescription = "수정",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         IconButton(onClick = onDelete) {

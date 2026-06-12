@@ -17,7 +17,7 @@ import com.trueedu.tong.ui.views.home.HomeScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object AddAccount
+data class AddAccount(val accountId: Long = -1L)  // -1L = 신규 추가
 
 @Composable
 fun MainNavigation(

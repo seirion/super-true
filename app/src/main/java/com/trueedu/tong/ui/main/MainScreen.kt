@@ -39,7 +39,11 @@ fun MainScreen(
         gesturesEnabled = currentTab == BottomNavItem.Home,
         drawerContent = {
             HomeDrawer(
-                onAddAccount = { navController.navigate(AddAccount) },
+                onAddAccount = { navController.navigate(AddAccount()) },
+                onEditAccount = { id ->
+                    navController.navigate(AddAccount(accountId = id))
+                    scope.launch { drawerState.close() }
+                },
                 close = { scope.launch { drawerState.close() } },
             )
         },
