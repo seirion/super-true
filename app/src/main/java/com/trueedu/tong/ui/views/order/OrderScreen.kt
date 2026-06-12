@@ -64,8 +64,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.trueedu.tong.model.dto.kis.KisFilledOrder
-import com.trueedu.tong.model.dto.kis.KisUnfilledOrder
+import com.trueedu.tong.model.dto.order.FilledOrderItem
+import com.trueedu.tong.model.dto.order.UnfilledOrderItem
 import com.trueedu.tong.ui.theme.ChartColor
 import com.trueedu.tong.utils.NumberFormatter
 
@@ -401,10 +401,8 @@ private fun priceStep(price: Double): Long = when {
     else -> 1_000L
 }
 
-/** 매수/매도 배지. sellBuyCode: 01=매도, 02=매수 */
 @Composable
-private fun BuySellBadge(sellBuyCode: String) {
-    val isBuy = sellBuyCode == "02"
+private fun BuySellBadge(isBuy: Boolean) {
     val color = if (isBuy) ChartColor.rise else ChartColor.fall
     val label = if (isBuy) "매수" else "매도"
     Text(
@@ -428,7 +426,7 @@ private fun StatusMessage(text: String) {
 @Composable
 private fun UnfilledOrderList(
     vm: OrderStatusViewModel,
-    onModify: (KisUnfilledOrder) -> Unit = {},
+    onModify: (UnfilledOrderItem) -> Unit = {},
 ) {
     val context = LocalContext.current
     LaunchedEffect(vm.actionResult) {
@@ -467,7 +465,7 @@ private fun UnfilledOrderList(
 
 @Composable
 private fun UnfilledOrderRow(
-    order: KisUnfilledOrder,
+    order: UnfilledOrderItem,
     onCancel: () -> Unit,
     onModify: () -> Unit,
 ) {
@@ -478,7 +476,7 @@ private fun UnfilledOrderRow(
         // 좌: 종목명 + 배지 + 주문시각
         Column(modifier = Modifier.weight(1.2f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                BuySellBadge(order.sellBuyCode)
+                BuySellBadge(order.isBuy)
                 Text(
                     text = order.name.ifBlank { order.code },
                     style = MaterialTheme.typography.bodyMedium,
@@ -498,7 +496,7 @@ private fun UnfilledOrderRow(
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Text(
-                text = NumberFormatter.formatCash(order.ordPrice.toDoubleOrNull() ?: 0.0) + "원",
+                text = NumberFormatter.formatCash(order.ordPrice.toDouble()) + "원",
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
@@ -530,11 +528,11 @@ private fun UnfilledOrderRow(
 
 @Composable
 private fun ModifyPriceDialog(
-    order: KisUnfilledOrder,
+    order: UnfilledOrderItem,
     onDismiss: () -> Unit,
     onConfirm: (Long) -> Unit,
 ) {
-    var priceText by remember { mutableStateOf(order.ordPrice.toLongOrNull()?.toString() ?: "") }
+    var priceText by remember { mutableStateOf(order.ordPrice.toString()) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("주문 정정") },
@@ -591,7 +589,7 @@ private fun FilledOrderList(vm: OrderStatusViewModel) {
 }
 
 @Composable
-private fun FilledOrderRow(order: KisFilledOrder) {
+private fun FilledOrderRow(order: FilledOrderItem) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -601,7 +599,7 @@ private fun FilledOrderRow(order: KisFilledOrder) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            BuySellBadge(order.sellBuyCode)
+            BuySellBadge(order.isBuy)
             Text(
                 text = order.name.ifBlank { order.code },
                 style = MaterialTheme.typography.bodyMedium,
@@ -610,11 +608,11 @@ private fun FilledOrderRow(order: KisFilledOrder) {
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = NumberFormatter.formatCash(order.avgPrice.toDoubleOrNull() ?: 0.0) + "원",
+                text = NumberFormatter.formatCash(order.filledPrice.toDouble()) + "원",
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                text = "체결 ${order.filledQty} / 주문 ${order.ordQty}",
+                text = "체결 ${order.filledQty}주",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
