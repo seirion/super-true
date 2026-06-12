@@ -120,4 +120,93 @@ object NetworkModule {
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()
     }
+
+    // ---------------------------------------------------------------------
+    // 홈 화면 자산/잔고용 증권사 별 OkHttp / Retrofit
+    // 각 증권사 base URL 이 다르므로 별도 인스턴스를 제공한다.
+    // loggingInterceptor / chuckerInterceptor / json 은 공유한다.
+    // ---------------------------------------------------------------------
+
+    private fun buildOkHttpClient(
+        loggingInterceptor: HttpLoggingInterceptor,
+        chuckerInterceptor: ChuckerInterceptor,
+    ): OkHttpClient {
+        return OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .addInterceptor(chuckerInterceptor)
+            .connectTimeout(connectTimeout.toJavaDuration())
+            .callTimeout(callTimeout.toJavaDuration())
+            .writeTimeout(writeTimeout.toJavaDuration())
+            .readTimeout(readTimeout.toJavaDuration())
+            .build()
+    }
+
+    @OptIn(ExperimentalSerializationApi::class)
+    private fun buildRetrofit(
+        baseUrl: String,
+        okHttpClient: OkHttpClient,
+        json: Json,
+    ): Retrofit {
+        val contentType = "application/json".toMediaType()
+        return Retrofit.Builder()
+            .client(okHttpClient)
+            .baseUrl(baseUrl)
+            .addConverterFactory(json.asConverterFactory(contentType))
+            .build()
+    }
+
+    // KIS (한국투자증권) - 기존 @KisRetrofit 과 동일 baseUrl, 별도 인스턴스
+    @Provides
+    @Singleton
+    @KisRetrofitQualifier
+    fun providesKisRetrofit(
+        @KisOkHttp okHttpClient: OkHttpClient,
+        json: Json,
+    ): Retrofit = buildRetrofit(
+        baseUrl = "https://openapi.koreainvestment.com:9443/",
+        okHttpClient = okHttpClient,
+        json = json,
+    )
+
+    // 키움증권
+    @Provides
+    @Singleton
+    @KiwoomOkHttp
+    fun providesKiwoomOkHttpClient(
+        loggingInterceptor: HttpLoggingInterceptor,
+        chuckerInterceptor: ChuckerInterceptor,
+    ): OkHttpClient = buildOkHttpClient(loggingInterceptor, chuckerInterceptor)
+
+    @Provides
+    @Singleton
+    @KiwoomRetrofitQualifier
+    fun providesKiwoomRetrofit(
+        @KiwoomOkHttp okHttpClient: OkHttpClient,
+        json: Json,
+    ): Retrofit = buildRetrofit(
+        baseUrl = "https://api.kiwoom.com/",
+        okHttpClient = okHttpClient,
+        json = json,
+    )
+
+    // LS증권
+    @Provides
+    @Singleton
+    @LsOkHttp
+    fun providesLsOkHttpClient(
+        loggingInterceptor: HttpLoggingInterceptor,
+        chuckerInterceptor: ChuckerInterceptor,
+    ): OkHttpClient = buildOkHttpClient(loggingInterceptor, chuckerInterceptor)
+
+    @Provides
+    @Singleton
+    @LsRetrofitQualifier
+    fun providesLsRetrofit(
+        @LsOkHttp okHttpClient: OkHttpClient,
+        json: Json,
+    ): Retrofit = buildRetrofit(
+        baseUrl = "https://openapi.ls-sec.co.kr:8080/",
+        okHttpClient = okHttpClient,
+        json = json,
+    )
 }

@@ -1,0 +1,15 @@
+package com.trueedu.tong.repository.remote.kis
+
+import com.trueedu.tong.model.dto.kis.KisAccountResponse
+import retrofit2.Response
+import retrofit2.http.GET
+import retrofit2.http.HeaderMap
+import retrofit2.http.QueryMap
+
+interface KisAccountService {
+    @GET("uapi/domestic-stock/v1/trading/inquire-balance")
+    suspend fun getBalance(
+        @HeaderMap headers: Map<String, String>,
+        @QueryMap queries: Map<String, String>,
+    ): Response<KisAccountResponse>
+}
