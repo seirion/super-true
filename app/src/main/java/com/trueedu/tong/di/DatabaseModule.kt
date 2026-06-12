@@ -2,6 +2,7 @@ package com.trueedu.tong.di
 
 import android.content.Context
 import androidx.room.Room
+import com.trueedu.tong.db.AccountSummaryCacheDao
 import com.trueedu.tong.db.AppDatabase
 import com.trueedu.tong.db.BrokerAccountDao
 import dagger.Module
@@ -24,4 +25,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideBrokerAccountDao(db: AppDatabase): BrokerAccountDao = db.brokerAccountDao()
+
+    @Provides
+    @Singleton
+    fun provideAccountSummaryCacheDao(db: AppDatabase): AccountSummaryCacheDao =
+        db.accountSummaryCacheDao()
 }
