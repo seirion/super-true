@@ -149,7 +149,12 @@ private fun OrderEntryTab(
                             if (vm.stockName.isNotBlank()) Text(vm.stockName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             Text(vm.code, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             vm.account?.let {
-                                Text(it.brokerType.displayName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    text = "계좌: ${it.brokerType.displayName}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    fontSize = 10.sp,
+                                )
                             }
                         }
                         Column(horizontalAlignment = Alignment.End) {
