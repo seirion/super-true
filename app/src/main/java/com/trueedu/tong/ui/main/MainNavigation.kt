@@ -14,6 +14,7 @@ import androidx.navigation.compose.composable
 import com.trueedu.tong.ui.views.account.AddAccountScreen
 import com.trueedu.tong.ui.views.home.BottomNavItem
 import com.trueedu.tong.ui.views.home.HomeScreen
+import com.trueedu.tong.ui.views.order.OrderScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -32,13 +33,13 @@ fun MainNavigation(
             .padding(innerPadding),
     ) {
         composable<BottomNavItem.Home> {
-            HomeScreen()
+            HomeScreen(navController = navController)
         }
         composable<BottomNavItem.Watch> {
             PlaceholderScreen("관심 화면")
         }
         composable<BottomNavItem.Order> {
-            PlaceholderScreen("주문 화면")
+            OrderScreen()
         }
         composable<BottomNavItem.Menu> {
             PlaceholderScreen("더보기 화면")
