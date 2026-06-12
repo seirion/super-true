@@ -6,6 +6,7 @@ import com.trueedu.tong.model.account.AccountSummary
 import com.trueedu.tong.model.account.HoldingStock
 import com.trueedu.tong.repository.local.CredentialStorage
 import retrofit2.Retrofit
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,6 +23,7 @@ class KiwoomAccountRepository @Inject constructor(
         account: BrokerAccount,
         accessToken: String,
     ): Result<AccountSummary> = runCatching {
+        Timber.d("KiwoomAccountRepository: getAccountSummary 시작 - accountId=${account.id}")
         // kt00018 - 잔고/보유종목
         val balanceHeaders = mapOf(
             "authorization" to "Bearer $accessToken",
@@ -36,6 +38,7 @@ class KiwoomAccountRepository @Inject constructor(
             "sort_tp" to "1",
         )
         val balanceResp = service.getBalance(balanceHeaders, balanceBody)
+        Timber.d("KiwoomAccountRepository: kt00018 응답코드=${balanceResp.code()}, body=${balanceResp.body()}, error=${balanceResp.errorBody()?.string()}")
         val balanceBody2 = balanceResp.body() ?: error("키움 잔고 응답 없음")
 
         // kt00001 - 예수금
@@ -54,6 +57,7 @@ class KiwoomAccountRepository @Inject constructor(
         val depositResp = service.getDeposit(depositHeaders, depositBody)
         val depositData = depositResp.body() ?: error("키움 예수금 응답 없음")
 
+        Timber.d("KiwoomAccountRepository: kt00018 returnCode=${balanceBody2.returnCode}, holdings=${balanceBody2.holdings.size}개, summary=${balanceBody2.summary}")
         val summary = balanceBody2.summary
         val holdings = balanceBody2.holdings
             .filter { it.quantity.toDoubleOrNull()?.let { q -> q > 0 } == true }
