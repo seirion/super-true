@@ -121,7 +121,7 @@ fun OrderScreen(
                     HlocwItem("시", pd.open)
                     HlocwItem("고", pd.high)
                     HlocwItem("저", pd.low)
-                    HlocwItem("전", pd.close)
+                    HlocwItem("종", pd.close)
                     HlocwItem("량", pd.volume, isVolume = true)
                 }
             }
