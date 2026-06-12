@@ -34,6 +34,7 @@ class KiwoomAccountRepository @Inject constructor(
         val balanceBody = mapOf(
             "acnt_no" to account.accountNum,
             "acnt_pw" to credentialStorage.getPassword(account.id),
+            "qry_tp" to "0",             // 조회구분: 0=전체
             "dmst_stex_tp" to "KRX",     // 국내거래소구분: KRX
             "inqr_tp_code" to "0",       // 조회구분: 전체
             "hist_dt" to "",
