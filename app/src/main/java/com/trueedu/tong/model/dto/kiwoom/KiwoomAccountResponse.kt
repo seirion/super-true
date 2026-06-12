@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 // kt00018 응답 - 보유 종목
 @Serializable
 data class KiwoomBalanceResponse(
-    @SerialName("acnt_evlt_remn_indv_tot") val summary: KiwoomBalanceSummary? = null,
+    @SerialName("acnt_evlt_remn_indv_tot") val summaryList: List<KiwoomBalanceSummary> = emptyList(),
     @SerialName("acnt_evlt_remn_indv") val holdings: List<KiwoomHolding> = emptyList(),
     @SerialName("return_code") val returnCode: Int = 0,
     @SerialName("return_msg") val returnMsg: String = "",
