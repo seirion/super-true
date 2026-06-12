@@ -64,7 +64,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.trueedu.tong.model.dto.order.FilledOrderItem
 import com.trueedu.tong.model.dto.order.UnfilledOrderItem
 import com.trueedu.tong.ui.theme.ChartColor
