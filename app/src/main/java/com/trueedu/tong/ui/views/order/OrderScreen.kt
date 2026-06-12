@@ -125,10 +125,11 @@ private fun OrderEntryTab(
     val currentPrice = rtPrice?.price ?: quoteOutput2?.price?.toDoubleOrNull() ?: 0.0
     val delta = rtPrice?.delta ?: quoteOutput2?.delta?.toDoubleOrNull() ?: 0.0
     val rate = rtPrice?.rate ?: quoteOutput2?.rate?.toDoubleOrNull() ?: 0.0
-    val prevClose = if (currentPrice > 0 && delta != 0.0) currentPrice - delta
-                   else vm.priceData.value?.let {
-                       it.close.toDoubleOrNull()?.let { c -> if (c > 0) c else null }
-                   } ?: 0.0
+    // 전일종가: priceData의 stck_prdy_clpr 우선, 없으면 현재가-전일대비로 추정
+    val prevClose = vm.priceData.value?.close?.toDoubleOrNull()
+        ?.let { if (it > 0) it else null }
+        ?: if (currentPrice > 0 && delta != 0.0) currentPrice - delta
+        else 0.0
 
     val rtQuote = vm.realtimeQuote.value
     val restQuote = vm.quoteData.value?.output1
