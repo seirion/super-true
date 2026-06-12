@@ -6,7 +6,10 @@ import com.trueedu.tong.model.account.AccountSummary
 import com.trueedu.tong.model.account.HoldingStock
 import com.trueedu.tong.repository.local.CredentialStorage
 import retrofit2.Retrofit
-import timber.log.Timber
+import com.trueedu.tong.utils.logD
+import com.trueedu.tong.utils.logE
+import com.trueedu.tong.utils.logI
+import com.trueedu.tong.utils.logW
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,7 +26,7 @@ class KiwoomAccountRepository @Inject constructor(
         account: BrokerAccount,
         accessToken: String,
     ): Result<AccountSummary> = runCatching {
-        Timber.d("KiwoomAccountRepository: getAccountSummary 시작 - accountId=${account.id}")
+        logD("KiwoomAccountRepository: getAccountSummary 시작 - accountId=${account.id}")
         // kt00018 - 잔고/보유종목
         val balanceHeaders = mapOf(
             "authorization" to "Bearer $accessToken",
@@ -48,7 +51,7 @@ class KiwoomAccountRepository @Inject constructor(
             "inqr_sort_tp_code" to "0",
         )
         val balanceResp = service.getBalance(balanceHeaders, balanceBody)
-        Timber.d("KiwoomAccountRepository: kt00018 응답코드=${balanceResp.code()}, body=${balanceResp.body()}, error=${balanceResp.errorBody()?.string()}")
+        logD("KiwoomAccountRepository: kt00018 응답코드=${balanceResp.code()}, body=${balanceResp.body()}, error=${balanceResp.errorBody()?.string()}")
         val balanceBody2 = balanceResp.body() ?: error("키움 잔고 응답 없음")
 
         // kt00001 - 예수금
@@ -67,7 +70,7 @@ class KiwoomAccountRepository @Inject constructor(
         val depositResp = service.getDeposit(depositHeaders, depositBody)
         val depositData = depositResp.body() ?: error("키움 예수금 응답 없음")
 
-        Timber.d("KiwoomAccountRepository: kt00018 returnCode=${balanceBody2.returnCode}, holdings=${balanceBody2.holdings.size}개")
+        logD("KiwoomAccountRepository: kt00018 returnCode=${balanceBody2.returnCode}, holdings=${balanceBody2.holdings.size}개")
         val holdings = balanceBody2.holdings
             .filter { it.quantity.toDoubleOrNull()?.let { q -> q > 0 } == true }
             .map { h ->

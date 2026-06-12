@@ -2,7 +2,10 @@ package com.trueedu.tong.analytics
 
 import android.app.Application
 import androidx.compose.runtime.staticCompositionLocalOf
-import timber.log.Timber
+import com.trueedu.tong.utils.logD
+import com.trueedu.tong.utils.logE
+import com.trueedu.tong.utils.logI
+import com.trueedu.tong.utils.logW
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,11 +21,11 @@ val LocalTrueAnalytics = staticCompositionLocalOf<TrueAnalytics> {
 class TrueAnalytics @Inject constructor(application: Application) {
 
     fun setUserId(userId: String) {
-        Timber.d("setUserId: $userId")
+        logD("setUserId: $userId")
     }
 
     fun setUserProperties(properties: Map<String, Any>) {
-        Timber.d("setUserProperties: $properties")
+        logD("setUserProperties: $properties")
     }
 
     fun clickButton(buttonName: String, params: Map<String, Any> = emptyMap()) {
@@ -34,10 +37,10 @@ class TrueAnalytics @Inject constructor(application: Application) {
     }
 
     fun log(event: String, params: Map<String, Any> = emptyMap()) {
-        Timber.d("event: $event, params: $params")
+        logD("event: $event, params: $params")
     }
 
     fun shutdown() {
-        Timber.d("shutdown")
+        logD("shutdown")
     }
 }

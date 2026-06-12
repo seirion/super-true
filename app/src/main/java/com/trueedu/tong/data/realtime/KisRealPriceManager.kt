@@ -26,7 +26,10 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import retrofit2.Retrofit
-import timber.log.Timber
+import com.trueedu.tong.utils.logD
+import com.trueedu.tong.utils.logE
+import com.trueedu.tong.utils.logI
+import com.trueedu.tong.utils.logW
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -89,7 +92,7 @@ class KisRealPriceManager @Inject constructor(
     /** 백그라운드 진입 시: WebSocket만 끊고 구독 목록/계좌는 유지 */
     fun pause() {
         if (!connected) return
-        Timber.d("KisRealPriceManager: pause")
+        logD("KisRealPriceManager: pause")
         wsService.disconnect()
         connected = false
     }
@@ -99,7 +102,7 @@ class KisRealPriceManager @Inject constructor(
         val currentAccount = account ?: return
         val codes = subscribedCodes.toList()
         if (codes.isEmpty()) return
-        Timber.d("KisRealPriceManager: resume (${codes.size}종목)")
+        logD("KisRealPriceManager: resume (${codes.size}종목)")
         scope.launch { fetchInitialPrices(currentAccount, codes) }
         scope.launch {
             val key = fetchApprovalKey(currentAccount) ?: return@launch
@@ -154,9 +157,9 @@ class KisRealPriceManager @Inject constructor(
                     secretKey = credentialStorage.getAppSecret(account.id),
                 )
             )
-            resp.body()?.approvalKey?.also { Timber.d("KIS approval key 발급: $it") }
+            resp.body()?.approvalKey?.also { logD("KIS approval key 발급: $it") }
         } catch (e: Exception) {
-            Timber.e(e, "KIS approval key 발급 실패")
+            logE(e, "KIS approval key 발급 실패")
             null
         }
     }
@@ -169,7 +172,7 @@ class KisRealPriceManager @Inject constructor(
     private suspend fun fetchInitialPrices(account: BrokerAccount, codes: List<String>) {
         if (codes.isEmpty()) return
         val token = tokenManager.getValidToken(account).getOrElse {
-            Timber.e(it, "KIS 초기 현재가: 토큰 발급 실패")
+            logE(it, "KIS 초기 현재가: 토큰 발급 실패")
             return
         }
         val headers = mapOf(
@@ -196,10 +199,10 @@ class KisRealPriceManager @Inject constructor(
                     )
                     _initialPriceFlow.emit(initialPriceMap.toMap())
                 } else {
-                    Timber.w("KIS 초기 현재가 실패: code=$code, msg=${body?.msg1}")
+                    logW("KIS 초기 현재가 실패: code=$code, msg=${body?.msg1}")
                 }
             } catch (e: Exception) {
-                Timber.e(e, "KIS 초기 현재가 조회 오류: code=$code")
+                logE(e, "KIS 초기 현재가 조회 오류: code=$code")
             }
             delay(60) // 초당 20건 제한 대응
         }
@@ -208,7 +211,7 @@ class KisRealPriceManager @Inject constructor(
     private fun connect(codes: List<String>) {
         wsService.connect(object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                Timber.d("KisRealPriceManager: onOpen")
+                logD("KisRealPriceManager: onOpen")
                 connected = true
                 // 연결 후 종목 구독
                 codes.forEach { code ->
@@ -222,7 +225,7 @@ class KisRealPriceManager @Inject constructor(
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                Timber.e(t, "KisRealPriceManager: onFailure")
+                logE(t, "KisRealPriceManager: onFailure")
                 connected = false
                 val currentAccount = account ?: return
                 // 재연결 시 approval key 재발급 (ALREADY IN USE 오류 방지)
@@ -260,7 +263,7 @@ class KisRealPriceManager @Inject constructor(
                 wsService.send(text)
             }
             else -> {
-                Timber.d("KisRealPriceManager: system msg: $text")
+                logD("KisRealPriceManager: system msg: $text")
             }
         }
     }
