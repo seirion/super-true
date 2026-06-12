@@ -103,7 +103,12 @@ fun HomeScreen(
                 uiState is HomeViewModel.UiState.Success -> {
                     val summary = (uiState as HomeViewModel.UiState.Success).summary
                     item {
-                        AccountInfoSection(summary = summary, onRefresh = vm::refresh)
+                        AccountInfoSection(
+                            summary = summary,
+                            marketPriceMode = vm.marketPriceMode,
+                            realtimePrices = realtimePrices,
+                            onRefresh = vm::refresh,
+                        )
                         HorizontalDivider()
                     }
                     items(summary.holdings, key = { it.code }) { holding ->
@@ -190,8 +195,33 @@ private fun ErrorHome(
 @Composable
 private fun AccountInfoSection(
     summary: AccountSummary,
+    marketPriceMode: Boolean,
+    realtimePrices: Map<String, KisRealTimeTrade>,
     onRefresh: () -> Unit,
 ) {
+    // 시세 모드: 실시간 총자산/일간 수익 계산
+    val (displayAsset, displayProfit, displayProfitRate) = if (marketPriceMode && realtimePrices.isNotEmpty()) {
+        // 총 평가금액 = Σ(현재가 × 수량)
+        val realtimeStockTotal = summary.holdings.sumOf { holding ->
+            val rt = realtimePrices[holding.code.removePrefix("A")]
+            (rt?.price ?: holding.currentPrice ?: holding.avgPrice) * holding.quantity
+        }
+        val deposit2 = summary.depositD2 ?: summary.deposit
+        val totalAsset = realtimeStockTotal + deposit2
+
+        // 일간 수익 = Σ(전일대비등락 × 수량)
+        val dailyProfit = summary.holdings.sumOf { holding ->
+            val rt = realtimePrices[holding.code.removePrefix("A")]
+            (rt?.delta ?: 0.0) * holding.quantity
+        }
+        // 일간 수익률 = 일간 수익 / 전일 총자산
+        val prevAsset = totalAsset - dailyProfit
+        val dailyRate = if (prevAsset > 0) dailyProfit / prevAsset * 100 else 0.0
+        Triple(totalAsset, dailyProfit, dailyRate)
+    } else {
+        Triple(summary.totalAsset, summary.totalProfitAmount, summary.totalProfitRate)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -216,7 +246,7 @@ private fun AccountInfoSection(
         }
 
         Text(
-            text = "${NumberFormatter.formatCash(summary.totalAsset)}원",
+            text = "${NumberFormatter.formatCash(displayAsset)}원",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
@@ -224,11 +254,12 @@ private fun AccountInfoSection(
 
         Spacer(modifier = Modifier.height(4.dp))
 
+        val profitLabel = if (marketPriceMode && realtimePrices.isNotEmpty()) "일간" else ""
         Text(
-            text = "${NumberFormatter.formatCashWithSign(summary.totalProfitAmount)}원 " +
-                "(${NumberFormatter.formatRate(summary.totalProfitRate)})",
+            text = "$profitLabel ${NumberFormatter.formatCashWithSign(displayProfit)}원 " +
+                "(${NumberFormatter.formatRate(displayProfitRate)})",
             style = MaterialTheme.typography.bodyMedium,
-            color = ChartColor.color(summary.totalProfitAmount),
+            color = ChartColor.color(displayProfit),
         )
 
         Spacer(modifier = Modifier.height(16.dp))
