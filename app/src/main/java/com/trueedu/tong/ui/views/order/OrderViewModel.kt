@@ -28,6 +28,7 @@ class OrderViewModel @Inject constructor(
 ) : ViewModel() {
 
     var code: String by mutableStateOf(""); private set
+    var stockName: String by mutableStateOf(""); private set
     var account: BrokerAccount? by mutableStateOf(null); private set
 
     // 홈에서 종목 선택 시 증가 (OrderScreen의 LaunchedEffect key)
@@ -80,12 +81,14 @@ class OrderViewModel @Inject constructor(
     }
 
     /** 홈화면 종목 탭 시 호출 (Local + pendingCode 업데이트) */
-    fun selectStock(newCode: String, accountId: Long) {
+    fun selectStock(newCode: String, name: String, accountId: Long) {
         local.selectedOrderCode = newCode
         local.selectedOrderAccountId = accountId
         local.selectedOrderTimestamp = System.currentTimeMillis()
-        pendingCode = newCode  // Compose가 변경 감지
+        pendingCode = newCode
         if (newCode == code && accountId == account?.id) return
+        code = newCode      // TopBar 즉시 반영
+        stockName = name    // 종목 이름 즉시 반영
         kisQuoteManager.stop()
         loadOrder(newCode, accountId)
     }
