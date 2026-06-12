@@ -43,6 +43,10 @@ class OrderViewModel @Inject constructor(
     var quantity by mutableStateOf("1"); private set
     var price by mutableStateOf(""); private set
 
+    // 수정 모드: null=신규주문, 값있으면=미체결 주문 수정
+    var modifyOrder by mutableStateOf<com.trueedu.tong.model.dto.kis.KisUnfilledOrder?>(null); private set
+    val isModifyMode get() = modifyOrder != null
+
     sealed class OrderState {
         object Idle : OrderState()
         object Loading : OrderState()
@@ -87,6 +91,8 @@ class OrderViewModel @Inject constructor(
         local.selectedOrderAccountId = accountId
         local.selectedOrderTimestamp = System.currentTimeMillis()
         pendingCode = newCode
+        modifyOrder = null  // 홈에서 종목 탭 → 정정 모드 해제
+        modifyEnteredFromUnfilled = false
         if (newCode == code && accountId == account?.id) return
         code = newCode      // TopBar 즉시 반영
         stockName = name    // 종목 이름 즉시 반영
@@ -143,4 +149,52 @@ class OrderViewModel @Inject constructor(
     }
 
     fun resetState() { orderState = OrderState.Idle }
+
+    // 미체결→주문 탭 전환으로 진입했는지 여부 (외부 탭 진입 시 정정 모드 해제 판별용)
+    var modifyEnteredFromUnfilled by mutableStateOf(false); private set
+
+    /** 미체결 주문 수정 모드 진입 — 해당 종목 로드 + 가격 세팅 */
+    fun enterModifyMode(order: com.trueedu.tong.model.dto.kis.KisUnfilledOrder, accountId: Long) {
+        modifyEnteredFromUnfilled = true
+        modifyOrder = order
+        val newCode = order.code
+        val newPrice = order.ordPrice
+        // 종목 로드 (이미 같은 종목이면 호가만 유지, 다르면 전환)
+        if (newCode != code) {
+            code = newCode
+            stockName = order.name
+            kisQuoteManager.start(newCode.removePrefix("A"))
+        }
+        price = newPrice.toLongOrNull()?.toString() ?: newPrice
+        quantity = order.remainQty
+        isMarket = false
+    }
+
+    fun exitModifyMode() {
+        modifyOrder = null
+        modifyEnteredFromUnfilled = false
+    }
+
+    /** 외부(다른 bottom tab)에서 주문 탭으로 진입 시 호출 — 정정 모드 해제 */
+    fun onOrderTabEntered() {
+        if (modifyEnteredFromUnfilled) {
+            // 미체결→주문 탭 전환으로 진입한 경우는 해제하지 않음
+            modifyEnteredFromUnfilled = false
+        } else {
+            // 외부에서 진입 → 정정 모드 해제
+            modifyOrder = null
+        }
+    }
+
+    /** 정정 주문 실행 */
+    fun submitModify(statusVm: OrderStatusViewModel) {
+        val order = modifyOrder ?: return
+        val acc = account ?: return
+        viewModelScope.launch {
+            orderState = OrderState.Loading
+            statusVm.modify(order, price.toLongOrNull() ?: 0L)
+            modifyOrder = null
+            orderState = OrderState.Idle
+        }
+    }
 }
