@@ -31,9 +31,14 @@ data class KiwoomHolding(
 // kt00001 응답 - 예수금
 @Serializable
 data class KiwoomDepositResponse(
-    @SerialName("pymn_alow_amt") val deposit: String = "",  // 출금가능금액 (D+0 예수금)
-    @SerialName("d1_entra") val depositD1: String = "",     // D+1 추정예수금
-    @SerialName("d2_entra") val depositD2: String = "",     // D+2 추정예수금
+    @SerialName("pymn_alow_amt") val deposit: String = "",          // 출금가능금액 (D+0 예수금)
+    @SerialName("d1_entra") val depositD1: String = "",             // D+1 추정예수금
+    @SerialName("d2_entra") val depositD2Raw: String = "",          // D+2 추정예수금 (보통 0)
+    @SerialName("100stk_ord_alow_amt") val depositD2Temp: String = "", // 임시: D+2 대체값
     @SerialName("return_code") val returnCode: Int = 0,
     @SerialName("return_msg") val returnMsg: String = "",
-)
+) {
+    // D+2: d2_entra가 0이면 100stk_ord_alow_amt 사용
+    val depositD2: String get() =
+        if (depositD2Raw.trimStart('0').isNotEmpty()) depositD2Raw else depositD2Temp
+}
