@@ -36,6 +36,7 @@ class KisQuoteManager @Inject constructor(
 
     val quoteData = mutableStateOf<KisQuoteResponse?>(null)
     val realtimeQuote = mutableStateOf<KisRealTimeQuote?>(null)
+    val priceData = mutableStateOf<com.trueedu.tong.model.dto.kis.KisPriceDetail?>(null)
 
     // approval key는 KisRealPriceManager에서 관리 — 여기서는 setter로 받아서 사용
     var approvalKey: String = ""
@@ -44,6 +45,7 @@ class KisQuoteManager @Inject constructor(
         currentCode = code
         quoteData.value = null
         realtimeQuote.value = null
+        priceData.value = null
         sendQuoteSubscribe(code, subscribe = true)
         scope.launch {
             val kisAccount = brokerAccountRepo.getAll().first()
@@ -84,16 +86,25 @@ class KisQuoteManager @Inject constructor(
     private suspend fun fetchInitialQuote(account: BrokerAccount, code: String) {
         try {
             val token = tokenManager.getValidToken(account).getOrElse { return }
-            val headers = mapOf(
+            val commonHeaders = mapOf(
                 "authorization" to "Bearer $token",
                 "appkey" to credentialStorage.getAppKey(account.id),
                 "appsecret" to credentialStorage.getAppSecret(account.id),
-                "tr_id" to "FHKST01010200",
                 "custtype" to "P",
             )
-            val queries = mapOf("FID_COND_MRKT_DIV_CODE" to "J", "FID_INPUT_ISCD" to code)
-            val resp = priceService.getQuote(headers, queries)
-            if (code == currentCode) quoteData.value = resp.body()
-        } catch (e: Exception) { Timber.e(e, "KisQuoteManager: 호가 조회 실패") }
+            // 호가 조회
+            val quoteResp = priceService.getQuote(
+                commonHeaders + mapOf("tr_id" to "FHKST01010200"),
+                mapOf("FID_COND_MRKT_DIV_CODE" to "J", "FID_INPUT_ISCD" to code)
+            )
+            if (code == currentCode) quoteData.value = quoteResp.body()
+
+            // 현재가/HLOCW 조회
+            val priceResp = priceService.getCurrentPrice(
+                commonHeaders + mapOf("tr_id" to "FHKST01010100"),
+                mapOf("FID_COND_MRKT_DIV_CODE" to "J", "FID_INPUT_ISCD" to code)
+            )
+            if (code == currentCode) priceData.value = priceResp.body()?.output
+        } catch (e: Exception) { Timber.e(e, "KisQuoteManager: 조회 실패") }
     }
 }
