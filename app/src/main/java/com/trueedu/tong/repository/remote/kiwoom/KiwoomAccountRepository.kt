@@ -36,6 +36,7 @@ class KiwoomAccountRepository @Inject constructor(
             "acnt_prdt_cd" to "01",
             "bass_dt" to "",
             "sort_tp" to "1",
+            "qry_tp" to "0",  // 0: 전체, 1: 종목별
         )
         val balanceResp = service.getBalance(balanceHeaders, balanceBody)
         Timber.d("KiwoomAccountRepository: kt00018 응답코드=${balanceResp.code()}, body=${balanceResp.body()}, error=${balanceResp.errorBody()?.string()}")
