@@ -117,9 +117,12 @@ class KisRealPriceManager @Inject constructor(
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Timber.e(t, "KisRealPriceManager: onFailure")
                 connected = false
-                // 2초 후 재연결
+                val currentAccount = account ?: return
+                // 재연결 시 approval key 재발급 (ALREADY IN USE 오류 방지)
                 scope.launch {
                     delay(2000)
+                    val newKey = fetchApprovalKey(currentAccount) ?: return@launch
+                    approvalKey = newKey
                     connect(subscribedCodes.toList())
                 }
             }
