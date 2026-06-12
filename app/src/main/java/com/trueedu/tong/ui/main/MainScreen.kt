@@ -1,6 +1,7 @@
 package com.trueedu.tong.ui.main
 
 import android.annotation.SuppressLint
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalNavigationDrawer
@@ -10,6 +11,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.trueedu.tong.ui.views.order.OrderViewModel
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.navigation.NavHostController
@@ -50,10 +54,12 @@ fun MainScreen(
         content = {
             Scaffold(
                 bottomBar = {
+                    val orderVm: OrderViewModel = hiltViewModel(LocalContext.current as ComponentActivity)
                     HomeBottomNavigation(
                         navController = navController,
                         currentTab = currentTab,
                         onTabSelected = { currentTab = it },
+                        onOrderTabClicked = { orderVm.onOrderTabEntered() },
                     )
                 },
             ) { innerPadding ->
