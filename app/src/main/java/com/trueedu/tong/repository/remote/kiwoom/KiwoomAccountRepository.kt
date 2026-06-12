@@ -67,8 +67,8 @@ class KiwoomAccountRepository @Inject constructor(
         val depositResp = service.getDeposit(depositHeaders, depositBody)
         val depositData = depositResp.body() ?: error("키움 예수금 응답 없음")
 
-        Timber.d("KiwoomAccountRepository: kt00018 returnCode=${balanceBody2.returnCode}, holdings=${balanceBody2.holdings.size}개, summary=${balanceBody2.summary}")
-        val summary = balanceBody2.summary
+        Timber.d("KiwoomAccountRepository: kt00018 returnCode=${balanceBody2.returnCode}, holdings=${balanceBody2.holdings.size}개, summary=${balanceBody2.summaryList.firstOrNull()}")
+        val summary = balanceBody2.summaryList.firstOrNull()
         val holdings = balanceBody2.holdings
             .filter { it.quantity.toDoubleOrNull()?.let { q -> q > 0 } == true }
             .map { h ->
