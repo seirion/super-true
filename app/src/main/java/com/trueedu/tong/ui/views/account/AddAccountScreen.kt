@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -35,7 +37,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -92,20 +96,16 @@ fun AddAccountScreen(
                 onSelected = vm::onBrokerTypeChange,
             )
 
-            OutlinedTextField(
+            PasteTextField(
                 value = vm.accountNum,
                 onValueChange = vm::onAccountNumChange,
-                label = { Text("계좌번호") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                label = "계좌번호",
             )
 
-            OutlinedTextField(
+            PasteTextField(
                 value = vm.appKey,
                 onValueChange = vm::onAppKeyChange,
-                label = { Text("App Key") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                label = "App Key",
             )
 
             SecretTextField(
@@ -182,10 +182,38 @@ private fun BrokerTypeDropdown(
 }
 
 @Composable
+private fun PasteTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+) {
+    val clipboard = LocalClipboardManager.current
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        singleLine = true,
+        trailingIcon = {
+            IconButton(onClick = {
+                clipboard.getText()?.text?.let { onValueChange(it) }
+            }) {
+                Icon(
+                    imageVector = Icons.Filled.ContentPaste,
+                    contentDescription = "붙여넣기",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
 private fun SecretTextField(
     value: String,
     onValueChange: (String) -> Unit,
 ) {
+    val clipboard = LocalClipboardManager.current
     var visible by remember { mutableStateOf(false) }
 
     OutlinedTextField(
@@ -196,12 +224,23 @@ private fun SecretTextField(
         visualTransformation = if (visible) VisualTransformation.None
             else PasswordVisualTransformation(),
         trailingIcon = {
-            IconButton(onClick = { visible = !visible }) {
-                Icon(
-                    imageVector = if (visible) Icons.Filled.Visibility
-                        else Icons.Filled.VisibilityOff,
-                    contentDescription = if (visible) "숨기기" else "표시",
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = {
+                    clipboard.getText()?.text?.let { onValueChange(it) }
+                }) {
+                    Icon(
+                        imageVector = Icons.Filled.ContentPaste,
+                        contentDescription = "붙여넣기",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                IconButton(onClick = { visible = !visible }) {
+                    Icon(
+                        imageVector = if (visible) Icons.Filled.Visibility
+                            else Icons.Filled.VisibilityOff,
+                        contentDescription = if (visible) "숨기기" else "표시",
+                    )
+                }
             }
         },
         modifier = Modifier.fillMaxWidth(),
