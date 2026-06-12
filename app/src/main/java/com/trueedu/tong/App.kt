@@ -6,6 +6,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.trueedu.tong.data.realtime.KisRealPriceManager
 import com.trueedu.tong.repository.local.Local
 import dagger.hilt.EntryPoint
 import dagger.hilt.EntryPoints
@@ -25,6 +26,7 @@ class App : Application(), LifecycleEventObserver {
     @InstallIn(SingletonComponent::class)
     interface InjectModule {
         fun getLocal(): Local
+        fun getKisRealPriceManager(): KisRealPriceManager
     }
 
     override fun onCreate() {
@@ -34,22 +36,29 @@ class App : Application(), LifecycleEventObserver {
             Timber.plant(Timber.DebugTree())
         }
 
-        val local = entryPointInjector(InjectModule::class.java).getLocal()
-        local.migrate()
+        val injector = entryPointInjector(InjectModule::class.java)
+        injector.getLocal().migrate()
+        kisRealPriceManager = injector.getKisRealPriceManager()
 
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
     }
+
+    private lateinit var kisRealPriceManager: KisRealPriceManager
 
     override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
         when (event) {
             Lifecycle.Event.ON_START -> {
                 foreground = true
                 Timber.d("app onStart")
+                // 포그라운드 복귀 시 실시간 시세 재개 (마지막 구독 종목으로)
+                kisRealPriceManager.resume()
             }
 
             Lifecycle.Event.ON_STOP -> {
                 foreground = false
                 Timber.d("app onStop")
+                // 백그라운드 진입 시 WebSocket 연결 해제
+                kisRealPriceManager.pause()
             }
 
             else -> {}
