@@ -67,8 +67,7 @@ class KiwoomAccountRepository @Inject constructor(
         val depositResp = service.getDeposit(depositHeaders, depositBody)
         val depositData = depositResp.body() ?: error("키움 예수금 응답 없음")
 
-        Timber.d("KiwoomAccountRepository: kt00018 returnCode=${balanceBody2.returnCode}, holdings=${balanceBody2.holdings.size}개, summary=${balanceBody2.summaryList.firstOrNull()}")
-        val summary = balanceBody2.summaryList.firstOrNull()
+        Timber.d("KiwoomAccountRepository: kt00018 returnCode=${balanceBody2.returnCode}, holdings=${balanceBody2.holdings.size}개")
         val holdings = balanceBody2.holdings
             .filter { it.quantity.toDoubleOrNull()?.let { q -> q > 0 } == true }
             .map { h ->
@@ -84,10 +83,9 @@ class KiwoomAccountRepository @Inject constructor(
                 )
             }
 
-        val totalBuy = summary?.totalBuyAmount?.toDoubleOrNull() ?: 0.0
-        val totalAsset = summary?.totalAsset?.toDoubleOrNull() ?: 0.0
-        val profitTotal = summary?.profitLossTotal?.toDoubleOrNull() ?: 0.0
-        val profitRate = if (totalBuy > 0) profitTotal / totalBuy * 100 else 0.0
+        val totalAsset = balanceBody2.estimatedAsset.toDoubleOrNull() ?: 0.0
+        val profitTotal = balanceBody2.totalProfitLoss.toDoubleOrNull() ?: 0.0
+        val profitRate = balanceBody2.totalProfitRate.toDoubleOrNull() ?: 0.0
 
         AccountSummary(
             accountId = account.id,
