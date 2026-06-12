@@ -17,7 +17,11 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import com.trueedu.tong.utils.logD
+import com.trueedu.tong.utils.logE
 import timber.log.Timber
+import com.trueedu.tong.utils.logI
+import com.trueedu.tong.utils.logW
 import javax.inject.Singleton
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration

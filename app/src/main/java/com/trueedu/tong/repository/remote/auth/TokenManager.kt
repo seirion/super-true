@@ -9,7 +9,10 @@ import com.trueedu.tong.repository.remote.kis.KisAuthService
 import com.trueedu.tong.repository.remote.kiwoom.KiwoomAuthService
 import com.trueedu.tong.repository.remote.ls.LsAuthService
 import retrofit2.Retrofit
-import timber.log.Timber
+import com.trueedu.tong.utils.logD
+import com.trueedu.tong.utils.logE
+import com.trueedu.tong.utils.logI
+import com.trueedu.tong.utils.logW
 import java.text.SimpleDateFormat
 import java.util.Locale
 import javax.inject.Inject
@@ -40,7 +43,7 @@ class TokenManager @Inject constructor(
             return Result.success(cached)
         }
 
-        Timber.d("TokenManager: 토큰 갱신 - accountId=${account.id}, broker=${account.brokerType}")
+        logD("TokenManager: 토큰 갱신 - accountId=${account.id}, broker=${account.brokerType}")
         return refreshToken(account)
     }
 

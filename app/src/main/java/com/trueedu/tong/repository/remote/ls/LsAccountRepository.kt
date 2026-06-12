@@ -11,7 +11,10 @@ import com.trueedu.tong.model.dto.ls.LsDepositRequest
 import com.trueedu.tong.repository.local.CredentialStorage
 import com.trueedu.tong.repository.remote.auth.TokenManager
 import retrofit2.Retrofit
-import timber.log.Timber
+import com.trueedu.tong.utils.logD
+import com.trueedu.tong.utils.logE
+import com.trueedu.tong.utils.logI
+import com.trueedu.tong.utils.logW
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -42,7 +45,7 @@ class LsAccountRepository @Inject constructor(
             LsBalanceRequest(LsBalanceInBlock()),
         )
         val balanceData = balanceResp.body() ?: error("LS 잔고 응답 없음")
-        Timber.d("LS t0424: rsp_cd=${balanceData.rspCd}, holdings=${balanceData.holdings.size}")
+        logD("LS t0424: rsp_cd=${balanceData.rspCd}, holdings=${balanceData.holdings.size}")
         // LS rsp_cd 성공: "00000"
         if (balanceData.rspCd.isNotBlank() && balanceData.rspCd != "00000") {
             error("LS 잔고 오류: ${balanceData.rspMsg}")
@@ -54,7 +57,7 @@ class LsAccountRepository @Inject constructor(
             LsDepositRequest(LsDepositInBlock(acntNo = account.accountNum)),
         )
         val depositData = depositResp.body()
-        Timber.d("LS CSPAQ12200: rsp_cd=${depositData?.rspCd}")
+        logD("LS CSPAQ12200: rsp_cd=${depositData?.rspCd}")
 
         val summary = balanceData.summary
         val holdings = balanceData.holdings

@@ -17,7 +17,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import retrofit2.Retrofit
-import timber.log.Timber
+import com.trueedu.tong.utils.logD
+import com.trueedu.tong.utils.logE
+import com.trueedu.tong.utils.logI
+import com.trueedu.tong.utils.logW
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -105,6 +108,6 @@ class KisQuoteManager @Inject constructor(
                 mapOf("FID_COND_MRKT_DIV_CODE" to "J", "FID_INPUT_ISCD" to code)
             )
             if (code == currentCode) priceData.value = priceResp.body()?.output
-        } catch (e: Exception) { Timber.e(e, "KisQuoteManager: 조회 실패") }
+        } catch (e: Exception) { logE(e, "KisQuoteManager: 조회 실패") }
     }
 }
