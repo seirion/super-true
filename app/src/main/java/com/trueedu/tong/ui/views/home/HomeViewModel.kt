@@ -88,12 +88,14 @@ class HomeViewModel @Inject constructor(
     }
 
     // 선택된 계좌와 무관하게, KIS 계좌가 하나라도 있으면 해당 계좌로 실시간 시세 구독
+    // 종목코드 정규화: 키움 등은 "A000660" 형식 → KIS WebSocket은 "000660" 형식
     private fun startRealtimeIfKis(codes: List<String>) {
         viewModelScope.launch {
             val allAccounts = brokerAccountRepo.getAll().first()
             val kisAccount = allAccounts.firstOrNull { it.brokerType == BrokerType.KIS }
             if (kisAccount != null && codes.isNotEmpty()) {
-                kisRealPriceManager.start(kisAccount, codes)
+                val normalizedCodes = codes.map { it.removePrefix("A") }
+                kisRealPriceManager.start(kisAccount, normalizedCodes)
             }
         }
     }
