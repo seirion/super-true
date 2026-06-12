@@ -57,6 +57,7 @@ object NetworkModule {
             prettyPrint = true
             isLenient = false
             explicitNulls = false
+            encodeDefaults = true  // default 값 필드도 직렬화 (grant_type 등)
         }
     }
 
