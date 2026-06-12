@@ -87,7 +87,8 @@ fun OrderScreen(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(vm.code, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            if (vm.stockName.isNotBlank()) Text(vm.stockName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(vm.code, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             vm.account?.let {
                                 Text(it.brokerType.displayName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }

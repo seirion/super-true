@@ -130,7 +130,7 @@ fun HomeScreen(
                             initialPrice = initialPrices[holding.code.removePrefix("A")],
                             onClick = {
                                 selectedAccount?.let { acc ->
-                                    orderVm.selectStock(holding.code, acc.id)
+                                    orderVm.selectStock(holding.code, holding.name, acc.id)
                                     navController?.navigate(com.trueedu.tong.ui.views.home.BottomNavItem.Order) {
                                         popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                         launchSingleTop = true
