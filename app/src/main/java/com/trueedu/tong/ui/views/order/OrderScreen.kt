@@ -118,9 +118,10 @@ fun OrderScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    HlocwItem("시", pd.open)
-                    HlocwItem("고", pd.high)
-                    HlocwItem("저", pd.low)
+                    val prevClose = pd.close.toDoubleOrNull() ?: 0.0
+                    HlocwItem("시", pd.open, prevClose = prevClose)
+                    HlocwItem("고", pd.high, prevClose = prevClose)
+                    HlocwItem("저", pd.low, prevClose = prevClose)
                     HlocwItem("종", pd.close)
                     HlocwItem("량", pd.volume, isVolume = true)
                 }
@@ -227,7 +228,12 @@ private fun OrderBookColumn(
 }
 
 @Composable
-private fun HlocwItem(label: String, value: String, isVolume: Boolean = false) {
+private fun HlocwItem(
+    label: String,
+    value: String,
+    isVolume: Boolean = false,
+    prevClose: Double = 0.0,
+) {
     val formatted = if (isVolume) {
         val v = value.toLongOrNull() ?: 0L
         when {
@@ -238,9 +244,14 @@ private fun HlocwItem(label: String, value: String, isVolume: Boolean = false) {
     } else {
         NumberFormatter.formatCash(value.toDoubleOrNull() ?: 0.0)
     }
+    val valueColor = if (isVolume || prevClose == 0.0) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        ChartColor.color((value.toDoubleOrNull() ?: 0.0) - prevClose)
+    }
     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(formatted, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
+        Text(formatted, style = MaterialTheme.typography.labelSmall, color = valueColor)
     }
 }
 
