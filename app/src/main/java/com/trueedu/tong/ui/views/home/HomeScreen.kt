@@ -228,40 +228,52 @@ private fun AccountInfoSection(
         Triple(summary.totalAsset, summary.totalProfitAmount, summary.totalProfitRate)
     }
 
+    val profitLabel = if (marketPriceMode && realtimePrices.isNotEmpty()) "일간 " else ""
+    val profitText = "$profitLabel${NumberFormatter.formatCashWithSign(displayProfit)}원 " +
+        "(${NumberFormatter.formatRate(displayProfitRate)})"
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = if (expanded) 16.dp else 8.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "${NumberFormatter.formatCash(displayAsset)}원",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f),
-            )
-            IconButton(onClick = onRefresh) {
-                Icon(
-                    imageVector = Icons.Filled.Refresh,
-                    contentDescription = "새로고침",
-                )
-            }
-        }
-
         if (expanded) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "${NumberFormatter.formatCash(displayAsset)}원",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = onRefresh) {
+                    Icon(
+                        imageVector = Icons.Filled.Refresh,
+                        contentDescription = "새로고침",
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(4.dp))
 
-            val profitLabel = if (marketPriceMode && realtimePrices.isNotEmpty()) "일간" else ""
             Text(
-                text = "$profitLabel ${NumberFormatter.formatCashWithSign(displayProfit)}원 " +
-                    "(${NumberFormatter.formatRate(displayProfitRate)})",
+                text = profitText,
                 style = MaterialTheme.typography.bodyMedium,
                 color = ChartColor.color(displayProfit),
             )
+        } else {
+            // 접힘: 수익/수익률만 한 줄
+            Text(
+                text = profitText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = ChartColor.color(displayProfit),
+            )
+        }
+
+        if (expanded) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
