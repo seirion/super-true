@@ -51,6 +51,7 @@ import com.trueedu.tong.utils.NumberFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    navController: androidx.navigation.NavController? = null,
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val selectedAccount by vm.selectedAccount.collectAsStateWithLifecycle()
@@ -125,7 +126,15 @@ fun HomeScreen(
                             marketPriceMode = vm.marketPriceMode,
                             realtimePrice = realtimePrices[holding.code.removePrefix("A")],
                             initialPrice = initialPrices[holding.code.removePrefix("A")],
-                            onClick = {},
+                            onClick = {
+                                selectedAccount?.let { acc ->
+                                    vm.selectForOrder(holding.code, acc.id)
+                                    navController?.navigate(com.trueedu.tong.ui.views.home.BottomNavItem.Order) {
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            },
                         )
                         HorizontalDivider()
                     }

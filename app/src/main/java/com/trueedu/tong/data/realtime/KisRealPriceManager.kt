@@ -36,6 +36,7 @@ class KisRealPriceManager @Inject constructor(
     private val wsService: KisWebSocketService,
     private val credentialStorage: CredentialStorage,
     private val tokenManager: TokenManager,
+    private val quoteManager: KisQuoteManager,
     private val json: Json,
 ) {
     private val authService: KisAuthService by lazy { retrofit.create(KisAuthService::class.java) }
@@ -220,10 +221,16 @@ class KisRealPriceManager @Inject constructor(
                 val parts = text.split("|")
                 if (parts.size < 4) return
                 val trId = parts[1]
-                if (trId == "H0STCNT0") {
-                    val trade = KisRealTimeTrade.from(parts[3])
-                    priceMap[trade.code] = trade
-                    scope.launch { _tradeFlow.emit(trade) }
+                when (trId) {
+                    "H0STCNT0" -> {
+                        val trade = KisRealTimeTrade.from(parts[3])
+                        priceMap[trade.code] = trade
+                        scope.launch { _tradeFlow.emit(trade) }
+                    }
+                    "H0STASP0" -> {
+                        val quote = com.trueedu.tong.model.ws.KisRealTimeQuote.from(parts[3])
+                        quoteManager.onRealtimeQuote(quote)
+                    }
                 }
             }
             text.contains("PINGPONG") -> {
