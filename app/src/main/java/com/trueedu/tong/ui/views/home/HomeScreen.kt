@@ -13,9 +13,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -128,6 +132,7 @@ private fun ErrorHome(
     message: String,
     onRetry: () -> Unit,
 ) {
+    val clipboard = LocalClipboardManager.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -142,8 +147,20 @@ private fun ErrorHome(
             color = MaterialTheme.colorScheme.error,
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = onRetry) {
-            Text("재시도")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onRetry) {
+                Text("재시도")
+            }
+            OutlinedButton(onClick = {
+                clipboard.setText(AnnotatedString(message))
+            }) {
+                Icon(
+                    imageVector = Icons.Filled.ContentCopy,
+                    contentDescription = "복사",
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+                Text("복사")
+            }
         }
     }
 }
