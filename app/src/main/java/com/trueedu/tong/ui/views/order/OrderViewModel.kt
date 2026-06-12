@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trueedu.tong.data.realtime.KisQuoteManager
+import com.trueedu.tong.utils.logD
 import com.trueedu.tong.data.realtime.KisRealPriceManager
 import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.dto.order.OrderRequest
@@ -133,6 +134,7 @@ class OrderViewModel @Inject constructor(
 
     fun placeOrder(isBuy: Boolean) {
         val acc = account ?: return
+        logD("OrderViewModel.placeOrder: code=$code, brokerType=${acc.brokerType}, accountId=${acc.id}")
         viewModelScope.launch {
             orderState = OrderState.Loading
             val req = OrderRequest(
