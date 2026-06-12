@@ -178,13 +178,22 @@ class OrderViewModel @Inject constructor(
     }
 
     /** 외부(다른 bottom tab)에서 주문 탭으로 진입 시 호출 — 정정 모드 해제 */
-    fun onOrderTabEntered() {
+    fun onOrderTabEntered(selectedAccountId: Long = -1L) {
         if (modifyEnteredFromUnfilled) {
-            // 미체결→주문 탭 전환으로 진입한 경우는 해제하지 않음
             modifyEnteredFromUnfilled = false
         } else {
-            // 외부에서 진입 → 정정 모드 해제
             modifyOrder = null
+            // 현재 선택된 계좌가 다르면 account 업데이트
+            if (selectedAccountId != -1L && selectedAccountId != account?.id) {
+                local.selectedOrderAccountId = selectedAccountId
+                viewModelScope.launch {
+                    val acc = brokerAccountRepo.getAll().first().find { it.id == selectedAccountId }
+                    if (acc != null) {
+                        account = acc
+                        stockName = ""  // 계좌 바뀌면 종목 이름도 초기화
+                    }
+                }
+            }
         }
     }
 

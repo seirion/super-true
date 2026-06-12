@@ -8,6 +8,7 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,11 +56,18 @@ fun MainScreen(
             Scaffold(
                 bottomBar = {
                     val orderVm: OrderViewModel = hiltViewModel(LocalContext.current as ComponentActivity)
+                    val homeVm: com.trueedu.tong.ui.views.home.HomeViewModel = hiltViewModel(LocalContext.current as ComponentActivity)
+                    val selectedAccount by homeVm.selectedAccount.collectAsState()
                     HomeBottomNavigation(
                         navController = navController,
                         currentTab = currentTab,
                         onTabSelected = { currentTab = it },
-                        onOrderTabClicked = { orderVm.onOrderTabEntered() },
+                        onOrderTabClicked = {
+                            // 주문 탭 진입 시 현재 선택된 계좌로 업데이트
+                            selectedAccount?.let { acc ->
+                                orderVm.onOrderTabEntered(acc.id)
+                            } ?: orderVm.onOrderTabEntered()
+                        },
                     )
                 },
             ) { innerPadding ->
