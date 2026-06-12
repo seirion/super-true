@@ -41,16 +41,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
 import com.trueedu.tong.data.realtime.InitialPrice
 import com.trueedu.tong.model.account.AccountSummary
 import com.trueedu.tong.model.account.HoldingStock
 import com.trueedu.tong.model.ws.KisRealTimeTrade
 import com.trueedu.tong.ui.theme.ChartColor
+import com.trueedu.tong.ui.views.order.OrderRoute
 import com.trueedu.tong.utils.NumberFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    navController: NavHostController,
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val selectedAccount by vm.selectedAccount.collectAsStateWithLifecycle()
@@ -125,7 +128,13 @@ fun HomeScreen(
                             marketPriceMode = vm.marketPriceMode,
                             realtimePrice = realtimePrices[holding.code.removePrefix("A")],
                             initialPrice = initialPrices[holding.code.removePrefix("A")],
-                            onClick = {},
+                            onClick = {
+                                selectedAccount?.id?.let { accountId ->
+                                    navController.navigate(
+                                        OrderRoute(code = holding.code, accountId = accountId),
+                                    )
+                                }
+                            },
                         )
                         HorizontalDivider()
                     }
