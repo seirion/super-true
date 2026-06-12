@@ -83,6 +83,7 @@ fun OrderScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
+        Column {
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -110,7 +111,23 @@ fun OrderScreen(
                 },
                 navigationIcon = {},
             )
-        },
+            // HLOCW 한 줄
+            val pd = vm.priceData.value
+            if (pd != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    HlocwItem("시", pd.open)
+                    HlocwItem("고", pd.high)
+                    HlocwItem("저", pd.low)
+                    HlocwItem("전", pd.close)
+                    HlocwItem("량", pd.volume, isVolume = true)
+                }
+            }
+            HorizontalDivider()
+        }
+    },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             val isLoading = vm.orderState is OrderViewModel.OrderState.Loading
@@ -206,6 +223,24 @@ private fun OrderBookColumn(
         buys.forEach { (p, q) ->
             QuoteRow(price = p, qty = q, isSell = false, currentPrice = currentPrice, onClick = { onPriceClick(p) })
         }
+    }
+}
+
+@Composable
+private fun HlocwItem(label: String, value: String, isVolume: Boolean = false) {
+    val formatted = if (isVolume) {
+        val v = value.toLongOrNull() ?: 0L
+        when {
+            v >= 1_000_000 -> "${v / 1_000_000}M"
+            v >= 1_000 -> "${v / 1_000}K"
+            else -> v.toString()
+        }
+    } else {
+        NumberFormatter.formatCash(value.toDoubleOrNull() ?: 0.0)
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(formatted, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
