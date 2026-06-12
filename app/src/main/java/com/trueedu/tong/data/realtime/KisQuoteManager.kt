@@ -10,10 +10,12 @@ import com.trueedu.tong.repository.BrokerAccountRepository
 import com.trueedu.tong.repository.local.CredentialStorage
 import com.trueedu.tong.repository.remote.auth.TokenManager
 import com.trueedu.tong.repository.remote.kis.KisPriceService
+import com.trueedu.tong.repository.remote.kis.KisWebSocketService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
 import retrofit2.Retrofit
 import timber.log.Timber
 import javax.inject.Inject
@@ -25,6 +27,8 @@ class KisQuoteManager @Inject constructor(
     private val credentialStorage: CredentialStorage,
     private val tokenManager: TokenManager,
     private val brokerAccountRepo: BrokerAccountRepository,
+    private val wsService: KisWebSocketService,
+    private val json: kotlinx.serialization.json.Json,
 ) {
     private val priceService: KisPriceService by lazy { retrofit.create(KisPriceService::class.java) }
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -33,19 +37,45 @@ class KisQuoteManager @Inject constructor(
     val quoteData = mutableStateOf<KisQuoteResponse?>(null)
     val realtimeQuote = mutableStateOf<KisRealTimeQuote?>(null)
 
+    // approval key는 KisRealPriceManager에서 관리 — 여기서는 setter로 받아서 사용
+    var approvalKey: String = ""
+
     fun start(code: String) {
         currentCode = code
         quoteData.value = null
         realtimeQuote.value = null
+        sendQuoteSubscribe(code, subscribe = true)
         scope.launch {
-            // 항상 KIS 계좌를 사용
             val kisAccount = brokerAccountRepo.getAll().first()
                 .firstOrNull { it.brokerType == BrokerType.KIS } ?: return@launch
             fetchInitialQuote(kisAccount, code)
         }
     }
 
-    fun stop() { currentCode = null; quoteData.value = null; realtimeQuote.value = null }
+    fun stop() {
+        currentCode?.let { sendQuoteSubscribe(it, subscribe = false) }
+        currentCode = null
+        quoteData.value = null
+        realtimeQuote.value = null
+    }
+
+    private fun sendQuoteSubscribe(code: String, subscribe: Boolean) {
+        if (approvalKey.isEmpty()) return
+        val trId = KisRealPriceManager.quoteTransactionId()
+        val req = com.trueedu.tong.model.ws.KisWsRequest(
+            header = com.trueedu.tong.model.ws.KisWsHeader(
+                approvalKey = approvalKey,
+                transactionType = if (subscribe) "1" else "2",
+            ),
+            body = com.trueedu.tong.model.ws.KisWsBody(
+                input = com.trueedu.tong.model.ws.KisWsBodyInput(
+                    transactionId = trId,
+                    transactionKey = code,
+                )
+            )
+        )
+        wsService.send(json.encodeToString(req))
+    }
 
     fun onRealtimeQuote(quote: KisRealTimeQuote) {
         if (quote.code == currentCode) realtimeQuote.value = quote
