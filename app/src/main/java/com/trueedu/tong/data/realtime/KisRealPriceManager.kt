@@ -78,6 +78,28 @@ class KisRealPriceManager @Inject constructor(
         initialPriceMap.clear()
     }
 
+    /** 백그라운드 진입 시: WebSocket만 끊고 구독 목록/계좌는 유지 */
+    fun pause() {
+        if (!connected) return
+        Timber.d("KisRealPriceManager: pause")
+        wsService.disconnect()
+        connected = false
+    }
+
+    /** 포그라운드 복귀 시: 기존 구독 목록으로 재연결 + 초기값 재조회 */
+    fun resume() {
+        val currentAccount = account ?: return
+        val codes = subscribedCodes.toList()
+        if (codes.isEmpty()) return
+        Timber.d("KisRealPriceManager: resume (${codes.size}종목)")
+        scope.launch { fetchInitialPrices(currentAccount, codes) }
+        scope.launch {
+            val key = fetchApprovalKey(currentAccount) ?: return@launch
+            approvalKey = key
+            connect(codes)
+        }
+    }
+
     fun subscribe(codes: List<String>) {
         if (!connected || approvalKey.isEmpty()) return
         codes.forEach { code ->
