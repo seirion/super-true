@@ -45,6 +45,7 @@ import com.trueedu.tong.data.realtime.InitialPrice
 import com.trueedu.tong.model.account.AccountSummary
 import com.trueedu.tong.model.account.HoldingStock
 import com.trueedu.tong.model.ws.KisRealTimeTrade
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.trueedu.tong.ui.theme.ChartColor
 import com.trueedu.tong.utils.NumberFormatter
 
@@ -130,6 +131,7 @@ fun HomeScreen(
                                 selectedAccount?.let { acc ->
                                     vm.selectForOrder(holding.code, acc.id)
                                     navController?.navigate(com.trueedu.tong.ui.views.home.BottomNavItem.Order) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                         launchSingleTop = true
                                         restoreState = true
                                     }
