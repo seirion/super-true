@@ -11,8 +11,8 @@ import retrofit2.http.HeaderMap
 import retrofit2.http.POST
 
 interface LsOrderStatusService {
-    // t0425 미체결/체결 조회
-    @POST("stock/order")
+    // t0425 미체결/체결 조회 (잔고와 동일한 stock/accno endpoint)
+    @POST("stock/accno")
     suspend fun getOrders(
         @HeaderMap headers: Map<String, String>,
         @Body body: LsOrderStatusRequest,
