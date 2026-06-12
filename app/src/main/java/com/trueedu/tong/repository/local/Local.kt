@@ -36,4 +36,7 @@ class Local @Inject constructor(private val preferences: SharedPreferences) {
     var forceDark by preferences.boolean(true)
     var theme by preferences.int(1)
     var keepScreenOn by preferences.boolean(false)
+
+    // 홈화면 시세/평가 모드 (true=시세, false=평가)
+    var marketPriceMode by preferences.boolean(true)
 }

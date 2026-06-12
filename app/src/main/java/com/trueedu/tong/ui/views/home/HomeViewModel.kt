@@ -12,6 +12,7 @@ import com.trueedu.tong.model.account.AccountSummary
 import com.trueedu.tong.model.ws.KisRealTimeTrade
 import com.trueedu.tong.repository.AccountCacheRepository
 import com.trueedu.tong.repository.BrokerAccountRepository
+import com.trueedu.tong.repository.local.Local
 import com.trueedu.tong.repository.remote.AccountSummaryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +32,7 @@ class HomeViewModel @Inject constructor(
     private val accountSummaryUseCase: AccountSummaryUseCase,
     private val cacheRepo: AccountCacheRepository,
     private val kisRealPriceManager: KisRealPriceManager,
+    private val local: Local,
 ) : ViewModel() {
 
     // 선택된 계좌
@@ -49,12 +51,13 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
-    // 표시 모드: false=평가, true=시세
-    var marketPriceMode by mutableStateOf(false)
+    // 표시 모드: false=평가, true=시세 (SharedPreferences에 영속 저장)
+    var marketPriceMode by mutableStateOf(local.marketPriceMode)
         private set
 
     fun toggleMode() {
         marketPriceMode = !marketPriceMode
+        local.marketPriceMode = marketPriceMode
     }
 
     // KIS 실시간 체결가 (종목코드 → 최신 체결). 체결 발생 시 갱신.
