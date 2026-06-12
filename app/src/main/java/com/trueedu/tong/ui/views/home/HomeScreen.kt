@@ -15,8 +15,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -38,6 +40,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.trueedu.tong.model.account.AccountSummary
 import com.trueedu.tong.model.account.HoldingStock
+import com.trueedu.tong.model.ws.KisRealTimeTrade
 import com.trueedu.tong.ui.theme.ChartColor
 import com.trueedu.tong.utils.NumberFormatter
 
@@ -48,12 +51,26 @@ fun HomeScreen(
 ) {
     val selectedAccount by vm.selectedAccount.collectAsStateWithLifecycle()
     val uiState by vm.uiState.collectAsStateWithLifecycle()
+    val realtimePrices by vm.realtimePrices.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("홈") },
                 actions = {
+                    Row(modifier = Modifier.padding(end = 8.dp)) {
+                        FilterChip(
+                            selected = !vm.marketPriceMode,
+                            onClick = { if (vm.marketPriceMode) vm.toggleMode() },
+                            label = { Text("평가") },
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        FilterChip(
+                            selected = vm.marketPriceMode,
+                            onClick = { if (!vm.marketPriceMode) vm.toggleMode() },
+                            label = { Text("시세") },
+                        )
+                    }
                     IconButton(onClick = vm::refresh) {
                         Icon(
                             imageVector = Icons.Filled.Refresh,
@@ -90,7 +107,12 @@ fun HomeScreen(
                         HorizontalDivider()
                     }
                     items(summary.holdings, key = { it.code }) { holding ->
-                        HoldingStockItem(holding = holding, onClick = {})
+                        HoldingStockItem(
+                            holding = holding,
+                            marketPriceMode = vm.marketPriceMode,
+                            realtimePrice = realtimePrices[holding.code],
+                            onClick = {},
+                        )
                         HorizontalDivider()
                     }
                 }
@@ -258,6 +280,8 @@ private fun DepositColumn(
 @Composable
 private fun HoldingStockItem(
     holding: HoldingStock,
+    marketPriceMode: Boolean,
+    realtimePrice: KisRealTimeTrade?,
     onClick: () -> Unit,
 ) {
     Row(
@@ -281,19 +305,46 @@ private fun HoldingStockItem(
             )
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(
-                text = "${NumberFormatter.formatCash(holding.evaluationAmount)}원",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "${NumberFormatter.formatCashWithSign(holding.profitAmount)} " +
-                    "(${NumberFormatter.formatRate(holding.profitRate)})",
-                style = MaterialTheme.typography.bodySmall,
-                color = ChartColor.color(holding.profitAmount),
-            )
+            if (marketPriceMode) {
+                // 시세 모드: 현재가 / 일간등락 / 등락률
+                val currentPrice = realtimePrice?.price ?: holding.currentPrice
+                Text(
+                    text = if (currentPrice != null) {
+                        "${NumberFormatter.formatCash(currentPrice)}원"
+                    } else {
+                        "-"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = if (realtimePrice != null) {
+                        "${NumberFormatter.formatCashWithSign(realtimePrice.delta)} " +
+                            "(${NumberFormatter.formatRate(realtimePrice.rate)})"
+                    } else {
+                        "-"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ChartColor.color(realtimePrice?.delta ?: 0.0),
+                )
+            } else {
+                // 평가 모드: 평가금액 / 손익금액 (손익률)
+                Text(
+                    text = "${NumberFormatter.formatCash(holding.evaluationAmount)}원",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "${NumberFormatter.formatCashWithSign(holding.profitAmount)} " +
+                        "(${NumberFormatter.formatRate(holding.profitRate)})",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ChartColor.color(holding.profitAmount),
+                )
+            }
         }
     }
 }
