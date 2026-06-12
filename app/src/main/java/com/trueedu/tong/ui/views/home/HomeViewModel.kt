@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -79,18 +80,21 @@ class HomeViewModel @Inject constructor(
         val cached = cacheRepo.load(account.id)
         if (cached != null) {
             _uiState.value = UiState.Success(cached)
-            startRealtimeIfKis(account, cached)
+            startRealtimeIfKis(cached.holdings.map { it.code })
             return
         }
         // 캐시 없으면 API 호출
         fetchAndCache(account)
     }
 
-    // KIS 계좌이면 보유 종목 코드로 실시간 시세 구독 시작
-    private fun startRealtimeIfKis(account: BrokerAccount, summary: AccountSummary) {
-        if (account.brokerType == BrokerType.KIS) {
-            val codes = summary.holdings.map { it.code }
-            kisRealPriceManager.start(account, codes)
+    // 선택된 계좌와 무관하게, KIS 계좌가 하나라도 있으면 해당 계좌로 실시간 시세 구독
+    private fun startRealtimeIfKis(codes: List<String>) {
+        viewModelScope.launch {
+            val allAccounts = brokerAccountRepo.getAll().first()
+            val kisAccount = allAccounts.firstOrNull { it.brokerType == BrokerType.KIS }
+            if (kisAccount != null && codes.isNotEmpty()) {
+                kisRealPriceManager.start(kisAccount, codes)
+            }
         }
     }
 
@@ -106,7 +110,7 @@ class HomeViewModel @Inject constructor(
             .onSuccess {
                 cacheRepo.save(it)
                 _uiState.value = UiState.Success(it)
-                startRealtimeIfKis(account, it)
+                startRealtimeIfKis(it.holdings.map { h -> h.code })
             }
             .onFailure { _uiState.value = UiState.Error(it.message ?: "오류가 발생했습니다") }
     }
