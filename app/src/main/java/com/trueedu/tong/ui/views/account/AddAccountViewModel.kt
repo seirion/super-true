@@ -26,6 +26,9 @@ class AddAccountViewModel @Inject constructor(
     var appSecret by mutableStateOf("")
         private set
 
+    var saved by mutableStateOf(false)
+        private set
+
     val isValid: Boolean
         get() = name.isNotBlank() &&
             accountNum.isNotBlank() &&
@@ -45,6 +48,8 @@ class AddAccountViewModel @Inject constructor(
             brokerType = brokerType,
             accountNum = accountNum.trim(),
         )
-        repo.insert(account, appKey.trim(), appSecret.trim())
+        val id = repo.insert(account, appKey.trim(), appSecret.trim())
+        repo.select(id)  // 새로 추가한 계좌를 바로 선택
+        saved = true
     }
 }

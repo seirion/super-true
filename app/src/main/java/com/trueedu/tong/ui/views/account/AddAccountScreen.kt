@@ -29,6 +29,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,6 +50,11 @@ fun AddAccountScreen(
     vm: AddAccountViewModel = hiltViewModel(),
 ) {
     val scope = rememberCoroutineScope()
+
+    // 저장 완료 시 화면 닫기
+    LaunchedEffect(vm.saved) {
+        if (vm.saved) onBack()
+    }
 
     Scaffold(
         topBar = {
@@ -113,7 +119,6 @@ fun AddAccountScreen(
                 onClick = {
                     scope.launch {
                         vm.saveAccount()
-                        onBack()
                     }
                 },
                 enabled = vm.isValid,
