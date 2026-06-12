@@ -18,7 +18,7 @@ data class KisPriceDetail(
     @SerialName("stck_hgpr") val high: String = "",       // 고가
     @SerialName("stck_lwpr") val low: String = "",        // 저가
     @SerialName("stck_oprc") val open: String = "",       // 시가
-    @SerialName("stck_clpr") val close: String = "",      // 전일종가
+    @SerialName("stck_prdy_clpr") val close: String = "",  // 전일종가
     @SerialName("acml_vol") val volume: String = "",      // 누적거래량
     @SerialName("acml_tr_pbmn") val tradeAmount: String = "", // 누적거래대금
 )
