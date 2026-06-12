@@ -44,7 +44,7 @@ class OrderViewModel @Inject constructor(
     var price by mutableStateOf(""); private set
 
     // 수정 모드: null=신규주문, 값있으면=미체결 주문 수정
-    var modifyOrder by mutableStateOf<com.trueedu.tong.model.dto.kis.KisUnfilledOrder?>(null); private set
+    var modifyOrder by mutableStateOf<com.trueedu.tong.model.dto.order.UnfilledOrderItem?>(null); private set
     val isModifyMode get() = modifyOrder != null
 
     sealed class OrderState {
@@ -154,7 +154,7 @@ class OrderViewModel @Inject constructor(
     var modifyEnteredFromUnfilled by mutableStateOf(false); private set
 
     /** 미체결 주문 수정 모드 진입 — 해당 종목 로드 + 가격 세팅 */
-    fun enterModifyMode(order: com.trueedu.tong.model.dto.kis.KisUnfilledOrder, accountId: Long) {
+    fun enterModifyMode(order: com.trueedu.tong.model.dto.order.UnfilledOrderItem, accountId: Long) {
         modifyEnteredFromUnfilled = true
         modifyOrder = order
         val newCode = order.code
@@ -165,8 +165,8 @@ class OrderViewModel @Inject constructor(
             stockName = order.name
             kisQuoteManager.start(newCode.removePrefix("A"))
         }
-        price = newPrice.toLongOrNull()?.toString() ?: newPrice
-        quantity = order.remainQty
+        price = newPrice.toString()
+        quantity = order.remainQty.toString()
         isMarket = false
     }
 
