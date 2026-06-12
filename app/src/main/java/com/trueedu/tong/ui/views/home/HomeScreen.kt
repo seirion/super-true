@@ -110,7 +110,7 @@ fun HomeScreen(
                         HoldingStockItem(
                             holding = holding,
                             marketPriceMode = vm.marketPriceMode,
-                            realtimePrice = realtimePrices[holding.code],
+                            realtimePrice = realtimePrices[holding.code.removePrefix("A")],
                             onClick = {},
                         )
                         HorizontalDivider()
