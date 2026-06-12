@@ -61,6 +61,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -124,6 +125,10 @@ private fun OrderEntryTab(
     val currentPrice = rtPrice?.price ?: quoteOutput2?.price?.toDoubleOrNull() ?: 0.0
     val delta = rtPrice?.delta ?: quoteOutput2?.delta?.toDoubleOrNull() ?: 0.0
     val rate = rtPrice?.rate ?: quoteOutput2?.rate?.toDoubleOrNull() ?: 0.0
+    val prevClose = if (currentPrice > 0 && delta != 0.0) currentPrice - delta
+                   else vm.priceData.value?.let {
+                       it.close.toDoubleOrNull()?.let { c -> if (c > 0) c else null }
+                   } ?: 0.0
 
     val rtQuote = vm.realtimeQuote.value
     val restQuote = vm.quoteData.value?.output1
@@ -239,8 +244,9 @@ private fun OrderEntryTab(
                 sells = sells,
                 buys = buys,
                 currentPrice = currentPrice,
+                prevClose = prevClose,
                 onPriceClick = { vm.setPrice(it) },
-                modifier = Modifier.width(160.dp).fillMaxHeight(),
+                modifier = Modifier.width(190.dp).fillMaxHeight(),
             )
             VerticalDivider()
             // 우: 주문 입력
@@ -285,6 +291,7 @@ private fun OrderBookColumn(
     sells: List<Pair<Double, Double>>,
     buys: List<Pair<Double, Double>>,
     currentPrice: Double,
+    prevClose: Double,
     onPriceClick: (Double) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -294,11 +301,11 @@ private fun OrderBookColumn(
     }
     Column(modifier = modifier.verticalScroll(scrollState)) {
         sells.forEach { (p, q) ->
-            QuoteRow(price = p, qty = q, isSell = true, currentPrice = currentPrice, onClick = { onPriceClick(p) })
+            QuoteRow(price = p, qty = q, isSell = true, currentPrice = currentPrice, prevClose = prevClose, onClick = { onPriceClick(p) })
         }
         HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.primary)
         buys.forEach { (p, q) ->
-            QuoteRow(price = p, qty = q, isSell = false, currentPrice = currentPrice, onClick = { onPriceClick(p) })
+            QuoteRow(price = p, qty = q, isSell = false, currentPrice = currentPrice, prevClose = prevClose, onClick = { onPriceClick(p) })
         }
     }
 }
@@ -337,11 +344,18 @@ private fun QuoteRow(
     qty: Double,
     isSell: Boolean,
     currentPrice: Double,
+    prevClose: Double = 0.0,
     onClick: () -> Unit,
 ) {
     val bgColor = if (isSell) ChartColor.fall.copy(alpha = 0.08f) else ChartColor.rise.copy(alpha = 0.08f)
     val priceColor = if (isSell) ChartColor.fall else ChartColor.rise
     val isCurrent = price == currentPrice
+    val rateStr = if (prevClose > 0) {
+        val rate = (price - prevClose) / prevClose * 100
+        String.format("%.2f%%", rate)
+    } else ""
+    val rateColor = if (prevClose > 0) ChartColor.color(price - prevClose) else MaterialTheme.colorScheme.onSurfaceVariant
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -352,12 +366,22 @@ private fun QuoteRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(
-            text = NumberFormatter.formatCash(price),
-            style = MaterialTheme.typography.bodySmall,
-            color = priceColor,
-            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(
+                text = NumberFormatter.formatCash(price),
+                style = MaterialTheme.typography.bodySmall,
+                color = priceColor,
+                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+            )
+            if (rateStr.isNotEmpty()) {
+                Text(
+                    text = rateStr,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = rateColor,
+                    fontSize = 9.sp,
+                )
+            }
+        }
         Text(
             text = NumberFormatter.formatCash(qty),
             style = MaterialTheme.typography.bodySmall,
