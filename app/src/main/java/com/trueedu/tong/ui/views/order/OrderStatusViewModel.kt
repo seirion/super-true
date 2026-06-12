@@ -12,6 +12,7 @@ import com.trueedu.tong.repository.BrokerAccountRepository
 import com.trueedu.tong.repository.local.Local
 import com.trueedu.tong.repository.remote.kis.KisOrderStatusRepository
 import com.trueedu.tong.repository.remote.kiwoom.KiwoomOrderStatusRepository
+import com.trueedu.tong.repository.remote.ls.LsOrderStatusRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -22,6 +23,7 @@ class OrderStatusViewModel @Inject constructor(
     private val brokerAccountRepo: BrokerAccountRepository,
     private val kisStatusRepo: KisOrderStatusRepository,
     private val kiwoomStatusRepo: KiwoomOrderStatusRepository,
+    private val lsStatusRepo: LsOrderStatusRepository,
     private val local: Local,
 ) : ViewModel() {
 
@@ -116,6 +118,18 @@ class OrderStatusViewModel @Inject constructor(
                         },
                     )
                 }
+                BrokerType.LS -> {
+                    val unfilledResult = lsStatusRepo.getUnfilled(acc)
+                    val filledResult = lsStatusRepo.getFilled(acc)
+                    if (unfilledResult.isFailure) {
+                        state = StatusState.Error(unfilledResult.exceptionOrNull()?.message ?: "오류")
+                        return@launch
+                    }
+                    state = StatusState.Success(
+                        unfilled = unfilledResult.getOrDefault(emptyList()),
+                        filled = filledResult.getOrDefault(emptyList()),
+                    )
+                }
                 else -> {
                     state = StatusState.Error("${acc.brokerType.displayName}은 미체결/체결 조회를 지원하지 않습니다")
                 }
@@ -130,6 +144,7 @@ class OrderStatusViewModel @Inject constructor(
             val result = when (acc.brokerType) {
                 BrokerType.KIS -> kisStatusRepo.cancel(acc, order.orgNo, order.ordNo, order.code)
                 BrokerType.KIWOOM -> kiwoomStatusRepo.cancel(acc, order.ordNo, order.code, order.stexTp)
+                BrokerType.LS -> lsStatusRepo.cancel(acc, order.ordNo, order.code)
                 else -> return@launch
             }
             result
@@ -146,6 +161,7 @@ class OrderStatusViewModel @Inject constructor(
             val result = when (acc.brokerType) {
                 BrokerType.KIS -> kisStatusRepo.modify(acc, order.orgNo, order.ordNo, order.code, newPrice, qty)
                 BrokerType.KIWOOM -> kiwoomStatusRepo.modify(acc, order.ordNo, order.code, newPrice, qty, order.stexTp)
+                BrokerType.LS -> lsStatusRepo.modify(acc, order.ordNo, order.code, newPrice, qty)
                 else -> return@launch
             }
             result
