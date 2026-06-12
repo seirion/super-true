@@ -31,15 +31,15 @@ class KiwoomOrderRepository @Inject constructor(
         val resp = service.order(headers, body)
         val body2 = resp.body() ?: error("키움 주문 응답 없음")
         // return_code=3: 토큰 무효 → 강제 갱신 후 1회 재시도
-        if (body2.returnCode == 3) {
+        val finalBody = if (body2.returnCode == 3) {
             val newToken = tokenManager.refreshToken(account).getOrThrow()
             val retryHeaders = headers.toMutableMap().apply { this["authorization"] = "Bearer $newToken" }
             val retryResp = service.order(retryHeaders, body)
-            val retryBody = retryResp.body() ?: error("키움 주문 재시도 응답 없음")
-            if (retryBody.returnCode != 0) error("키움 주문 오류: ${retryBody.returnMsg}")
-            return OrderResult(success = true, ordNo = retryBody.ordNo, message = retryBody.returnMsg)
+            retryResp.body() ?: error("키움 주문 재시도 응답 없음")
+        } else {
+            body2
         }
-        if (body2.returnCode != 0) error("키움 주문 오류: ${body2.returnMsg}")
-        OrderResult(success = true, ordNo = body2.ordNo, message = body2.returnMsg)
+        if (finalBody.returnCode != 0) error("키움 주문 오류: ${finalBody.returnMsg}")
+        OrderResult(success = true, ordNo = finalBody.ordNo, message = finalBody.returnMsg)
     }
 }
