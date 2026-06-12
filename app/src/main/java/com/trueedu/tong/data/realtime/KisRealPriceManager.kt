@@ -73,6 +73,7 @@ class KisRealPriceManager @Inject constructor(
         scope.launch {
             val key = fetchApprovalKey(account) ?: return@launch
             approvalKey = key
+            quoteManager.approvalKey = key  // 호가 구독에도 동일 key 공유
             connect(codes)
         }
     }
@@ -103,6 +104,7 @@ class KisRealPriceManager @Inject constructor(
         scope.launch {
             val key = fetchApprovalKey(currentAccount) ?: return@launch
             approvalKey = key
+            quoteManager.approvalKey = key
             connect(codes)
         }
     }
@@ -122,6 +124,26 @@ class KisRealPriceManager @Inject constructor(
                 wsService.send(makeRequest(code, subscribe = false))
             }
         }
+    }
+
+    /** 호가 구독 (H0STASP0 or H0NXASP0) */
+    fun subscribeQuote(code: String) {
+        if (!connected || approvalKey.isEmpty()) return
+        val req = KisWsRequest(
+            header = KisWsHeader(approvalKey = approvalKey, transactionType = "1"),
+            body = KisWsBody(input = KisWsBodyInput(transactionId = quoteTransactionId(), transactionKey = code))
+        )
+        wsService.send(json.encodeToString(req))
+    }
+
+    /** 호가 구독 해제 */
+    fun unsubscribeQuote(code: String) {
+        if (approvalKey.isEmpty()) return
+        val req = KisWsRequest(
+            header = KisWsHeader(approvalKey = approvalKey, transactionType = "2"),
+            body = KisWsBody(input = KisWsBodyInput(transactionId = quoteTransactionId(), transactionKey = code))
+        )
+        wsService.send(json.encodeToString(req))
     }
 
     private suspend fun fetchApprovalKey(account: BrokerAccount): String? {
@@ -222,12 +244,12 @@ class KisRealPriceManager @Inject constructor(
                 if (parts.size < 4) return
                 val trId = parts[1]
                 when (trId) {
-                    "H0STCNT0" -> {
+                    "H0STCNT0", "H0NXCNT0" -> {
                         val trade = KisRealTimeTrade.from(parts[3])
                         priceMap[trade.code] = trade
                         scope.launch { _tradeFlow.emit(trade) }
                     }
-                    "H0STASP0" -> {
+                    "H0STASP0", "H0NXASP0" -> {
                         val quote = com.trueedu.tong.model.ws.KisRealTimeQuote.from(parts[3])
                         quoteManager.onRealtimeQuote(quote)
                     }
@@ -251,11 +273,26 @@ class KisRealPriceManager @Inject constructor(
             ),
             body = KisWsBody(
                 input = KisWsBodyInput(
-                    transactionId = "H0STCNT0",
+                    transactionId = tradeTransactionId(),
                     transactionKey = code,
                 )
             )
         )
         return json.encodeToString(req)
+    }
+
+    companion object {
+        /**
+         * NXT 운영 시간: 08:00~09:00, 15:30~20:00
+         */
+        fun isNxtTradingHour(): Boolean {
+            val cal = java.util.Calendar.getInstance()
+            val totalMinutes = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
+            return totalMinutes in 8 * 60 until 9 * 60 ||
+                   totalMinutes in 15 * 60 + 30 until 20 * 60
+        }
+
+        fun tradeTransactionId() = if (isNxtTradingHour()) "H0NXCNT0" else "H0STCNT0"
+        fun quoteTransactionId() = if (isNxtTradingHour()) "H0NXASP0" else "H0STASP0"
     }
 }
