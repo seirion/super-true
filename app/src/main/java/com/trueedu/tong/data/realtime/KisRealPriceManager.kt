@@ -10,7 +10,9 @@ import com.trueedu.tong.model.ws.KisWsBodyInput
 import com.trueedu.tong.model.ws.KisWsHeader
 import com.trueedu.tong.model.ws.KisWsRequest
 import com.trueedu.tong.repository.local.CredentialStorage
+import com.trueedu.tong.repository.remote.auth.TokenManager
 import com.trueedu.tong.repository.remote.kis.KisAuthService
+import com.trueedu.tong.repository.remote.kis.KisPriceService
 import com.trueedu.tong.repository.remote.kis.KisWebSocketService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,9 +35,11 @@ class KisRealPriceManager @Inject constructor(
     @KisRetrofitQualifier private val retrofit: Retrofit,
     private val wsService: KisWebSocketService,
     private val credentialStorage: CredentialStorage,
+    private val tokenManager: TokenManager,
     private val json: Json,
 ) {
     private val authService: KisAuthService by lazy { retrofit.create(KisAuthService::class.java) }
+    private val priceService: KisPriceService by lazy { retrofit.create(KisPriceService::class.java) }
     private val scope = CoroutineScope(Dispatchers.IO)
 
     private var approvalKey: String = ""
@@ -50,8 +54,15 @@ class KisRealPriceManager @Inject constructor(
     // 종목코드 → 최신 체결 데이터
     val priceMap = mutableStateMapOf<String, KisRealTimeTrade>()
 
+    // 종목코드 → REST API 초기 현재가 (WebSocket 첫 체결 전 fallback)
+    val initialPriceMap = mutableStateMapOf<String, InitialPrice>()
+    private val _initialPriceFlow = MutableSharedFlow<Map<String, InitialPrice>>(replay = 1)
+    val initialPriceFlow = _initialPriceFlow.asSharedFlow()
+
     fun start(account: BrokerAccount, codes: List<String>) {
         this.account = account
+        // 초기 현재가 조회는 WebSocket 연결과 병렬로 실행
+        scope.launch { fetchInitialPrices(account, codes) }
         scope.launch {
             val key = fetchApprovalKey(account) ?: return@launch
             approvalKey = key
@@ -64,6 +75,7 @@ class KisRealPriceManager @Inject constructor(
         wsService.disconnect()
         connected = false
         priceMap.clear()
+        initialPriceMap.clear()
     }
 
     fun subscribe(codes: List<String>) {
@@ -95,6 +107,50 @@ class KisRealPriceManager @Inject constructor(
         } catch (e: Exception) {
             Timber.e(e, "KIS approval key 발급 실패")
             null
+        }
+    }
+
+    /**
+     * 구독 종목들의 현재가를 REST API로 1회 조회하여 [initialPriceMap]에 채운다.
+     * WebSocket 첫 체결이 들어오기 전까지 빈 값 대신 이 값을 표시한다.
+     * KIS API 초당 20건 제한 → 각 요청 사이에 60ms 딜레이.
+     */
+    private suspend fun fetchInitialPrices(account: BrokerAccount, codes: List<String>) {
+        if (codes.isEmpty()) return
+        val token = tokenManager.getValidToken(account).getOrElse {
+            Timber.e(it, "KIS 초기 현재가: 토큰 발급 실패")
+            return
+        }
+        val headers = mapOf(
+            "authorization" to "Bearer $token",
+            "appkey" to credentialStorage.getAppKey(account.id),
+            "appsecret" to credentialStorage.getAppSecret(account.id),
+            "tr_id" to "FHKST01010100",
+            "custtype" to "P",
+        )
+        codes.forEach { code ->
+            try {
+                val queries = mapOf(
+                    "FID_COND_MRKT_DIV_CODE" to "J",
+                    "FID_INPUT_ISCD" to code,
+                )
+                val body = priceService.getCurrentPrice(headers, queries).body()
+                val output = body?.output
+                if (body?.rtCd == "0" && output != null) {
+                    initialPriceMap[code] = InitialPrice(
+                        code = code,
+                        price = output.price.toDoubleOrNull() ?: 0.0,
+                        delta = output.delta.toDoubleOrNull() ?: 0.0,
+                        rate = output.rate.toDoubleOrNull() ?: 0.0,
+                    )
+                    _initialPriceFlow.emit(initialPriceMap.toMap())
+                } else {
+                    Timber.w("KIS 초기 현재가 실패: code=$code, msg=${body?.msg1}")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "KIS 초기 현재가 조회 오류: code=$code")
+            }
+            delay(60) // 초당 20건 제한 대응
         }
     }
 
