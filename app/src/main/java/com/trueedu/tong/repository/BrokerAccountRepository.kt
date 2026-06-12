@@ -12,9 +12,10 @@ class BrokerAccountRepository @Inject constructor(
 ) {
     fun getAll(): Flow<List<BrokerAccount>> = dao.getAll()
 
-    suspend fun insert(account: BrokerAccount, appKey: String, appSecret: String): Long {
+    suspend fun insert(account: BrokerAccount, appKey: String, appSecret: String, password: String = ""): Long {
         val id = dao.insert(account)
         credentialStorage.saveCredentials(id, appKey, appSecret)
+        if (password.isNotBlank()) credentialStorage.savePassword(id, password)
         return id
     }
 

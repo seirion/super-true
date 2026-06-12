@@ -33,10 +33,18 @@ class KiwoomAccountRepository @Inject constructor(
         )
         val balanceBody = mapOf(
             "acnt_no" to account.accountNum,
-            "acnt_prdt_cd" to "01",
-            "bass_dt" to "",
-            "sort_tp" to "1",
-            "qry_tp" to "0",  // 0: 전체, 1: 종목별
+            "acnt_pw" to credentialStorage.getPassword(account.id),
+            "dmst_stex_tp" to "KRX",     // 국내거래소구분: KRX
+            "inqr_tp_code" to "0",       // 조회구분: 전체
+            "hist_dt" to "",
+            "stk_cd" to "",
+            "etf_tp_code" to "0",
+            "blnc_tp_code" to "0",
+            "ccld_tp_code" to "0",
+            "ord_gb_code" to "0",
+            "prdt_cd" to "0",
+            "inqr_cond_tp_code" to "0",
+            "inqr_sort_tp_code" to "0",
         )
         val balanceResp = service.getBalance(balanceHeaders, balanceBody)
         Timber.d("KiwoomAccountRepository: kt00018 응답코드=${balanceResp.code()}, body=${balanceResp.body()}, error=${balanceResp.errorBody()?.string()}")

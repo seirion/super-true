@@ -25,6 +25,8 @@ class AddAccountViewModel @Inject constructor(
         private set
     var appSecret by mutableStateOf("")
         private set
+    var password by mutableStateOf("")
+        private set
 
     var saved by mutableStateOf(false)
         private set
@@ -33,13 +35,15 @@ class AddAccountViewModel @Inject constructor(
         get() = name.isNotBlank() &&
             accountNum.isNotBlank() &&
             appKey.isNotBlank() &&
-            appSecret.isNotBlank()
+            appSecret.isNotBlank() &&
+            (brokerType != BrokerType.KIWOOM || password.isNotBlank())
 
     fun onNameChange(value: String) { name = value }
     fun onBrokerTypeChange(value: BrokerType) { brokerType = value }
     fun onAccountNumChange(value: String) { accountNum = value }
     fun onAppKeyChange(value: String) { appKey = value }
     fun onAppSecretChange(value: String) { appSecret = value }
+    fun onPasswordChange(value: String) { password = value }
 
     suspend fun saveAccount() {
         if (!isValid) return
@@ -48,7 +52,7 @@ class AddAccountViewModel @Inject constructor(
             brokerType = brokerType,
             accountNum = accountNum.trim(),
         )
-        val id = repo.insert(account, appKey.trim(), appSecret.trim())
+        val id = repo.insert(account, appKey.trim(), appSecret.trim(), password.trim())
         repo.select(id)  // 새로 추가한 계좌를 바로 선택
         saved = true
     }
