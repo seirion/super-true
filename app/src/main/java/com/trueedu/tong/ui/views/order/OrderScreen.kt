@@ -169,22 +169,25 @@ private fun OrderEntryTab(
                 },
                 navigationIcon = {},
             )
-            // HLOCW 한 줄
+            // HLOCW 두 줄 (1줄: 시고저종, 2줄: 량)
             val pd = vm.priceDetail
             if (pd != null) {
+                val closeValue = pd.close.toDoubleOrNull().let {
+                    if (it == null || it == 0.0) pd.price else pd.close
+                }
+                val prevClose = closeValue.toDoubleOrNull() ?: 0.0
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 1.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    // 종가: 장 중엔 현재가, 장 마감 후엔 종가
-                    val closeValue = pd.close.toDoubleOrNull().let {
-                        if (it == null || it == 0.0) pd.price else pd.close
-                    }
-                    val prevClose = closeValue.toDoubleOrNull() ?: 0.0
                     HlocwItem("시", pd.open, prevClose = prevClose)
                     HlocwItem("고", pd.high, prevClose = prevClose)
                     HlocwItem("저", pd.low, prevClose = prevClose)
                     HlocwItem("종", closeValue, prevClose = 0.0)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 1.dp),
+                ) {
                     HlocwItem("량", pd.volume, isVolume = true)
                 }
             }
