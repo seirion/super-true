@@ -25,3 +25,23 @@ annotation class KisRetrofit
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class KisOkHttp
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class KisRetrofitQualifier
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class KiwoomRetrofitQualifier
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class LsRetrofitQualifier
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class KiwoomOkHttp
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class LsOkHttp
