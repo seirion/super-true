@@ -36,7 +36,7 @@ class OrderViewModel @Inject constructor(
 
     val quoteData get() = kisQuoteManager.quoteData
     val realtimeQuote get() = kisQuoteManager.realtimeQuote
-    val priceData get() = kisQuoteManager.priceData  // HLOCW
+    val priceDetail get() = kisQuoteManager.priceData.value  // HLOCW - Composable에서 직접 읽기 위해 .value 노출
     val realtimePrice get() = kisPriceManager.priceMap[code.removePrefix("A")]
 
     var isMarket by mutableStateOf(false); private set

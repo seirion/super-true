@@ -126,7 +126,7 @@ private fun OrderEntryTab(
     val delta = rtPrice?.delta ?: quoteOutput2?.delta?.toDoubleOrNull() ?: 0.0
     val rate = rtPrice?.rate ?: quoteOutput2?.rate?.toDoubleOrNull() ?: 0.0
     // 전일종가: priceData의 stck_prdy_clpr 우선, 없으면 현재가-전일대비로 추정
-    val prevClose = vm.priceData.value?.close?.toDoubleOrNull()
+    val prevClose = vm.priceDetail?.close?.toDoubleOrNull()
         ?.let { if (it > 0) it else null }
         ?: if (currentPrice > 0 && delta != 0.0) currentPrice - delta
         else 0.0
@@ -170,7 +170,7 @@ private fun OrderEntryTab(
                 navigationIcon = {},
             )
             // HLOCW 한 줄
-            val pd = vm.priceData.value
+            val pd = vm.priceDetail
             if (pd != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
