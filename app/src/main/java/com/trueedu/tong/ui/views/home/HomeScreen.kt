@@ -54,6 +54,7 @@ import com.trueedu.tong.utils.NumberFormatter
 fun HomeScreen(
     navController: androidx.navigation.NavController? = null,
     vm: HomeViewModel = hiltViewModel(),
+    orderVm: com.trueedu.tong.ui.views.order.OrderViewModel = hiltViewModel(androidx.compose.ui.platform.LocalContext.current as androidx.activity.ComponentActivity),
 ) {
     val selectedAccount by vm.selectedAccount.collectAsStateWithLifecycle()
     val uiState by vm.uiState.collectAsStateWithLifecycle()
@@ -129,7 +130,7 @@ fun HomeScreen(
                             initialPrice = initialPrices[holding.code.removePrefix("A")],
                             onClick = {
                                 selectedAccount?.let { acc ->
-                                    vm.selectForOrder(holding.code, acc.id)
+                                    orderVm.selectStock(holding.code, acc.id)
                                     navController?.navigate(com.trueedu.tong.ui.views.home.BottomNavItem.Order) {
                                         popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                         launchSingleTop = true

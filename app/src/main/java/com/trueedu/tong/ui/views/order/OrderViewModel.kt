@@ -15,6 +15,7 @@ import com.trueedu.tong.repository.remote.OrderUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 @HiltViewModel
@@ -28,6 +29,9 @@ class OrderViewModel @Inject constructor(
 
     var code: String by mutableStateOf(""); private set
     var account: BrokerAccount? by mutableStateOf(null); private set
+
+    // 홈에서 종목 선택 시 증가 (OrderScreen의 LaunchedEffect key)
+    var pendingCode by mutableStateOf(""); private set
 
     val quoteData get() = kisQuoteManager.quoteData
     val realtimeQuote get() = kisQuoteManager.realtimeQuote
@@ -75,8 +79,12 @@ class OrderViewModel @Inject constructor(
         }
     }
 
-    /** 홈화면 종목 탭 시 호출 */
+    /** 홈화면 종목 탭 시 호출 (Local + pendingCode 업데이트) */
     fun selectStock(newCode: String, accountId: Long) {
+        local.selectedOrderCode = newCode
+        local.selectedOrderAccountId = accountId
+        local.selectedOrderTimestamp = System.currentTimeMillis()
+        pendingCode = newCode  // Compose가 변경 감지
         if (newCode == code && accountId == account?.id) return
         kisQuoteManager.stop()
         loadOrder(newCode, accountId)
