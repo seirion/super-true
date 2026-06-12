@@ -60,6 +60,12 @@ class KisRealPriceManager @Inject constructor(
     val initialPriceFlow = _initialPriceFlow.asSharedFlow()
 
     fun start(account: BrokerAccount, codes: List<String>) {
+        // 이미 연결된 상태라면 기존 연결 정리 후 재시작
+        if (connected || subscribedCodes.isNotEmpty()) {
+            wsService.disconnect()
+            connected = false
+            subscribedCodes.clear()
+        }
         this.account = account
         // 초기 현재가 조회는 WebSocket 연결과 병렬로 실행
         scope.launch { fetchInitialPrices(account, codes) }
