@@ -60,15 +60,15 @@ fun HomeScreen(
                 actions = {
                     Row(modifier = Modifier.padding(end = 8.dp)) {
                         FilterChip(
-                            selected = !vm.marketPriceMode,
-                            onClick = { if (vm.marketPriceMode) vm.toggleMode() },
-                            label = { Text("평가") },
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        FilterChip(
                             selected = vm.marketPriceMode,
                             onClick = { if (!vm.marketPriceMode) vm.toggleMode() },
                             label = { Text("시세") },
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        FilterChip(
+                            selected = !vm.marketPriceMode,
+                            onClick = { if (vm.marketPriceMode) vm.toggleMode() },
+                            label = { Text("평가") },
                         )
                     }
                     IconButton(onClick = vm::refresh) {
