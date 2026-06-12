@@ -19,6 +19,12 @@ class BrokerAccountRepository @Inject constructor(
         return id
     }
 
+    suspend fun update(account: BrokerAccount, appKey: String, appSecret: String, password: String = "") {
+        dao.update(account)
+        credentialStorage.saveCredentials(account.id, appKey, appSecret)
+        if (password.isNotBlank()) credentialStorage.savePassword(account.id, password)
+    }
+
     suspend fun delete(account: BrokerAccount) {
         dao.delete(account)
         credentialStorage.deleteCredentials(account.id)

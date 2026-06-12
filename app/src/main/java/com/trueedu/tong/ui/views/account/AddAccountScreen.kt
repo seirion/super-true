@@ -63,7 +63,7 @@ fun AddAccountScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("계좌 추가") },
+                title = { Text(if (vm.isEditMode) "계좌 수정" else "계좌 추가") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -134,7 +134,7 @@ fun AddAccountScreen(
                 enabled = vm.isValid,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("저장")
+                Text(if (vm.isEditMode) "계좌 수정" else "계좌 추가")
             }
         }
     }
