@@ -1,5 +1,8 @@
 package com.trueedu.tong.ui.views.home
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trueedu.tong.data.realtime.KisRealPriceManager
@@ -44,6 +47,14 @@ class HomeViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+
+    // 표시 모드: false=평가, true=시세
+    var marketPriceMode by mutableStateOf(false)
+        private set
+
+    fun toggleMode() {
+        marketPriceMode = !marketPriceMode
+    }
 
     // KIS 실시간 체결가 (종목코드 → 최신 체결). 체결 발생 시 갱신.
     // 일단 expose만 — UI 반영은 다음 단계.
