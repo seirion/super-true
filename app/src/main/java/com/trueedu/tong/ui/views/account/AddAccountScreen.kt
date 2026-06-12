@@ -111,7 +111,17 @@ fun AddAccountScreen(
             SecretTextField(
                 value = vm.appSecret,
                 onValueChange = vm::onAppSecretChange,
+                label = "App Secret",
             )
+
+            // brokerType이 KIWOOM일 때만 표시
+            if (vm.brokerType == BrokerType.KIWOOM) {
+                SecretTextField(
+                    value = vm.password,
+                    onValueChange = vm::onPasswordChange,
+                    label = "계좌 비밀번호",
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -212,6 +222,7 @@ private fun PasteTextField(
 private fun SecretTextField(
     value: String,
     onValueChange: (String) -> Unit,
+    label: String,
 ) {
     val clipboard = LocalClipboardManager.current
     var visible by remember { mutableStateOf(false) }
@@ -219,7 +230,7 @@ private fun SecretTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text("App Secret") },
+        label = { Text(label) },
         singleLine = true,
         visualTransformation = if (visible) VisualTransformation.None
             else PasswordVisualTransformation(),
