@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.trueedu.tong.data.realtime.InitialPrice
 import com.trueedu.tong.model.account.AccountSummary
 import com.trueedu.tong.model.account.HoldingStock
 import com.trueedu.tong.model.ws.KisRealTimeTrade
@@ -55,6 +56,7 @@ fun HomeScreen(
     val selectedAccount by vm.selectedAccount.collectAsStateWithLifecycle()
     val uiState by vm.uiState.collectAsStateWithLifecycle()
     val realtimePrices by vm.realtimePrices.collectAsStateWithLifecycle()
+    val initialPrices by vm.initialPrices.collectAsStateWithLifecycle()
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -111,6 +113,7 @@ fun HomeScreen(
                             summary = summary,
                             marketPriceMode = vm.marketPriceMode,
                             realtimePrices = realtimePrices,
+                            initialPrices = initialPrices,
                             expanded = vm.summaryExpanded,
                             onRefresh = vm::refresh,
                         )
@@ -121,6 +124,7 @@ fun HomeScreen(
                             holding = holding,
                             marketPriceMode = vm.marketPriceMode,
                             realtimePrice = realtimePrices[holding.code.removePrefix("A")],
+                            initialPrice = initialPrices[holding.code.removePrefix("A")],
                             onClick = {},
                         )
                         HorizontalDivider()
@@ -202,23 +206,30 @@ private fun AccountInfoSection(
     summary: AccountSummary,
     marketPriceMode: Boolean,
     realtimePrices: Map<String, KisRealTimeTrade>,
+    initialPrices: Map<String, InitialPrice>,
     expanded: Boolean,
     onRefresh: () -> Unit,
 ) {
+    // 실시간 데이터가 없으면 초기 현재가(REST)로 fallback
+    val hasPrices = realtimePrices.isNotEmpty() || initialPrices.isNotEmpty()
     // 시세 모드: 실시간 총자산/일간 수익 계산
-    val (displayAsset, displayProfit, displayProfitRate) = if (marketPriceMode && realtimePrices.isNotEmpty()) {
+    val (displayAsset, displayProfit, displayProfitRate) = if (marketPriceMode && hasPrices) {
         // 총 평가금액 = Σ(현재가 × 수량)
         val realtimeStockTotal = summary.holdings.sumOf { holding ->
-            val rt = realtimePrices[holding.code.removePrefix("A")]
-            (rt?.price ?: holding.currentPrice ?: holding.avgPrice) * holding.quantity
+            val code = holding.code.removePrefix("A")
+            val price = realtimePrices[code]?.price
+                ?: initialPrices[code]?.price
+                ?: holding.currentPrice ?: holding.avgPrice
+            price * holding.quantity
         }
         val deposit2 = summary.depositD2 ?: summary.deposit
         val totalAsset = realtimeStockTotal + deposit2
 
         // 일간 수익 = Σ(전일대비등락 × 수량)
         val dailyProfit = summary.holdings.sumOf { holding ->
-            val rt = realtimePrices[holding.code.removePrefix("A")]
-            (rt?.delta ?: 0.0) * holding.quantity
+            val code = holding.code.removePrefix("A")
+            val delta = realtimePrices[code]?.delta ?: initialPrices[code]?.delta ?: 0.0
+            delta * holding.quantity
         }
         // 일간 수익률 = 일간 수익 / 전일 총자산
         val prevAsset = totalAsset - dailyProfit
@@ -228,7 +239,7 @@ private fun AccountInfoSection(
         Triple(summary.totalAsset, summary.totalProfitAmount, summary.totalProfitRate)
     }
 
-    val profitLabel = if (marketPriceMode && realtimePrices.isNotEmpty()) "일간 " else ""
+    val profitLabel = if (marketPriceMode && hasPrices) "일간 " else ""
     val profitText = "$profitLabel${NumberFormatter.formatCashWithSign(displayProfit)}원 " +
         "(${NumberFormatter.formatRate(displayProfitRate)})"
 
@@ -327,6 +338,7 @@ private fun HoldingStockItem(
     holding: HoldingStock,
     marketPriceMode: Boolean,
     realtimePrice: KisRealTimeTrade?,
+    initialPrice: InitialPrice?,
     onClick: () -> Unit,
 ) {
     Row(
@@ -352,7 +364,10 @@ private fun HoldingStockItem(
         Column(horizontalAlignment = Alignment.End) {
             if (marketPriceMode) {
                 // 시세 모드: 현재가 / 일간등락 / 등락률
-                val currentPrice = realtimePrice?.price ?: holding.currentPrice
+                // 실시간 > 초기 현재가(REST) > 잔고 현재가 순으로 fallback
+                val currentPrice = realtimePrice?.price ?: initialPrice?.price ?: holding.currentPrice
+                val delta = realtimePrice?.delta ?: initialPrice?.delta
+                val rate = realtimePrice?.rate ?: initialPrice?.rate
                 Text(
                     text = if (currentPrice != null) {
                         "${NumberFormatter.formatCash(currentPrice)}원"
@@ -365,14 +380,14 @@ private fun HoldingStockItem(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = if (realtimePrice != null) {
-                        "${NumberFormatter.formatCashWithSign(realtimePrice.delta)} " +
-                            "(${NumberFormatter.formatRate(realtimePrice.rate)})"
+                    text = if (delta != null && rate != null) {
+                        "${NumberFormatter.formatCashWithSign(delta)} " +
+                            "(${NumberFormatter.formatRate(rate)})"
                     } else {
                         "-"
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = ChartColor.color(realtimePrice?.delta ?: 0.0),
+                    color = ChartColor.color(delta ?: 0.0),
                 )
             } else {
                 // 평가 모드: 평가금액 / 손익금액 (손익률)

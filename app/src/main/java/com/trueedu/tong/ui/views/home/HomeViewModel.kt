@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.trueedu.tong.data.realtime.InitialPrice
 import com.trueedu.tong.data.realtime.KisRealPriceManager
 import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.BrokerType
@@ -73,6 +74,10 @@ class HomeViewModel @Inject constructor(
     // 일단 expose만 — UI 반영은 다음 단계.
     val realtimePrices: StateFlow<Map<String, KisRealTimeTrade>> = kisRealPriceManager.tradeFlow
         .map { kisRealPriceManager.priceMap.toMap() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    // KIS 초기 현재가 (WebSocket 첫 체결 전 fallback)
+    val initialPrices: StateFlow<Map<String, InitialPrice>> = kisRealPriceManager.initialPriceFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     init {
