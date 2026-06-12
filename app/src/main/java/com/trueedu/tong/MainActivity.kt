@@ -5,6 +5,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.trueedu.tong.ui.main.MainNavigation
 import com.trueedu.tong.ui.main.MainScreen
 import com.trueedu.tong.ui.theme.TrueSuperTheme
@@ -16,6 +17,7 @@ class MainActivity : AppCompatActivity() {
     private val vm by viewModels<MainViewModel>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
 
         enableEdgeToEdge()
