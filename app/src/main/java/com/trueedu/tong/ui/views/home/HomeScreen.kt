@@ -232,9 +232,10 @@ private fun AccountInfoSection(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "총 자산",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = "${NumberFormatter.formatCash(displayAsset)}원",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = onRefresh) {
@@ -244,13 +245,6 @@ private fun AccountInfoSection(
                 )
             }
         }
-
-        Text(
-            text = "${NumberFormatter.formatCash(displayAsset)}원",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-        )
 
         Spacer(modifier = Modifier.height(4.dp))
 
