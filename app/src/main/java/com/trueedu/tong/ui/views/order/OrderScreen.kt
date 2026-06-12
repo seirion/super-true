@@ -371,22 +371,35 @@ private fun OrderInputRow(
     onIncrease: () -> Unit,
     onDecrease: () -> Unit,
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(36.dp))
-        IconButton(onClick = onDecrease, enabled = enabled, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Filled.Remove, null, modifier = Modifier.size(16.dp))
-        }
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.weight(1f),
-            enabled = enabled,
-            singleLine = true,
-            textStyle = MaterialTheme.typography.bodySmall,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // 레이블: 오른쪽 상단
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.align(Alignment.End).padding(end = 4.dp),
         )
-        IconButton(onClick = onIncrease, enabled = enabled, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            IconButton(onClick = onDecrease, enabled = enabled, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Filled.Remove, null, modifier = Modifier.size(20.dp))
+            }
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.weight(1f),
+                enabled = enabled,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.titleMedium.copy(
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                ),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            )
+            IconButton(onClick = onIncrease, enabled = enabled, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Filled.Add, null, modifier = Modifier.size(20.dp))
+            }
         }
     }
 }
