@@ -12,6 +12,7 @@ data class KisPriceResponse(
 
 @Serializable
 data class KisPriceDetail(
+    @SerialName("hts_kor_isnm") val nameKr: String = "",  // 종목명
     @SerialName("stck_prpr") val price: String = "",      // 현재가
     @SerialName("prdy_vrss") val delta: String = "",      // 전일대비
     @SerialName("prdy_ctrt") val rate: String = "",       // 등락률(%)

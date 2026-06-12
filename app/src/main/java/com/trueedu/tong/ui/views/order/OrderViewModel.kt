@@ -64,15 +64,22 @@ class OrderViewModel @Inject constructor(
         viewModelScope.launch {
             val savedCode = local.selectedOrderCode.ifBlank { DEFAULT_CODE }
             val savedAccountId = local.selectedOrderAccountId
-            // 계좌가 없어도 종목 코드는 세팅 (호가만 표시)
             val acc = if (savedAccountId != -1L) brokerAccountRepo.getAll().first().find { it.id == savedAccountId }
                       else brokerAccountRepo.getAll().first().firstOrNull()
             if (acc != null) {
                 loadOrder(savedCode, acc.id)
             } else {
-                // 계좌 없어도 종목코드는 저장
                 code = savedCode
             }
+        }
+        // priceData 로드 완료 시 stockName 자동 업데이트
+        viewModelScope.launch {
+            androidx.compose.runtime.snapshotFlow { kisQuoteManager.priceData.value }
+                .collect { detail ->
+                    if (detail != null && detail.nameKr.isNotBlank() && stockName.isBlank()) {
+                        stockName = detail.nameKr
+                    }
+                }
         }
     }
 
