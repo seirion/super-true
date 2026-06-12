@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Adaptive icon foreground: 골드색 대문자 S, 108x108dp 캔버스 중앙 배치
+    Adaptive icon safe zone: 72x72dp (중앙 66.7%), 실제 표시 영역은 center 72dp 이내
+    S path는 108dp 캔버스 기준 중앙(54,54) 정렬
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!--
+        S 자 path: viewportWidth/Height=108 기준.
+        글자 크기 약 64dp, 중앙 정렬 (x≈22, y≈22~86 범위).
+        Roboto Bold 'S' 를 단순화한 path.
+    -->
+    <path
+        android:fillColor="#DBC66E"
+        android:pathData="
+M54,22
+C38,22 26,31 26,43
+C26,55 36,60 50,63
+C64,66 70,69 70,76
+C70,83 63,88 54,88
+C44,88 36,83 33,76
+L26,80
+C30,90 41,96 54,96
+C68,96 78,87 78,76
+C78,64 68,59 54,56
+C40,53 34,50 34,43
+C34,36 43,30 54,30
+C63,30 70,34 73,41
+L80,37
+C76,28 66,22 54,22
+Z" />
+</vector>
