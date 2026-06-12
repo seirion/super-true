@@ -14,11 +14,16 @@ import androidx.navigation.compose.composable
 import com.trueedu.tong.ui.views.account.AddAccountScreen
 import com.trueedu.tong.ui.views.home.BottomNavItem
 import com.trueedu.tong.ui.views.home.HomeScreen
+import com.trueedu.tong.ui.views.menu.AccountTransferScreen
+import com.trueedu.tong.ui.views.menu.MenuScreen
 import com.trueedu.tong.ui.views.order.OrderScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class AddAccount(val accountId: Long = -1L)  // -1L = 신규 추가
+
+@Serializable
+data object AccountTransfer
 
 @Composable
 fun MainNavigation(
@@ -42,10 +47,13 @@ fun MainNavigation(
             OrderScreen()
         }
         composable<BottomNavItem.Menu> {
-            PlaceholderScreen("더보기 화면")
+            MenuScreen(navController = navController)
         }
         composable<AddAccount> {
             AddAccountScreen(onBack = { navController.popBackStack() })
+        }
+        composable<AccountTransfer> {
+            AccountTransferScreen(onBack = { navController.popBackStack() })
         }
     }
 }
