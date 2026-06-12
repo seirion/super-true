@@ -60,6 +60,15 @@ class HomeViewModel @Inject constructor(
         local.marketPriceMode = marketPriceMode
     }
 
+    // 요약 섹션 접기/펼치기 (SharedPreferences에 영속 저장)
+    var summaryExpanded by mutableStateOf(local.summaryExpanded)
+        private set
+
+    fun toggleSummary() {
+        summaryExpanded = !summaryExpanded
+        local.summaryExpanded = summaryExpanded
+    }
+
     // KIS 실시간 체결가 (종목코드 → 최신 체결). 체결 발생 시 갱신.
     // 일단 expose만 — UI 반영은 다음 단계.
     val realtimePrices: StateFlow<Map<String, KisRealTimeTrade>> = kisRealPriceManager.tradeFlow

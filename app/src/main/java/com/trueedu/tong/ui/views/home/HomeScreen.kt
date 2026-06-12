@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
@@ -71,10 +73,10 @@ fun HomeScreen(
                             label = { Text("평가") },
                         )
                     }
-                    IconButton(onClick = vm::refresh) {
+                    IconButton(onClick = vm::toggleSummary) {
                         Icon(
-                            imageVector = Icons.Filled.Refresh,
-                            contentDescription = "새로고침",
+                            imageVector = if (vm.summaryExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = if (vm.summaryExpanded) "요약 접기" else "요약 펼치기",
                         )
                     }
                 },
@@ -107,6 +109,7 @@ fun HomeScreen(
                             summary = summary,
                             marketPriceMode = vm.marketPriceMode,
                             realtimePrices = realtimePrices,
+                            expanded = vm.summaryExpanded,
                             onRefresh = vm::refresh,
                         )
                         HorizontalDivider()
@@ -197,6 +200,7 @@ private fun AccountInfoSection(
     summary: AccountSummary,
     marketPriceMode: Boolean,
     realtimePrices: Map<String, KisRealTimeTrade>,
+    expanded: Boolean,
     onRefresh: () -> Unit,
 ) {
     // 시세 모드: 실시간 총자산/일간 수익 계산
@@ -246,34 +250,36 @@ private fun AccountInfoSection(
             }
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        if (expanded) {
+            Spacer(modifier = Modifier.height(4.dp))
 
-        val profitLabel = if (marketPriceMode && realtimePrices.isNotEmpty()) "일간" else ""
-        Text(
-            text = "$profitLabel ${NumberFormatter.formatCashWithSign(displayProfit)}원 " +
-                "(${NumberFormatter.formatRate(displayProfitRate)})",
-            style = MaterialTheme.typography.bodyMedium,
-            color = ChartColor.color(displayProfit),
-        )
+            val profitLabel = if (marketPriceMode && realtimePrices.isNotEmpty()) "일간" else ""
+            Text(
+                text = "$profitLabel ${NumberFormatter.formatCashWithSign(displayProfit)}원 " +
+                    "(${NumberFormatter.formatRate(displayProfitRate)})",
+                style = MaterialTheme.typography.bodyMedium,
+                color = ChartColor.color(displayProfit),
+            )
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        Row(modifier = Modifier.fillMaxWidth()) {
-            DepositColumn(
-                label = "예수금",
-                value = summary.deposit,
-                modifier = Modifier.weight(1f),
-            )
-            DepositColumn(
-                label = "D+1 예수금",
-                value = summary.depositD1,
-                modifier = Modifier.weight(1f),
-            )
-            DepositColumn(
-                label = "D+2 예수금",
-                value = summary.depositD2,
-                modifier = Modifier.weight(1f),
-            )
+            Row(modifier = Modifier.fillMaxWidth()) {
+                DepositColumn(
+                    label = "예수금",
+                    value = summary.deposit,
+                    modifier = Modifier.weight(1f),
+                )
+                DepositColumn(
+                    label = "D+1 예수금",
+                    value = summary.depositD1,
+                    modifier = Modifier.weight(1f),
+                )
+                DepositColumn(
+                    label = "D+2 예수금",
+                    value = summary.depositD2,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
