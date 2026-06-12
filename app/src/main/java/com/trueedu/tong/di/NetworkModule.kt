@@ -105,6 +105,24 @@ object NetworkModule {
             .build()
     }
 
+    // WebSocket 전용: callTimeout/readTimeout=0 (long-lived connection)
+    @Provides
+    @Singleton
+    @KisWsOkHttp
+    fun providesKisWsOkHttpClient(
+        loggingInterceptor: HttpLoggingInterceptor,
+        chuckerInterceptor: ChuckerInterceptor,
+    ): OkHttpClient {
+        return OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .addInterceptor(chuckerInterceptor)
+            .connectTimeout(connectTimeout.toJavaDuration())
+            .callTimeout(java.time.Duration.ZERO)   // WebSocket은 timeout 없음
+            .writeTimeout(writeTimeout.toJavaDuration())
+            .readTimeout(java.time.Duration.ZERO)   // WebSocket은 읽기 timeout 없음
+            .build()
+    }
+
     @OptIn(ExperimentalSerializationApi::class)
     @Provides
     @Singleton

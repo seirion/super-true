@@ -1,5 +1,6 @@
 package com.trueedu.tong.repository.remote.kis
 
+import com.trueedu.tong.di.KisWsOkHttp
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.WebSocket
@@ -10,7 +11,7 @@ import javax.inject.Singleton
 
 @Singleton
 class KisWebSocketService @Inject constructor(
-    @com.trueedu.tong.di.KisOkHttp private val okHttpClient: OkHttpClient,
+    @KisWsOkHttp private val okHttpClient: OkHttpClient,
 ) {
     private val wsUrl = "ws://ops.koreainvestment.com:21000"
     private var webSocket: WebSocket? = null

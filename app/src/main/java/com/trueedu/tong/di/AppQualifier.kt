@@ -32,6 +32,10 @@ annotation class KisRetrofitQualifier
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
+annotation class KisWsOkHttp
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
 annotation class KiwoomRetrofitQualifier
 
 @Qualifier
