@@ -13,6 +13,7 @@ import com.trueedu.tong.model.CandlePeriod
 import com.trueedu.tong.model.ws.KisRealTimeTrade
 import com.trueedu.tong.repository.BrokerAccountRepository
 import com.trueedu.tong.repository.local.CredentialStorage
+import com.trueedu.tong.repository.local.Local
 import com.trueedu.tong.repository.remote.CandleRepository
 import com.trueedu.tong.utils.logD
 import com.trueedu.tong.utils.logW
@@ -31,6 +32,7 @@ class CandleViewModel @Inject constructor(
     private val brokerAccountRepo: BrokerAccountRepository,
     private val credentialStorage: CredentialStorage,
     private val kisRealPriceManager: KisRealPriceManager,
+    private val local: Local,
 ) : ViewModel() {
 
     sealed class State {
@@ -45,7 +47,7 @@ class CandleViewModel @Inject constructor(
 
     // 현재 선택된 기간 (기간 변경 시 재조회에 사용)
     var currentPeriod by mutableStateOf(CandlePeriod.DAY); private set
-    // 분봉 간격 (1, 3, 5, 10, 30, 60분)
+    // 분봉 간격 (1, 3, 5, 10, 30, 60분) — 앱 재시작 시 복원
     var minuteInterval by mutableStateOf(1); private set
 
     // 마지막으로 로드한 종목코드 (중복 호출 방지)
@@ -61,6 +63,8 @@ class CandleViewModel @Inject constructor(
     private val priority = listOf(BrokerType.KIWOOM, BrokerType.LS, BrokerType.KIS)
 
     init {
+        // 저장된 분봉 간격 복원
+        minuteInterval = local.lastMinuteInterval.takeIf { it in listOf(1, 3, 5, 10, 30, 60) } ?: 1
         // KIS WebSocket 실시간 체결 → 차트 갱신
         kisRealPriceManager.tradeFlow
             .onEach { trade -> updateWithRealtimeTrade(trade) }
@@ -131,6 +135,7 @@ class CandleViewModel @Inject constructor(
     fun changeMinuteInterval(interval: Int) {
         if (interval == minuteInterval && currentPeriod == CandlePeriod.MINUTE) return
         minuteInterval = interval
+        local.lastMinuteInterval = interval  // 저장
         if (currentCode.isNotBlank()) load(currentCode, CandlePeriod.MINUTE, force = true)
     }
 

@@ -32,6 +32,10 @@ class OrderViewModel @Inject constructor(
 ) : ViewModel() {
 
     var code: String by mutableStateOf(""); private set
+
+    // 마지막 탭 인덱스 (앱 재시작 시 복원)
+    val lastTabIndex: Int get() = local.lastOrderTabIndex
+    fun saveTabIndex(index: Int) { local.lastOrderTabIndex = index }
     var stockName: String by mutableStateOf(""); private set
     var account: BrokerAccount? by mutableStateOf(null); private set
 
