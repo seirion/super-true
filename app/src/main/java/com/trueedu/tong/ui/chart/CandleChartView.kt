@@ -99,12 +99,11 @@ fun CandleChartView(
             val plotHeight = totalHeightPx - dateAxisPx
 
             // 신규 데이터 로드 시 최신(우측 끝)으로 스냅
-            LaunchedEffect(needSnap, candleWidth, plotWidth, state.candles.size) {
-                if (needSnap && plotWidth > 0f) {
-                    val total = candleWidth * state.candles.size
-                    state.scrollOffset = maxOf(0f, total - plotWidth)
-                    needSnap = false
-                }
+            // plotWidth가 확정된 BoxWithConstraints 안에서 즉시 처리
+            if (needSnap && plotWidth > 0f && state.candles.isNotEmpty()) {
+                val total = candleWidth * state.candles.size
+                state.scrollOffset = maxOf(0f, total - plotWidth)
+                needSnap = false
             }
 
             val maList = remember(state.candles, config.maPeriods) {
