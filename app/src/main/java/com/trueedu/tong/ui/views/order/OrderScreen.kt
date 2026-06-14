@@ -75,9 +75,10 @@ import com.trueedu.tong.utils.NumberFormatter
 fun OrderScreen(
     vm: OrderViewModel = hiltViewModel(LocalContext.current as androidx.activity.ComponentActivity),
     statusVm: OrderStatusViewModel = hiltViewModel(LocalContext.current as androidx.activity.ComponentActivity),
+    stockInfoVm: StockInfoViewModel = hiltViewModel(LocalContext.current as androidx.activity.ComponentActivity),
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("주문", "미체결", "체결")
+    val tabs = listOf("주문", "미체결", "체결", "종목정보")
 
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
         TabRow(selectedTabIndex = selectedTab) {
@@ -87,6 +88,7 @@ fun OrderScreen(
                     onClick = {
                         selectedTab = index
                         if (index == 1 || index == 2) statusVm.load()
+                        if (index == 3) stockInfoVm.load(vm.code)
                     },
                     text = { Text(title) },
                 )
@@ -99,7 +101,8 @@ fun OrderScreen(
                     vm.enterModifyMode(order, vm.account?.id ?: -1L)
                     selectedTab = 0
                 })
-                else -> FilledOrderList(statusVm)
+                2 -> FilledOrderList(statusVm)
+                else -> StockInfoScreen(vm = stockInfoVm)
             }
         }
     }
