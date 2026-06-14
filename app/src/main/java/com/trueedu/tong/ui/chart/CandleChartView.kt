@@ -47,6 +47,7 @@ import timber.log.Timber
 fun CandleChartView(
     candles: List<CandleData>,
     period: CandlePeriod = CandlePeriod.DAY,
+    minuteInterval: Int = 1,
     config: ChartConfig = ChartConfig(),
     onLoadMore: () -> Unit = {},
     onPeriodChange: (CandlePeriod) -> Unit = {},
@@ -68,6 +69,7 @@ fun CandleChartView(
             state = state,
             selected = state.period,
             config = config,
+            minuteInterval = minuteInterval,
             onPeriodChange = { p ->
                 state.period = p
                 onPeriodChange(p)
@@ -254,16 +256,18 @@ private fun OhlcvRow(label: String, value: Double) {
     )
 }
 
-/** [분봉] [일봉] [주봉] [월봉] | MA 토글 */
+/** [1분봉] [일봉] [주봉] [월봉] | MA 토글 */
 @Composable
 private fun ChartControlBar(
     state: CandleChartState,
     selected: CandlePeriod,
     config: ChartConfig,
+    minuteInterval: Int = 1,
     onPeriodChange: (CandlePeriod) -> Unit,
 ) {
+    val minuteLabel = "${minuteInterval}분봉"
     val periods = listOf(
-        CandlePeriod.MINUTE to "분봉",
+        CandlePeriod.MINUTE to minuteLabel,
         CandlePeriod.DAY to "일봉",
         CandlePeriod.WEEK to "주봉",
         CandlePeriod.MONTH to "월봉",
