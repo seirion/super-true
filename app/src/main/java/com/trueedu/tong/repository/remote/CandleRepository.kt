@@ -15,6 +15,8 @@ import com.trueedu.tong.repository.remote.ls.LsCandleService
 import com.trueedu.tong.utils.logD
 import com.trueedu.tong.utils.logE
 import retrofit2.Retrofit
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.abs
@@ -49,11 +51,13 @@ class CandleRepository @Inject constructor(
             "cont-yn" to "N",
             "next-key" to "",
         )
+        val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
         val body = mapOf(
             "stk_cd" to shortCode,
-            "base_dt" to "",
+            "base_dt" to today,      // 오늘 날짜 기준 (필수값)
             "upd_stkpc_tp" to "1",   // 수정주가 적용
         )
+        logD("CandleRepo.fetchKiwoom: base_dt=$today")
         val resp = kiwoomService.getDailyCandles(headers, body)
         logD("CandleRepo.fetchKiwoom: httpCode=${resp.code()}, bodyNull=${resp.body() == null}")
         val data = resp.body() ?: error("키움 캔들 응답 없음: ${resp.code()}")
