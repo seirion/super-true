@@ -73,7 +73,8 @@ internal fun DrawScope.drawMaLine(
     for (i in range) {
         val v = maValues.getOrNull(i) ?: continue
         val cx = i * candleWidth - scrollOffset + candleWidth / 2f
-        val y = ChartMath.priceToY(v, minPrice, maxPrice, plotHeight)
+        // plotHeight 범위 내로 강제 제한 (캔들 영역 밖으로 나가지 않도록)
+        val y = ChartMath.priceToY(v, minPrice, maxPrice, plotHeight).coerceIn(0f, plotHeight)
         if (!started) {
             path.moveTo(cx, y)
             started = true
