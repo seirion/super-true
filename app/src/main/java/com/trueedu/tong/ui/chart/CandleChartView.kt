@@ -135,10 +135,11 @@ fun CandleChartView(
                 val (minPrice, maxPrice) =
                     ChartMath.priceRange(state.candles, range.first, range.last)
 
-                // 캔들 + MA 영역만 clipRect로 제한 (거래량 영역 침범 방지)
-                clipRect(left = 0f, top = 0f, right = plotWidth, bottom = plotHeight) {
-                    drawPriceGrid(minPrice, maxPrice, plotWidth, plotHeight, config)
+                // 가격 그리드 라벨은 plotWidth 오른쪽에 그려지므로 clipRect 밖에서 먼저 그림
+                drawPriceGrid(minPrice, maxPrice, plotWidth, plotHeight, config)
 
+                // 캔들 + MA는 캔들 영역으로만 클리핑 (거래량 영역/가격축 침범 방지)
+                clipRect(left = 0f, top = 0f, right = plotWidth, bottom = plotHeight) {
                     for (i in range) {
                         val cx = i * candleWidth - state.scrollOffset + candleWidth / 2f
                         if (cx < -candleWidth || cx > plotWidth + candleWidth) continue
