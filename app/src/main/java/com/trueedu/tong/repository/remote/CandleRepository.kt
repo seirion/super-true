@@ -40,20 +40,18 @@ class CandleRepository @Inject constructor(
     private val kisService by lazy { kisRetrofit.create(KisCandleService::class.java) }
     private val lsService by lazy { lsRetrofit.create(LsCandleService::class.java) }
 
-    /** 키움증권 캔들 조회 (기간별 TR 분기) */
+    /** 키움증권 캔들 조회 (기간별 TR/응답 배열키 분기) */
     suspend fun fetchKiwoom(account: BrokerAccount, code: String, period: CandlePeriod = CandlePeriod.DAY): Result<List<CandleData>> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
         val shortCode = code.removePrefix("A")
         val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
-
-        // 기간별 TR 코드
         val apiId = when (period) {
             CandlePeriod.MINUTE -> "ka10080"
             CandlePeriod.DAY    -> "ka10081"
             CandlePeriod.WEEK   -> "ka10082"
             CandlePeriod.MONTH  -> "ka10083"
         }
-        logD("CandleRepo.fetchKiwoom: code=$shortCode, period=$period, apiId=$apiId, base_dt=$today")
+        logD("CandleRepo.fetchKiwoom: code=$shortCode, period=$period, apiId=$apiId")
 
         val headers = mapOf(
             "authorization" to "Bearer $token",
@@ -63,35 +61,51 @@ class CandleRepository @Inject constructor(
             "next-key" to "",
         )
 
-        // 분봉은 틱범위(tick_scope) 필요, 나머지는 base_dt
-        val body = if (period == CandlePeriod.MINUTE) {
-            mapOf(
-                "stk_cd" to shortCode,
-                "tck_scope" to "1",      // 1분봉
-                "upd_stkpc_tp" to "1",
-            )
-        } else {
-            mapOf(
-                "stk_cd" to shortCode,
-                "base_dt" to today,
-                "upd_stkpc_tp" to "1",
-            )
-        }
-
-        val resp = kiwoomService.getDailyCandles(headers, body)
-        logD("CandleRepo.fetchKiwoom: httpCode=${resp.code()}, bodyNull=${resp.body() == null}")
-        val data = resp.body() ?: error("키움 캔들 응답 없음: ${resp.code()}")
-        logD("CandleRepo.fetchKiwoom: candleCount=${data.candles.size}")
-
-        val result = data.candles.map {
-            CandleData(
-                datetime = it.date,
-                open = priceOf(it.open),
-                high = priceOf(it.high),
-                low = priceOf(it.low),
-                close = priceOf(it.close),
-                volume = long(it.volume) ?: 0L,
-            )
+        val result: List<CandleData> = when (period) {
+            CandlePeriod.MINUTE -> {
+                val body = mapOf("stk_cd" to shortCode, "tic_scope" to "1", "upd_stkpc_tp" to "1")
+                val resp = kiwoomService.getMinuteCandles(headers, body)
+                logD("CandleRepo.fetchKiwoom MINUTE: httpCode=${resp.code()}")
+                val data = resp.body() ?: error("키움 분봉 응답 없음: ${resp.code()}")
+                logD("CandleRepo.fetchKiwoom MINUTE: count=${data.candles.size}")
+                data.candles.map {
+                    CandleData(datetime = it.datetime, open = priceOf(it.open), high = priceOf(it.high),
+                        low = priceOf(it.low), close = priceOf(it.close), volume = long(it.volume) ?: 0L)
+                }
+            }
+            CandlePeriod.DAY -> {
+                val body = mapOf("stk_cd" to shortCode, "base_dt" to today, "upd_stkpc_tp" to "1")
+                val resp = kiwoomService.getDayCandles(headers, body)
+                logD("CandleRepo.fetchKiwoom DAY: httpCode=${resp.code()}")
+                val data = resp.body() ?: error("키움 일봉 응답 없음: ${resp.code()}")
+                logD("CandleRepo.fetchKiwoom DAY: count=${data.candles.size}")
+                data.candles.map {
+                    CandleData(datetime = it.date, open = priceOf(it.open), high = priceOf(it.high),
+                        low = priceOf(it.low), close = priceOf(it.close), volume = long(it.volume) ?: 0L)
+                }
+            }
+            CandlePeriod.WEEK -> {
+                val body = mapOf("stk_cd" to shortCode, "base_dt" to today, "upd_stkpc_tp" to "1")
+                val resp = kiwoomService.getWeekCandles(headers, body)
+                logD("CandleRepo.fetchKiwoom WEEK: httpCode=${resp.code()}")
+                val data = resp.body() ?: error("키움 주봉 응답 없음: ${resp.code()}")
+                logD("CandleRepo.fetchKiwoom WEEK: count=${data.candles.size}")
+                data.candles.map {
+                    CandleData(datetime = it.date, open = priceOf(it.open), high = priceOf(it.high),
+                        low = priceOf(it.low), close = priceOf(it.close), volume = long(it.volume) ?: 0L)
+                }
+            }
+            CandlePeriod.MONTH -> {
+                val body = mapOf("stk_cd" to shortCode, "base_dt" to today, "upd_stkpc_tp" to "1")
+                val resp = kiwoomService.getMonthCandles(headers, body)
+                logD("CandleRepo.fetchKiwoom MONTH: httpCode=${resp.code()}")
+                val data = resp.body() ?: error("키움 월봉 응답 없음: ${resp.code()}")
+                logD("CandleRepo.fetchKiwoom MONTH: count=${data.candles.size}")
+                data.candles.map {
+                    CandleData(datetime = it.date, open = priceOf(it.open), high = priceOf(it.high),
+                        low = priceOf(it.low), close = priceOf(it.close), volume = long(it.volume) ?: 0L)
+                }
+            }
         }
         logD("CandleRepo.fetchKiwoom: parsed ${result.size} candles")
         result
