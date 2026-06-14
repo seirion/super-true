@@ -3,17 +3,24 @@ package com.trueedu.tong.ui.views.order
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.trueedu.tong.model.ws.KisRealTimeTrade
 import com.trueedu.tong.ui.chart.CandleChartView
+import com.trueedu.tong.ui.theme.ChartColor
+import com.trueedu.tong.utils.NumberFormatter
 
 @Composable
 fun ChartScreen(vm: CandleViewModel) {
@@ -36,22 +43,87 @@ fun ChartScreen(vm: CandleViewModel) {
             )
         is CandleViewModel.State.Success ->
             Column(modifier = Modifier.fillMaxSize()) {
-                // 데이터 출처 표시 (우측 상단)
-                Text(
-                    text = "데이터: ${s.broker.displayName}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.End).padding(end = 8.dp, top = 4.dp),
+                // 실시간 가격 헤더
+                RealtimePriceHeader(
+                    trade = vm.realtimePrice,
+                    fallbackClose = s.candles.lastOrNull()?.close ?: 0.0,
                 )
+                HorizontalDivider()
                 CandleChartView(
                     candles = s.candles,
                     period = vm.currentPeriod,
                     onPeriodChange = { vm.load(vm.currentCode, period = it, force = true) },
                     onLoadMore = { vm.loadMore() },
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                )
+                // 데이터 출처 표시
+                Text(
+                    text = "데이터: ${s.broker.displayName}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .padding(end = 8.dp, bottom = 4.dp),
                 )
             }
     }
+}
+
+@Composable
+private fun RealtimePriceHeader(
+    trade: KisRealTimeTrade?,
+    fallbackClose: Double,
+) {
+    val price = trade?.price ?: fallbackClose
+    val delta = trade?.delta ?: 0.0
+    val rate = trade?.rate ?: 0.0
+    val volume = trade?.volume ?: 0.0
+    val color = ChartColor.color(delta)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // 현재가 (크게)
+        Text(
+            text = NumberFormatter.formatCash(price) + "원",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = color,
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            // 변동 금액 + 변동률
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = NumberFormatter.formatCashWithSign(delta),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = color,
+                )
+                Text(
+                    text = "(${NumberFormatter.formatRate(rate)})",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = color,
+                )
+            }
+            // 거래량
+            if (volume > 0) {
+                Text(
+                    text = "거래량 ${formatVolume(volume.toLong())}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+private fun formatVolume(vol: Long): String = when {
+    vol >= 100_000_000 -> "${vol / 100_000_000}억"
+    vol >= 10_000 -> "${vol / 10_000}만"
+    else -> NumberFormatter.formatCash(vol.toDouble())
 }
 
 @Composable

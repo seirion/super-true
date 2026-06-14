@@ -52,6 +52,9 @@ class CandleViewModel @Inject constructor(
     // 외부에서 현재 종목코드 접근 (기간 변경 재조회 등)
     val currentCode: String get() = loadedCode ?: ""
 
+    // 실시간 체결 가격 (KIS WebSocket)
+    val realtimePrice get() = kisRealPriceManager.priceMap[currentCode]
+
     // 키움 → LS → KIS 우선순위
     private val priority = listOf(BrokerType.KIWOOM, BrokerType.LS, BrokerType.KIS)
 
