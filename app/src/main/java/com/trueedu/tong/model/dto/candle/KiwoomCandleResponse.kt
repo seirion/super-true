@@ -10,15 +10,15 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class KiwoomCandleResponse(
     @SerialName("stk_cd") val code: String = "",
-    @SerialName("output") val candles: List<KiwoomCandleItem> = emptyList(),
+    @SerialName("stk_dt_pole_chart_qry") val candles: List<KiwoomCandleItem> = emptyList(),
 )
 
 @Serializable
 data class KiwoomCandleItem(
-    @SerialName("dt") val date: String = "",          // YYYYMMDD
-    @SerialName("opnprc") val open: String = "",
-    @SerialName("hgprc") val high: String = "",
-    @SerialName("lwprc") val low: String = "",
-    @SerialName("clsprc") val close: String = "",
-    @SerialName("acml_vol") val volume: String = "",
+    @SerialName("dt") val date: String = "",           // YYYYMMDD
+    @SerialName("open_pric") val open: String = "",    // 시가
+    @SerialName("high_pric") val high: String = "",    // 고가
+    @SerialName("low_pric") val low: String = "",      // 저가
+    @SerialName("cur_prc") val close: String = "",     // 현재가(종가)
+    @SerialName("trde_qty") val volume: String = "",   // 거래량
 )
