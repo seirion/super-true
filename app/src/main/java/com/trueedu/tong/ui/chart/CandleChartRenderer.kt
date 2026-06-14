@@ -117,6 +117,52 @@ internal fun DrawScope.drawPriceGrid(
     }
 }
 
+/** 날짜 기반 세로 가이드선 */
+internal fun DrawScope.drawDateGridLines(
+    candles: List<CandleData>,
+    range: IntRange,
+    candleWidth: Float,
+    scrollOffset: Float,
+    period: CandlePeriod,
+    plotHeight: Float,
+    totalPlotHeight: Float,
+    config: ChartConfig,
+) {
+    if (range.isEmpty()) return
+    var prevKey: String? = null
+    for (i in range) {
+        val candle = candles.getOrNull(i) ?: continue
+        val dt = candle.datetime
+        // 기간별 "의미있는 경계" 키 계산
+        val key = when (period) {
+            CandlePeriod.MINUTE ->
+                if (dt.length >= 10) dt.substring(8, 10) else null   // HH 변경
+            CandlePeriod.DAY ->
+                if (dt.length >= 6) dt.substring(0, 6) else null     // yyyyMM 변경 (월 경계)
+            CandlePeriod.WEEK ->
+                if (dt.length >= 5) {
+                    val mm = dt.substring(4, 6).toIntOrNull() ?: 0
+                    "${dt.substring(0, 4)}Q${(mm - 1) / 3}"          // 분기 변경
+                } else null
+            CandlePeriod.MONTH ->
+                if (dt.length >= 4) dt.substring(0, 4) else null     // 연도 변경
+        } ?: continue
+
+        if (key != prevKey && prevKey != null) {
+            val cx = i * candleWidth - scrollOffset + candleWidth / 2f
+            if (cx in 0f..plotHeight * 10f) { // 가시 범위 내
+                drawLine(
+                    color = config.gridColor,
+                    start = Offset(cx, 0f),
+                    end = Offset(cx, totalPlotHeight),
+                    strokeWidth = 1f,
+                )
+            }
+        }
+        prevKey = key
+    }
+}
+
 /** 하단 날짜축 */
 internal fun DrawScope.drawDateAxis(
     candles: List<CandleData>,
