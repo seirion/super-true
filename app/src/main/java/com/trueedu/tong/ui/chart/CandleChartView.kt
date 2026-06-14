@@ -135,6 +135,18 @@ fun CandleChartView(
                 val (minPrice, maxPrice) =
                     ChartMath.priceRange(state.candles, range.first, range.last)
 
+                // 날짜 기반 세로 가이드선 (캔들+거래량 전체 영역)
+                drawDateGridLines(
+                    candles = state.candles,
+                    range = range,
+                    candleWidth = candleWidth,
+                    scrollOffset = state.scrollOffset,
+                    period = state.period,
+                    plotHeight = plotHeight,
+                    totalPlotHeight = totalPlotHeight,
+                    config = config,
+                )
+
                 // 가격 그리드 라벨은 plotWidth 오른쪽에 그려지므로 clipRect 밖에서 먼저 그림
                 drawPriceGrid(minPrice, maxPrice, plotWidth, plotHeight, config)
 
