@@ -78,8 +78,13 @@ fun OrderScreen(
     stockInfoVm: StockInfoViewModel = hiltViewModel(LocalContext.current as androidx.activity.ComponentActivity),
     candleVm: CandleViewModel = hiltViewModel(LocalContext.current as androidx.activity.ComponentActivity),
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(vm.lastTabIndex) }
     val tabs = listOf("주문", "미체결", "체결", "종목정보", "차트")
+
+    // 초기 탭이 미체결/체결이면 자동 로드
+    LaunchedEffect(Unit) {
+        if (selectedTab == 1 || selectedTab == 2) statusVm.load()
+    }
 
     // 종목코드 변경 시 활성화된 탭 자동 재로드
     LaunchedEffect(vm.code) {
@@ -96,6 +101,7 @@ fun OrderScreen(
                     selected = selectedTab == index,
                     onClick = {
                         selectedTab = index
+                        vm.saveTabIndex(index)  // 저장
                         if (index == 1 || index == 2) statusVm.load()
                         if (index == 3) stockInfoVm.load(vm.code)
                         if (index == 4) candleVm.load(vm.code)

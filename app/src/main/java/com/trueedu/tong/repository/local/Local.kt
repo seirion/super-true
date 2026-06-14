@@ -47,4 +47,10 @@ class Local @Inject constructor(private val preferences: SharedPreferences) {
     var selectedOrderCode by preferences.string("")
     var selectedOrderAccountId by preferences.long(-1L)
     var selectedOrderTimestamp by preferences.long(0L)  // 선택 시각 (변경 감지용)
+
+    // 주문 화면 마지막 탭 인덱스 (0=주문, 1=미체결, 2=체결, 3=종목정보, 4=차트)
+    var lastOrderTabIndex by preferences.int(0)
+
+    // 분봉 마지막 선택 간격 (1, 3, 5, 10, 30, 60)
+    var lastMinuteInterval by preferences.int(1)
 }
