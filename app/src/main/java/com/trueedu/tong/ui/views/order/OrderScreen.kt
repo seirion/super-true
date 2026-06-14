@@ -179,12 +179,12 @@ private fun OrderEntryTab(
                         }
                     }
                 },
-                navigationIcon = {},
-                actions = {
+                navigationIcon = {
                     IconButton(onClick = { showSearch = true }) {
                         Icon(Icons.Filled.Search, contentDescription = "종목 검색")
                     }
                 },
+                actions = {},
             )
             // HLOCW 한 줄: 시 고 저 량
             val pd = vm.priceDetail
