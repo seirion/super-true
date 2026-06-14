@@ -45,6 +45,8 @@ class CandleViewModel @Inject constructor(
 
     // 현재 선택된 기간 (기간 변경 시 재조회에 사용)
     var currentPeriod by mutableStateOf(CandlePeriod.DAY); private set
+    // 분봉 간격 (1, 3, 5, 10, 30, 60분)
+    var minuteInterval by mutableStateOf(1); private set
 
     // 마지막으로 로드한 종목코드 (중복 호출 방지)
     private var loadedCode: String? = null
@@ -126,6 +128,12 @@ class CandleViewModel @Inject constructor(
      * 캔들 데이터 로드. 우선순위대로 appKey 가 있는 계좌를 찾아 호출한다.
      * 기간이 바뀌면 강제로 재조회한다.
      */
+    fun changeMinuteInterval(interval: Int) {
+        if (interval == minuteInterval && currentPeriod == CandlePeriod.MINUTE) return
+        minuteInterval = interval
+        if (currentCode.isNotBlank()) load(currentCode, CandlePeriod.MINUTE, force = true)
+    }
+
     fun load(code: String, period: CandlePeriod = currentPeriod, force: Boolean = false) {
         val target = code.removePrefix("A")
         if (target.isBlank()) {
@@ -152,7 +160,7 @@ class CandleViewModel @Inject constructor(
             for (broker in priority) {
                 val account = accounts.firstOrNull { it.brokerType == broker } ?: continue
                 logD("CandleViewModel: $target 조회 시도 - ${broker.displayName}")
-                val result = fetch(broker, account, target, currentPeriod)
+                val result = fetch(broker, account, target, currentPeriod, minuteInterval)
                 result
                     .onSuccess {
                         logD("CandleViewModel: ${broker.displayName} 성공 - ${it.size}개 캔들")
@@ -185,9 +193,10 @@ class CandleViewModel @Inject constructor(
         account: BrokerAccount,
         code: String,
         period: CandlePeriod,
+        interval: Int = 1,
     ): Result<List<CandleData>> = when (broker) {
-        BrokerType.KIWOOM -> candleRepo.fetchKiwoom(account, code, period)
-        BrokerType.LS -> candleRepo.fetchLs(account, code, period)
+        BrokerType.KIWOOM -> candleRepo.fetchKiwoom(account, code, period, interval)
+        BrokerType.LS -> candleRepo.fetchLs(account, code, period, interval)
         BrokerType.KIS -> candleRepo.fetchKis(account, code, period)
         BrokerType.TOSS -> Result.failure(UnsupportedOperationException("토스증권 미지원"))
     }
