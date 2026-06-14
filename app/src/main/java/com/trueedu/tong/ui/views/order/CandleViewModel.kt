@@ -78,7 +78,7 @@ class CandleViewModel @Inject constructor(
             for (broker in priority) {
                 val account = accounts.firstOrNull { it.brokerType == broker } ?: continue
                 logD("CandleViewModel: $target 조회 시도 - ${broker.displayName}")
-                val result = fetch(broker, account, target)
+                val result = fetch(broker, account, target, currentPeriod)
                 result
                     .onSuccess {
                         logD("CandleViewModel: ${broker.displayName} 성공 - ${it.size}개 캔들")
@@ -110,10 +110,11 @@ class CandleViewModel @Inject constructor(
         broker: BrokerType,
         account: BrokerAccount,
         code: String,
+        period: CandlePeriod,
     ): Result<List<CandleData>> = when (broker) {
-        BrokerType.KIWOOM -> candleRepo.fetchKiwoom(account, code)
-        BrokerType.LS -> candleRepo.fetchLs(account, code)
-        BrokerType.KIS -> candleRepo.fetchKis(account, code)
+        BrokerType.KIWOOM -> candleRepo.fetchKiwoom(account, code, period)
+        BrokerType.LS -> candleRepo.fetchLs(account, code, period)
+        BrokerType.KIS -> candleRepo.fetchKis(account, code, period)
         BrokerType.TOSS -> Result.failure(UnsupportedOperationException("토스증권 미지원"))
     }
 }
