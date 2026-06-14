@@ -81,6 +81,14 @@ fun OrderScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("주문", "미체결", "체결", "종목정보", "차트")
 
+    // 종목코드 변경 시 활성화된 탭 자동 재로드
+    LaunchedEffect(vm.code) {
+        if (vm.code.isNotBlank()) {
+            if (selectedTab == 3) stockInfoVm.load(vm.code)
+            if (selectedTab == 4) candleVm.load(vm.code)
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
         TabRow(selectedTabIndex = selectedTab) {
             tabs.forEachIndexed { index, title ->
