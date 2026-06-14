@@ -81,6 +81,7 @@ class CandleViewModel @Inject constructor(
                 val result = fetch(broker, account, target)
                 result
                     .onSuccess {
+                        logD("CandleViewModel: ${broker.displayName} 성공 - ${it.size}개 캔들")
                         state = State.Success(it, broker)
                         return@launch
                     }

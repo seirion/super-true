@@ -12,6 +12,8 @@ import com.trueedu.tong.repository.remote.auth.TokenManager
 import com.trueedu.tong.repository.remote.kis.KisCandleService
 import com.trueedu.tong.repository.remote.kiwoom.KiwoomCandleService
 import com.trueedu.tong.repository.remote.ls.LsCandleService
+import com.trueedu.tong.utils.logD
+import com.trueedu.tong.utils.logE
 import retrofit2.Retrofit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -39,6 +41,7 @@ class CandleRepository @Inject constructor(
     suspend fun fetchKiwoom(account: BrokerAccount, code: String): Result<List<CandleData>> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
         val shortCode = code.removePrefix("A")
+        logD("CandleRepo.fetchKiwoom: code=$shortCode, tokenLen=${token.length}")
         val headers = mapOf(
             "authorization" to "Bearer $token",
             "api-id" to "ka10081",
@@ -52,9 +55,11 @@ class CandleRepository @Inject constructor(
             "upd_stkpc_tp" to "1",   // 수정주가 적용
         )
         val resp = kiwoomService.getDailyCandles(headers, body)
+        logD("CandleRepo.fetchKiwoom: httpCode=${resp.code()}, bodyNull=${resp.body() == null}")
         val data = resp.body() ?: error("키움 캔들 응답 없음: ${resp.code()}")
+        logD("CandleRepo.fetchKiwoom: candleCount=${data.candles.size}, first=${data.candles.firstOrNull()}")
 
-        data.candles.map {
+        val result = data.candles.map {
             CandleData(
                 datetime = it.date,
                 open = priceOf(it.open),
@@ -64,12 +69,15 @@ class CandleRepository @Inject constructor(
                 volume = long(it.volume) ?: 0L,
             )
         }
-    }
+        logD("CandleRepo.fetchKiwoom: parsed ${result.size} candles")
+        result
+    }.also { r -> r.onFailure { logE("CandleRepo.fetchKiwoom error: ${it.message}") } }
 
     /** LS증권 t8410 (일봉) */
     suspend fun fetchLs(account: BrokerAccount, code: String): Result<List<CandleData>> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
         val shortCode = code.removePrefix("A")
+        logD("CandleRepo.fetchLs: code=$shortCode")
         val headers = mapOf(
             "authorization" to "Bearer $token",
             "tr_cd" to "t8410",
@@ -79,9 +87,11 @@ class CandleRepository @Inject constructor(
         )
         val req = LsCandleRequest(inBlock = LsCandleInBlock(code = shortCode, period = "2"))
         val resp = lsService.getDailyCandles(headers, req)
+        logD("CandleRepo.fetchLs: httpCode=${resp.code()}, bodyNull=${resp.body() == null}")
         val data = resp.body() ?: error("LS 캔들 응답 없음: ${resp.code()}")
+        logD("CandleRepo.fetchLs: candleCount=${data.candles.size}")
 
-        data.candles.map {
+        val result = data.candles.map {
             CandleData(
                 datetime = it.date,
                 open = priceOf(it.open),
@@ -91,12 +101,15 @@ class CandleRepository @Inject constructor(
                 volume = long(it.volume) ?: 0L,
             )
         }
-    }
+        logD("CandleRepo.fetchLs: parsed ${result.size} candles")
+        result
+    }.also { r -> r.onFailure { logE("CandleRepo.fetchLs error: ${it.message}") } }
 
     /** KIS inquire-daily-price (FHKST03010100, 일봉) */
     suspend fun fetchKis(account: BrokerAccount, code: String): Result<List<CandleData>> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
         val shortCode = code.removePrefix("A")
+        logD("CandleRepo.fetchKis: code=$shortCode")
         val headers = mapOf(
             "authorization" to "Bearer $token",
             "appkey" to credentialStorage.getAppKey(account.id),
@@ -111,10 +124,12 @@ class CandleRepository @Inject constructor(
             "FID_ORG_ADJ_PRC" to "0",
         )
         val resp = kisService.getDailyCandles(headers, queries)
+        logD("CandleRepo.fetchKis: httpCode=${resp.code()}, bodyNull=${resp.body() == null}")
         val data = resp.body() ?: error("KIS 캔들 응답 없음: ${resp.code()}")
+        logD("CandleRepo.fetchKis: rtCd=${data.rtCd}, msg=${data.msg}, candleCount=${data.candles.size}")
         if (data.rtCd != "0") error("KIS 캔들 오류: ${data.msg}")
 
-        data.candles.map {
+        val result = data.candles.map {
             CandleData(
                 datetime = it.date,
                 open = priceOf(it.open),
@@ -124,7 +139,9 @@ class CandleRepository @Inject constructor(
                 volume = long(it.volume) ?: 0L,
             )
         }
-    }
+        logD("CandleRepo.fetchKis: parsed ${result.size} candles")
+        result
+    }.also { r -> r.onFailure { logE("CandleRepo.fetchKis error: ${it.message}") } }
 
     // --- 파싱 헬퍼 ---
 

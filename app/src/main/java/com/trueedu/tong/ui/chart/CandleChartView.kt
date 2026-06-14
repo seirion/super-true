@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.trueedu.tong.model.CandleData
 import com.trueedu.tong.model.CandlePeriod
+import timber.log.Timber
 
 /**
  * 재사용 가능한 캔들차트 컴포저블.
@@ -55,6 +56,7 @@ fun CandleChartView(
 
     // 입력은 최신→과거 순서이므로 차트 내부에서는 과거→최신(좌→우)으로 뒤집어 사용
     LaunchedEffect(candles) {
+        Timber.tag("CandleChartView").d("candles updated: size=${candles.size}")
         state.loadCandles(candles.asReversed())
         needSnap = true
     }
@@ -77,6 +79,7 @@ fun CandleChartView(
                 .weight(1f)
         ) {
             if (state.candles.isEmpty()) {
+                Timber.tag("CandleChartView").d("state.candles is EMPTY - showing '데이터 없음'")
                 Text(
                     text = "데이터 없음",
                     color = Color(0xFF888899),
@@ -84,6 +87,7 @@ fun CandleChartView(
                 )
                 return@BoxWithConstraints
             }
+            Timber.tag("CandleChartView").d("rendering ${state.candles.size} candles")
 
             val density = LocalDensity.current
             val priceAxisPx = with(density) { config.priceAxisWidth.toPx() }
