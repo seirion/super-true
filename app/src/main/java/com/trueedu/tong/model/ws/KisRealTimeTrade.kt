@@ -11,8 +11,12 @@ class KisRealTimeTrade(val data: List<String>) {
         fun from(rawData: String) = KisRealTimeTrade(rawData.split("^"))
     }
     val code = data[0]
+    val time = data.getOrNull(1) ?: ""         // HHmmss (체결시간)
     val price = data[2].toDoubleOrNull() ?: 0.0
     val delta = data[4].toDoubleOrNull() ?: 0.0
     val rate = data[5].toDoubleOrNull() ?: 0.0
-    val volume = data.getOrNull(13)?.toDoubleOrNull() ?: 0.0
+    val open = data.getOrNull(7)?.toDoubleOrNull() ?: 0.0   // 시가
+    val high = data.getOrNull(8)?.toDoubleOrNull() ?: 0.0   // 고가
+    val low = data.getOrNull(9)?.toDoubleOrNull() ?: 0.0    // 저가
+    val volume = data.getOrNull(13)?.toDoubleOrNull() ?: 0.0 // 누적거래량
 }

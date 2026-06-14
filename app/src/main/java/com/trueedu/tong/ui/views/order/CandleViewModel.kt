@@ -5,10 +5,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.trueedu.tong.data.realtime.KisRealPriceManager
 import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.BrokerType
 import com.trueedu.tong.model.CandleData
 import com.trueedu.tong.model.CandlePeriod
+import com.trueedu.tong.model.ws.KisRealTimeTrade
 import com.trueedu.tong.repository.BrokerAccountRepository
 import com.trueedu.tong.repository.local.CredentialStorage
 import com.trueedu.tong.repository.remote.CandleRepository
@@ -16,7 +18,11 @@ import com.trueedu.tong.utils.logD
 import com.trueedu.tong.utils.logW
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 @HiltViewModel
@@ -24,6 +30,7 @@ class CandleViewModel @Inject constructor(
     private val candleRepo: CandleRepository,
     private val brokerAccountRepo: BrokerAccountRepository,
     private val credentialStorage: CredentialStorage,
+    private val kisRealPriceManager: KisRealPriceManager,
 ) : ViewModel() {
 
     sealed class State {
@@ -47,6 +54,70 @@ class CandleViewModel @Inject constructor(
 
     // 키움 → LS → KIS 우선순위
     private val priority = listOf(BrokerType.KIWOOM, BrokerType.LS, BrokerType.KIS)
+
+    init {
+        // KIS WebSocket 실시간 체결 → 차트 갱신
+        kisRealPriceManager.tradeFlow
+            .onEach { trade -> updateWithRealtimeTrade(trade) }
+            .launchIn(viewModelScope)
+    }
+
+    /** KIS 실시간 체결 데이터로 마지막 캔들 갱신 (또는 분봉 신규 추가) */
+    private fun updateWithRealtimeTrade(trade: KisRealTimeTrade) {
+        val s = state as? State.Success ?: return
+        // 현재 보고 있는 종목과 다르면 무시
+        if (trade.code != loadedCode) return
+        if (trade.price <= 0.0) return
+
+        val candles = s.candles.toMutableList()
+        val last = candles.lastOrNull() ?: return
+        val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+
+        when (currentPeriod) {
+            CandlePeriod.MINUTE -> {
+                // 분봉: 현재 분(HHmm) 비교
+                val currentMin = if (trade.time.length >= 4) trade.time.substring(0, 4) else return
+                val lastMin = if (last.datetime.length >= 12) last.datetime.substring(8, 12)
+                             else if (last.datetime.length >= 4) last.datetime.substring(0, 4)
+                             else return
+                if (currentMin != lastMin) {
+                    // 새 분봉 추가
+                    val newDatetime = "${today}${trade.time.padEnd(6, '0')}"
+                    candles.add(CandleData(newDatetime, trade.price, trade.price, trade.price, trade.price, 0L))
+                    logD("CandleViewModel: 새 분봉 추가 $newDatetime")
+                } else {
+                    // 현재 분봉 갱신
+                    candles[candles.lastIndex] = last.copy(
+                        high = maxOf(last.high, trade.price),
+                        low = if (last.low > 0) minOf(last.low, trade.price) else trade.price,
+                        close = trade.price,
+                        volume = trade.volume.toLong(),
+                    )
+                }
+            }
+            CandlePeriod.DAY -> {
+                // 일봉: 오늘 날짜 캔들 갱신 (시가는 KIS WebSocket의 open 필드 사용)
+                if (last.datetime.take(8) == today) {
+                    candles[candles.lastIndex] = last.copy(
+                        open = if (trade.open > 0 && last.open == 0.0) trade.open else last.open,
+                        high = maxOf(last.high, trade.high.takeIf { it > 0 } ?: trade.price),
+                        low = if (last.low > 0) minOf(last.low, trade.low.takeIf { it > 0 } ?: trade.price) else trade.price,
+                        close = trade.price,
+                        volume = trade.volume.toLong(),
+                    )
+                }
+            }
+            CandlePeriod.WEEK, CandlePeriod.MONTH -> {
+                // 주/월봉: 마지막 봉의 close/high/low만 갱신
+                candles[candles.lastIndex] = last.copy(
+                    high = maxOf(last.high, trade.price),
+                    low = if (last.low > 0) minOf(last.low, trade.price) else trade.price,
+                    close = trade.price,
+                )
+            }
+        }
+        state = State.Success(candles, s.broker)
+    }
 
     /**
      * 캔들 데이터 로드. 우선순위대로 appKey 가 있는 계좌를 찾아 호출한다.
