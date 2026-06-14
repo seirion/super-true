@@ -77,6 +77,7 @@ fun ChartScreen(vm: CandleViewModel) {
                 CandleChartView(
                     candles = s.candles,
                     period = vm.currentPeriod,
+                    minuteInterval = vm.minuteInterval,
                     onPeriodChange = { vm.load(vm.currentCode, period = it, force = true) },
                     onLoadMore = { vm.loadMore() },
                     modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -191,16 +192,9 @@ private fun RealtimePriceHeader(
         }
         // 분봉 설정 아이콘 (분봉 탭일 때만 표시)
         if (showSettings) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                IconButton(onClick = onSettingsClick) {
-                    Icon(Icons.Filled.Settings, contentDescription = "분봉 설정",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text(
-                    text = "${minuteInterval}분",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            IconButton(onClick = onSettingsClick) {
+                Icon(Icons.Filled.Settings, contentDescription = "분봉 설정",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
