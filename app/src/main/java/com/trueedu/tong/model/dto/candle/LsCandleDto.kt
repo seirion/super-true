@@ -23,6 +23,30 @@ data class LsCandleInBlock(
     @SerialName("sujung") val adjusted: String = "Y",
 )
 
+// t8412 분봉 요청
+@Serializable
+data class LsMinuteCandleRequest(
+    @SerialName("t8412InBlock") val inBlock: LsMinuteCandleInBlock,
+)
+
+@Serializable
+data class LsMinuteCandleInBlock(
+    @SerialName("shcode") val code: String,
+    @SerialName("ncnt") val interval: String = "1",  // 분 단위: 1,3,5,10,30,60
+    @SerialName("sdate") val startDate: String = "",
+    @SerialName("edate") val endDate: String = "",
+    @SerialName("stime") val startTime: String = "",
+    @SerialName("etime") val endTime: String = "",
+    @SerialName("cts_date") val ctsDate: String = "",
+    @SerialName("cts_time") val ctsTime: String = "",
+    @SerialName("comp_yn") val comp: String = "N",
+)
+
+@Serializable
+data class LsMinuteCandleResponse(
+    @SerialName("t8412OutBlock1") val candles: List<LsCandleItem> = emptyList(),
+)
+
 @Serializable
 data class LsCandleResponse(
     @SerialName("t8410OutBlock1") val candles: List<LsCandleItem> = emptyList(),

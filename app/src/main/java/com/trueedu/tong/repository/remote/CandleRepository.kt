@@ -8,6 +8,8 @@ import com.trueedu.tong.model.CandleData
 import com.trueedu.tong.model.CandlePeriod
 import com.trueedu.tong.model.dto.candle.LsCandleInBlock
 import com.trueedu.tong.model.dto.candle.LsCandleRequest
+import com.trueedu.tong.model.dto.candle.LsMinuteCandleInBlock
+import com.trueedu.tong.model.dto.candle.LsMinuteCandleRequest
 import com.trueedu.tong.repository.local.CredentialStorage
 import com.trueedu.tong.repository.remote.auth.TokenManager
 import com.trueedu.tong.repository.remote.kis.KisCandleService
@@ -41,7 +43,7 @@ class CandleRepository @Inject constructor(
     private val lsService by lazy { lsRetrofit.create(LsCandleService::class.java) }
 
     /** 키움증권 캔들 조회 (기간별 TR/응답 배열키 분기) */
-    suspend fun fetchKiwoom(account: BrokerAccount, code: String, period: CandlePeriod = CandlePeriod.DAY): Result<List<CandleData>> = runCatching {
+    suspend fun fetchKiwoom(account: BrokerAccount, code: String, period: CandlePeriod = CandlePeriod.DAY, minuteInterval: Int = 1): Result<List<CandleData>> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
         val shortCode = code.removePrefix("A")
         val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
@@ -63,7 +65,7 @@ class CandleRepository @Inject constructor(
 
         val result: List<CandleData> = when (period) {
             CandlePeriod.MINUTE -> {
-                val body = mapOf("stk_cd" to shortCode, "tic_scope" to "1", "upd_stkpc_tp" to "1")
+                val body = mapOf("stk_cd" to shortCode, "tic_scope" to minuteInterval.toString(), "upd_stkpc_tp" to "1")
                 val resp = kiwoomService.getMinuteCandles(headers, body)
                 logD("CandleRepo.fetchKiwoom MINUTE: httpCode=${resp.code()}")
                 val data = resp.body() ?: error("키움 분봉 응답 없음: ${resp.code()}")
@@ -112,7 +114,7 @@ class CandleRepository @Inject constructor(
     }.also { r -> r.onFailure { logE("CandleRepo.fetchKiwoom error: ${it.message}") } }
 
     /** LS증권 캔들 조회 (t8410=일/주/월봉, t8412=분봉) */
-    suspend fun fetchLs(account: BrokerAccount, code: String, period: CandlePeriod = CandlePeriod.DAY): Result<List<CandleData>> = runCatching {
+    suspend fun fetchLs(account: BrokerAccount, code: String, period: CandlePeriod = CandlePeriod.DAY, minuteInterval: Int = 1): Result<List<CandleData>> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
         val shortCode = code.removePrefix("A")
         // t8410: gubun 2=일, 3=주, 4=월 / 분봉은 t8412
@@ -124,7 +126,7 @@ class CandleRepository @Inject constructor(
             CandlePeriod.MONTH -> "4"
             else -> "2"
         }
-        logD("CandleRepo.fetchLs: code=$shortCode, period=$period, trCd=$trCd, gubun=$gubun")
+        logD("CandleRepo.fetchLs: code=$shortCode, period=$period, trCd=$trCd, interval=$minuteInterval")
         val headers = mapOf(
             "authorization" to "Bearer $token",
             "tr_cd" to trCd,
@@ -132,13 +134,24 @@ class CandleRepository @Inject constructor(
             "tr_cont_key" to "",
             "content-type" to "application/json; charset=utf-8",
         )
-        val req = LsCandleRequest(inBlock = LsCandleInBlock(code = shortCode, period = gubun))
-        val resp = lsService.getDailyCandles(headers, req)
-        logD("CandleRepo.fetchLs: httpCode=${resp.code()}, bodyNull=${resp.body() == null}")
-        val data = resp.body() ?: error("LS 캔들 응답 없음: ${resp.code()}")
-        logD("CandleRepo.fetchLs: candleCount=${data.candles.size}")
 
-        val result = data.candles.map {
+        val candles = if (isMinute) {
+            val req = LsMinuteCandleRequest(inBlock = LsMinuteCandleInBlock(code = shortCode, interval = minuteInterval.toString()))
+            val resp = lsService.getMinuteCandles(headers, req)
+            logD("CandleRepo.fetchLs MINUTE: httpCode=${resp.code()}")
+            val data = resp.body() ?: error("LS 분봉 응답 없음: ${resp.code()}")
+            logD("CandleRepo.fetchLs MINUTE: count=${data.candles.size}")
+            data.candles
+        } else {
+            val req = LsCandleRequest(inBlock = LsCandleInBlock(code = shortCode, period = gubun))
+            val resp = lsService.getDailyCandles(headers, req)
+            logD("CandleRepo.fetchLs: httpCode=${resp.code()}")
+            val data = resp.body() ?: error("LS 캔들 응답 없음: ${resp.code()}")
+            logD("CandleRepo.fetchLs: count=${data.candles.size}")
+            data.candles
+        }
+
+        val result = candles.map {
             CandleData(
                 datetime = it.date,
                 open = priceOf(it.open),
