@@ -79,7 +79,7 @@ fun OrderScreen(
     candleVm: CandleViewModel = hiltViewModel(LocalContext.current as androidx.activity.ComponentActivity),
 ) {
     var selectedTab by remember { mutableIntStateOf(vm.lastTabIndex) }
-    val tabs = listOf("주문", "미체결", "체결", "종목정보", "차트")
+    val tabs = listOf("주문", "미체결", "체결", "정보", "차트")
 
     // 초기 탭이 미체결/체결이면 자동 로드
     LaunchedEffect(Unit) {
