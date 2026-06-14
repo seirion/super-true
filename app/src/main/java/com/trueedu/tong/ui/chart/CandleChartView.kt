@@ -100,7 +100,12 @@ fun CandleChartView(
             val totalWidthPx = constraints.maxWidth.toFloat()
             val totalHeightPx = constraints.maxHeight.toFloat()
             val plotWidth = totalWidthPx - priceAxisPx
-            val plotHeight = totalHeightPx - dateAxisPx
+            val totalPlotHeight = totalHeightPx - dateAxisPx
+            // 캔들 영역 80% / 거래량 영역 20%
+            val volumeRatio = 0.2f
+            val volumeHeight = totalPlotHeight * volumeRatio
+            val dividerPx = with(density) { 4.dp.toPx() }
+            val plotHeight = totalPlotHeight * (1f - volumeRatio) - dividerPx // 4dp 구분 여백
 
             // 신규 데이터 로드 시 최신(우측 끝)으로 스냅
             // plotWidth가 확정된 BoxWithConstraints 안에서 즉시 처리
@@ -154,6 +159,18 @@ fun CandleChartView(
                     }
                 }
 
+                // 거래량 막대 차트
+                val volumeTop = plotHeight + dividerPx
+                drawVolumeChart(
+                    candles = state.candles,
+                    range = range,
+                    candleWidth = candleWidth,
+                    scrollOffset = state.scrollOffset,
+                    volumeTop = volumeTop,
+                    volumeHeight = volumeHeight,
+                    config = config,
+                )
+
                 drawDateAxis(
                     candles = state.candles,
                     range = range,
@@ -161,7 +178,7 @@ fun CandleChartView(
                     scrollOffset = state.scrollOffset,
                     period = state.period,
                     plotWidth = plotWidth,
-                    plotHeight = plotHeight,
+                    plotHeight = totalPlotHeight,
                     config = config,
                 )
 
