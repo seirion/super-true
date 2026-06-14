@@ -154,6 +154,47 @@ internal fun DrawScope.drawDateAxis(
     }
 }
 
+/** 거래량 막대 차트 */
+internal fun DrawScope.drawVolumeChart(
+    candles: List<CandleData>,
+    range: IntRange,
+    candleWidth: Float,
+    scrollOffset: Float,
+    volumeTop: Float,      // 거래량 영역 시작 Y
+    volumeHeight: Float,   // 거래량 영역 높이
+    config: ChartConfig,
+) {
+    if (range.isEmpty()) return
+    val maxVol = candles.subList(range.first, range.last + 1).maxOfOrNull { it.volume }
+        ?.takeIf { it > 0 } ?: return
+
+    for (i in range) {
+        val candle = candles.getOrNull(i) ?: continue
+        val cx = i * candleWidth - scrollOffset + candleWidth / 2f
+        if (cx < -candleWidth || cx > size.width) continue
+
+        val barH = (candle.volume.toFloat() / maxVol * volumeHeight).coerceAtLeast(1f)
+        val barW = candleWidth * (1f - config.candleSpacingRatio)
+        val color = when {
+            candle.close > candle.open -> config.riseColor.copy(alpha = 0.7f)
+            candle.close < candle.open -> config.fallColor.copy(alpha = 0.7f)
+            else -> config.flatColor.copy(alpha = 0.7f)
+        }
+        drawRect(
+            color = color,
+            topLeft = Offset(cx - barW / 2f, volumeTop + volumeHeight - barH),
+            size = Size(barW, barH),
+        )
+    }
+    // 거래량 영역 구분선
+    drawLine(
+        color = config.gridColor,
+        start = Offset(0f, volumeTop),
+        end = Offset(size.width, volumeTop),
+        strokeWidth = 1f,
+    )
+}
+
 /** 십자선 */
 internal fun DrawScope.drawCrosshair(
     pos: Offset,
