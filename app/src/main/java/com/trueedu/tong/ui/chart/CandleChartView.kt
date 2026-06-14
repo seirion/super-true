@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -134,28 +135,31 @@ fun CandleChartView(
                 val (minPrice, maxPrice) =
                     ChartMath.priceRange(state.candles, range.first, range.last)
 
-                drawPriceGrid(minPrice, maxPrice, plotWidth, plotHeight, config)
+                // 캔들 + MA 영역만 clipRect로 제한 (거래량 영역 침범 방지)
+                clipRect(left = 0f, top = 0f, right = plotWidth, bottom = plotHeight) {
+                    drawPriceGrid(minPrice, maxPrice, plotWidth, plotHeight, config)
 
-                for (i in range) {
-                    val cx = i * candleWidth - state.scrollOffset + candleWidth / 2f
-                    if (cx < -candleWidth || cx > plotWidth + candleWidth) continue
-                    drawCandle(
-                        state.candles[i], cx, candleWidth, minPrice, maxPrice, plotHeight, config
-                    )
-                }
-
-                if (state.showMa) {
-                    maList.forEachIndexed { idx, values ->
-                        drawMaLine(
-                            maValues = values,
-                            range = range,
-                            candleWidth = candleWidth,
-                            scrollOffset = state.scrollOffset,
-                            minPrice = minPrice,
-                            maxPrice = maxPrice,
-                            color = config.maColors[idx % config.maColors.size],
-                            plotHeight = plotHeight,
+                    for (i in range) {
+                        val cx = i * candleWidth - state.scrollOffset + candleWidth / 2f
+                        if (cx < -candleWidth || cx > plotWidth + candleWidth) continue
+                        drawCandle(
+                            state.candles[i], cx, candleWidth, minPrice, maxPrice, plotHeight, config
                         )
+                    }
+
+                    if (state.showMa) {
+                        maList.forEachIndexed { idx, values ->
+                            drawMaLine(
+                                maValues = values,
+                                range = range,
+                                candleWidth = candleWidth,
+                                scrollOffset = state.scrollOffset,
+                                minPrice = minPrice,
+                                maxPrice = maxPrice,
+                                color = config.maColors[idx % config.maColors.size],
+                                plotHeight = plotHeight,
+                            )
+                        }
                     }
                 }
 
