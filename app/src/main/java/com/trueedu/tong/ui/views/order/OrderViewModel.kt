@@ -9,9 +9,11 @@ import com.trueedu.tong.data.realtime.KisQuoteManager
 import com.trueedu.tong.utils.logD
 import com.trueedu.tong.data.realtime.KisRealPriceManager
 import com.trueedu.tong.model.BrokerAccount
+import com.trueedu.tong.model.StockInfoLocal
 import com.trueedu.tong.model.dto.order.OrderRequest
 import com.trueedu.tong.repository.BrokerAccountRepository
 import com.trueedu.tong.repository.local.Local
+import com.trueedu.tong.repository.local.StockLocal
 import com.trueedu.tong.repository.remote.OrderUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
@@ -26,6 +28,7 @@ class OrderViewModel @Inject constructor(
     private val kisQuoteManager: KisQuoteManager,
     private val kisPriceManager: KisRealPriceManager,
     private val local: Local,
+    private val stockLocal: StockLocal,
 ) : ViewModel() {
 
     var code: String by mutableStateOf(""); private set
@@ -55,6 +58,11 @@ class OrderViewModel @Inject constructor(
         data class Error(val msg: String) : OrderState()
     }
     var orderState: OrderState by mutableStateOf(OrderState.Idle); private set
+
+    // 종목 검색
+    private var allStocks: List<StockInfoLocal> = emptyList()
+    var searchQuery by mutableStateOf(""); private set
+    var searchResults: List<StockInfoLocal> by mutableStateOf(emptyList()); private set
 
     companion object {
         const val DEFAULT_CODE = "005930" // 삼성전자
@@ -106,6 +114,29 @@ class OrderViewModel @Inject constructor(
         stockName = name    // 종목 이름 즉시 반영
         kisQuoteManager.stop()
         loadOrder(newCode, accountId)
+    }
+
+    /** 검색 화면 진입 시 호출 — 종목 목록 캐시 로드 */
+    fun loadStocksForSearch() {
+        if (allStocks.isNotEmpty()) return
+        viewModelScope.launch {
+            allStocks = stockLocal.getAllStocks()
+            applySearch()
+        }
+    }
+
+    fun onSearchQueryChange(q: String) {
+        searchQuery = q
+        applySearch()
+    }
+
+    private fun applySearch() {
+        val q = searchQuery.trim()
+        searchResults = if (q.isBlank()) {
+            allStocks
+        } else {
+            allStocks.filter { it.nameKr.contains(q, ignoreCase = true) || it.code.contains(q, ignoreCase = true) }
+        }
     }
 
     private fun loadOrder(newCode: String, accountId: Long) {

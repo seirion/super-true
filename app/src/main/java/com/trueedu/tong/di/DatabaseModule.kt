@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.trueedu.tong.db.AccountSummaryCacheDao
 import com.trueedu.tong.db.AppDatabase
 import com.trueedu.tong.db.BrokerAccountDao
+import com.trueedu.tong.db.StockInfoLocalDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -30,4 +31,9 @@ object DatabaseModule {
     @Singleton
     fun provideAccountSummaryCacheDao(db: AppDatabase): AccountSummaryCacheDao =
         db.accountSummaryCacheDao()
+
+    @Provides
+    @Singleton
+    fun provideStockInfoLocalDao(db: AppDatabase): StockInfoLocalDao =
+        db.stockInfoLocalDao()
 }
