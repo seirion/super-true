@@ -5,6 +5,7 @@ import com.trueedu.tong.di.KiwoomRetrofitQualifier
 import com.trueedu.tong.di.LsRetrofitQualifier
 import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.CandleData
+import com.trueedu.tong.model.CandlePeriod
 import com.trueedu.tong.model.dto.candle.LsCandleInBlock
 import com.trueedu.tong.model.dto.candle.LsCandleRequest
 import com.trueedu.tong.repository.local.CredentialStorage
@@ -39,29 +40,48 @@ class CandleRepository @Inject constructor(
     private val kisService by lazy { kisRetrofit.create(KisCandleService::class.java) }
     private val lsService by lazy { lsRetrofit.create(LsCandleService::class.java) }
 
-    /** 키움증권 ka10081 (일봉) */
-    suspend fun fetchKiwoom(account: BrokerAccount, code: String): Result<List<CandleData>> = runCatching {
+    /** 키움증권 캔들 조회 (기간별 TR 분기) */
+    suspend fun fetchKiwoom(account: BrokerAccount, code: String, period: CandlePeriod = CandlePeriod.DAY): Result<List<CandleData>> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
         val shortCode = code.removePrefix("A")
-        logD("CandleRepo.fetchKiwoom: code=$shortCode, tokenLen=${token.length}")
+        val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+
+        // 기간별 TR 코드
+        val apiId = when (period) {
+            CandlePeriod.MINUTE -> "ka10080"
+            CandlePeriod.DAY    -> "ka10081"
+            CandlePeriod.WEEK   -> "ka10082"
+            CandlePeriod.MONTH  -> "ka10083"
+        }
+        logD("CandleRepo.fetchKiwoom: code=$shortCode, period=$period, apiId=$apiId, base_dt=$today")
+
         val headers = mapOf(
             "authorization" to "Bearer $token",
-            "api-id" to "ka10081",
+            "api-id" to apiId,
             "content-type" to "application/json;charset=UTF-8",
             "cont-yn" to "N",
             "next-key" to "",
         )
-        val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
-        val body = mapOf(
-            "stk_cd" to shortCode,
-            "base_dt" to today,      // 오늘 날짜 기준 (필수값)
-            "upd_stkpc_tp" to "1",   // 수정주가 적용
-        )
-        logD("CandleRepo.fetchKiwoom: base_dt=$today")
+
+        // 분봉은 틱범위(tick_scope) 필요, 나머지는 base_dt
+        val body = if (period == CandlePeriod.MINUTE) {
+            mapOf(
+                "stk_cd" to shortCode,
+                "tck_scope" to "1",      // 1분봉
+                "upd_stkpc_tp" to "1",
+            )
+        } else {
+            mapOf(
+                "stk_cd" to shortCode,
+                "base_dt" to today,
+                "upd_stkpc_tp" to "1",
+            )
+        }
+
         val resp = kiwoomService.getDailyCandles(headers, body)
         logD("CandleRepo.fetchKiwoom: httpCode=${resp.code()}, bodyNull=${resp.body() == null}")
         val data = resp.body() ?: error("키움 캔들 응답 없음: ${resp.code()}")
-        logD("CandleRepo.fetchKiwoom: candleCount=${data.candles.size}, first=${data.candles.firstOrNull()}")
+        logD("CandleRepo.fetchKiwoom: candleCount=${data.candles.size}")
 
         val result = data.candles.map {
             CandleData(
@@ -77,19 +97,28 @@ class CandleRepository @Inject constructor(
         result
     }.also { r -> r.onFailure { logE("CandleRepo.fetchKiwoom error: ${it.message}") } }
 
-    /** LS증권 t8410 (일봉) */
-    suspend fun fetchLs(account: BrokerAccount, code: String): Result<List<CandleData>> = runCatching {
+    /** LS증권 캔들 조회 (t8410=일/주/월봉, t8412=분봉) */
+    suspend fun fetchLs(account: BrokerAccount, code: String, period: CandlePeriod = CandlePeriod.DAY): Result<List<CandleData>> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
         val shortCode = code.removePrefix("A")
-        logD("CandleRepo.fetchLs: code=$shortCode")
+        // t8410: gubun 2=일, 3=주, 4=월 / 분봉은 t8412
+        val isMinute = period == CandlePeriod.MINUTE
+        val trCd = if (isMinute) "t8412" else "t8410"
+        val gubun = when (period) {
+            CandlePeriod.DAY   -> "2"
+            CandlePeriod.WEEK  -> "3"
+            CandlePeriod.MONTH -> "4"
+            else -> "2"
+        }
+        logD("CandleRepo.fetchLs: code=$shortCode, period=$period, trCd=$trCd, gubun=$gubun")
         val headers = mapOf(
             "authorization" to "Bearer $token",
-            "tr_cd" to "t8410",
+            "tr_cd" to trCd,
             "tr_cont" to "N",
             "tr_cont_key" to "",
             "content-type" to "application/json; charset=utf-8",
         )
-        val req = LsCandleRequest(inBlock = LsCandleInBlock(code = shortCode, period = "2"))
+        val req = LsCandleRequest(inBlock = LsCandleInBlock(code = shortCode, period = gubun))
         val resp = lsService.getDailyCandles(headers, req)
         logD("CandleRepo.fetchLs: httpCode=${resp.code()}, bodyNull=${resp.body() == null}")
         val data = resp.body() ?: error("LS 캔들 응답 없음: ${resp.code()}")
@@ -109,11 +138,18 @@ class CandleRepository @Inject constructor(
         result
     }.also { r -> r.onFailure { logE("CandleRepo.fetchLs error: ${it.message}") } }
 
-    /** KIS inquire-daily-price (FHKST03010100, 일봉) */
-    suspend fun fetchKis(account: BrokerAccount, code: String): Result<List<CandleData>> = runCatching {
+    /** KIS 캔들 조회 (기간별 FID_PERIOD_DIV_CODE 분기) */
+    suspend fun fetchKis(account: BrokerAccount, code: String, period: CandlePeriod = CandlePeriod.DAY): Result<List<CandleData>> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
         val shortCode = code.removePrefix("A")
-        logD("CandleRepo.fetchKis: code=$shortCode")
+        // D=일봉, W=주봉, M=월봉 / 분봉은 당일만 지원 (inquire-time-itemchartprice)
+        val periodCode = when (period) {
+            CandlePeriod.DAY   -> "D"
+            CandlePeriod.WEEK  -> "W"
+            CandlePeriod.MONTH -> "M"
+            CandlePeriod.MINUTE -> "D"  // KIS 분봉은 당일만 → 일봉으로 폴백
+        }
+        logD("CandleRepo.fetchKis: code=$shortCode, period=$period, periodCode=$periodCode")
         val headers = mapOf(
             "authorization" to "Bearer $token",
             "appkey" to credentialStorage.getAppKey(account.id),
@@ -124,7 +160,7 @@ class CandleRepository @Inject constructor(
         val queries = mapOf(
             "FID_COND_MRKT_DIV_CODE" to "J",
             "FID_INPUT_ISCD" to shortCode,
-            "FID_PERIOD_DIV_CODE" to "D",
+            "FID_PERIOD_DIV_CODE" to periodCode,
             "FID_ORG_ADJ_PRC" to "0",
         )
         val resp = kisService.getDailyCandles(headers, queries)
