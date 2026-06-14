@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -111,6 +112,12 @@ private fun OrderEntryTab(
     statusVm: OrderStatusViewModel,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    var showSearch by remember { mutableStateOf(false) }
+
+    if (showSearch) {
+        StockSearchScreen(vm = vm, onDismiss = { showSearch = false })
+        return
+    }
 
     LaunchedEffect(vm.orderState) {
         when (val s = vm.orderState) {
@@ -173,6 +180,11 @@ private fun OrderEntryTab(
                     }
                 },
                 navigationIcon = {},
+                actions = {
+                    IconButton(onClick = { showSearch = true }) {
+                        Icon(Icons.Filled.Search, contentDescription = "종목 검색")
+                    }
+                },
             )
             // HLOCW 한 줄: 시 고 저 량
             val pd = vm.priceDetail
