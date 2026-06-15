@@ -41,6 +41,7 @@ fun HomeBottomNavigation(
     currentTab: BottomNavItem?,
     onTabSelected: (BottomNavItem) -> Unit,
     onOrderTabClicked: (() -> Unit)? = null,
+    onTabActivated: ((BottomNavItem) -> Unit)? = null,
 ) {
     val items = listOf(
         BottomNavItem.Home,
@@ -83,6 +84,7 @@ fun HomeBottomNavigation(
                     onClick = {
                         onTabSelected(item)
                         if (item == BottomNavItem.Order) onOrderTabClicked?.invoke()
+                        onTabActivated?.invoke(item)
                         navController.navigate(item) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true

@@ -24,6 +24,8 @@ import com.trueedu.tong.ui.navigation.bottomNavItemOrNull
 import com.trueedu.tong.ui.views.home.BottomNavItem
 import com.trueedu.tong.ui.views.home.HomeBottomNavigation
 import com.trueedu.tong.ui.views.home.HomeDrawer
+import com.trueedu.tong.ui.views.home.HomeViewModel
+import com.trueedu.tong.ui.views.watch.WatchViewModel
 import kotlinx.coroutines.launch
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -56,7 +58,8 @@ fun MainScreen(
             Scaffold(
                 bottomBar = {
                     val orderVm: OrderViewModel = hiltViewModel(LocalContext.current as ComponentActivity)
-                    val homeVm: com.trueedu.tong.ui.views.home.HomeViewModel = hiltViewModel(LocalContext.current as ComponentActivity)
+                    val homeVm: HomeViewModel = hiltViewModel(LocalContext.current as ComponentActivity)
+                    val watchVm: WatchViewModel = hiltViewModel(LocalContext.current as ComponentActivity)
                     val selectedAccount by homeVm.selectedAccount.collectAsState()
                     HomeBottomNavigation(
                         navController = navController,
@@ -67,6 +70,15 @@ fun MainScreen(
                             selectedAccount?.let { acc ->
                                 orderVm.onOrderTabEntered(acc.id)
                             } ?: orderVm.onOrderTabEntered()
+                        },
+                        onTabActivated = { tab ->
+                            // 탭 전환 시 해당 탭의 종목으로 실시간 시세 구독 교체
+                            when (tab) {
+                                BottomNavItem.Home -> homeVm.activateRealtime()
+                                BottomNavItem.Watch -> watchVm.activateRealtime()
+                                BottomNavItem.Order -> orderVm.activateRealtime()
+                                else -> Unit
+                            }
                         },
                     )
                 },
