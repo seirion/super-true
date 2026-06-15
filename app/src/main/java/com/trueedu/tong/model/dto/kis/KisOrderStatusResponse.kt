@@ -66,10 +66,11 @@ data class KisRealizedPnlItem(
     @SerialName("prdt_name") val name: String = "",
     @SerialName("sll_qty") val sellQty: String = "",        // 매도수량
     @SerialName("sll_pric") val sellPrice: String = "",     // 매도단가
-    @SerialName("bfee") val fee: String = "",               // 수수료
-    @SerialName("tax") val tax: String = "",                // 세금
+    @SerialName("sll_amt") val sellAmt: String = "",        // 매도총액
+    @SerialName("fee") val fee: String = "",                // 수수료
+    @SerialName("tl_tax") val tax: String = "",             // 세금(제세금 합계)
     @SerialName("rlzt_pfls") val pnlBeforeCost: String = "", // 실현손익(비용전)
-    @SerialName("ncls_pfls") val pnlAfterCost: String = "",  // 실현손익(비용후)
+    // 비용후 = rlzt_pfls - fee - tl_tax (별도 필드 없음)
 )
 
 @Serializable
