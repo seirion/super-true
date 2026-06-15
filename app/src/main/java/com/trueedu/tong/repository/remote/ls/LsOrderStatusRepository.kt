@@ -9,8 +9,12 @@ import com.trueedu.tong.model.dto.ls.LsModifyRequest
 import com.trueedu.tong.model.dto.ls.LsOrderStatusInBlock
 import com.trueedu.tong.model.dto.ls.LsOrderStatusItem
 import com.trueedu.tong.model.dto.ls.LsOrderStatusRequest
+import com.trueedu.tong.model.dto.ls.LsRealizedPnlInBlock1
+import com.trueedu.tong.model.dto.ls.LsRealizedPnlRequest
 import com.trueedu.tong.model.dto.order.FilledOrderItem
 import com.trueedu.tong.model.dto.order.OrderResult
+import com.trueedu.tong.model.dto.order.RealizedPnlItem
+import com.trueedu.tong.model.dto.order.RealizedPnlSummary
 import com.trueedu.tong.model.dto.order.UnfilledOrderItem
 import com.trueedu.tong.repository.remote.auth.TokenManager
 import retrofit2.Retrofit
@@ -52,6 +56,40 @@ class LsOrderStatusRepository @Inject constructor(
         val body = resp.body() ?: error("LS 체결 응답 없음")
         if (body.rspCd != "00000") error("LS 체결 오류: ${body.rspMsg}")
         body.orders.map { it.toFilled() }
+    }
+
+    suspend fun getRealizedPnl(account: BrokerAccount, startDate: String, endDate: String): Result<RealizedPnlSummary> = runCatching {
+        val token = tokenManager.getValidToken(account).getOrThrow()
+        val resp = service.getRealizedPnl(
+            commonHeaders(token, "CSPAQ22200"),
+            LsRealizedPnlRequest(LsRealizedPnlInBlock1(
+                acntNo = account.accountNum,
+                qrystrtDt = startDate,
+                qryendDt = endDate,
+            )),
+        )
+        val body = resp.body() ?: error("LS 실현손익 응답 없음")
+        if (body.rspCd != "00000") error("LS 실현손익 오류: ${body.rspMsg}")
+        val items = body.items.map { o ->
+            RealizedPnlItem(
+                code = o.code.removePrefix("A"),
+                name = o.name,
+                sellQty = 0L,   // CSPAQ22200 OutBlock3 미제공
+                sellPrice = 0L,
+                fee = o.fee,
+                tax = o.tax,
+                pnlBeforeCost = o.pnlBeforeCost,
+                pnlAfterCost = o.pnlAfterCost,
+            )
+        }
+        val s = body.summary
+        RealizedPnlSummary(
+            totalPnlBeforeCost = s?.pnlBeforeCost ?: items.sumOf { it.pnlBeforeCost },
+            totalPnlAfterCost = s?.pnlAfterCost ?: items.sumOf { it.pnlAfterCost },
+            totalFee = s?.fee ?: items.sumOf { it.fee },
+            totalTax = s?.tax ?: items.sumOf { it.tax },
+            items = items,
+        )
     }
 
     suspend fun cancel(account: BrokerAccount, ordNo: String, code: String): Result<OrderResult> = runCatching {

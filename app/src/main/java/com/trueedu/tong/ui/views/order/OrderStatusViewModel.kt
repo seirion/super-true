@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trueedu.tong.model.BrokerType
 import com.trueedu.tong.model.dto.order.FilledOrderItem
+import com.trueedu.tong.model.dto.order.PnlDateRange
+import com.trueedu.tong.model.dto.order.RealizedPnlSummary
 import com.trueedu.tong.model.dto.order.UnfilledOrderItem
 import com.trueedu.tong.repository.BrokerAccountRepository
 import com.trueedu.tong.repository.local.Local
@@ -16,6 +18,8 @@ import com.trueedu.tong.repository.remote.ls.LsOrderStatusRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 @HiltViewModel
@@ -40,7 +44,63 @@ class OrderStatusViewModel @Inject constructor(
     var state by mutableStateOf<StatusState>(StatusState.Idle); private set
     var actionResult by mutableStateOf<String?>(null); private set
 
+    // 실현손익 관련 상태
+    var pnlDateRange by mutableStateOf(PnlDateRange.TODAY); private set
+    var customStartDate by mutableStateOf(today()); private set
+    var customEndDate by mutableStateOf(today()); private set
+    var pnlSummary by mutableStateOf<RealizedPnlSummary?>(null); private set
+    var pnlLoading by mutableStateOf(false); private set
+    var groupByStock by mutableStateOf(false); private set
+
+    private fun dateRangeFor(range: PnlDateRange): Pair<String, String> {
+        val fmt = DateTimeFormatter.ofPattern("yyyyMMdd")
+        val now = LocalDate.now()
+        return when (range) {
+            PnlDateRange.TODAY -> now.format(fmt) to now.format(fmt)
+            PnlDateRange.THIS_MONTH -> now.withDayOfMonth(1).format(fmt) to now.format(fmt)
+            PnlDateRange.THIS_YEAR -> now.withDayOfYear(1).format(fmt) to now.format(fmt)
+            PnlDateRange.CUSTOM -> customStartDate to customEndDate
+        }
+    }
+
+    fun loadPnl() {
+        viewModelScope.launch {
+            pnlLoading = true
+            val accountId = local.selectedOrderAccountId
+            val acc = brokerAccountRepo.getAll().first().find { it.id == accountId }
+                ?: brokerAccountRepo.getAll().first().firstOrNull()
+                ?: run { pnlLoading = false; return@launch }
+
+            val (start, end) = dateRangeFor(pnlDateRange)
+            val result = when (acc.brokerType) {
+                BrokerType.KIS -> kisStatusRepo.getRealizedPnl(acc, start, end)
+                BrokerType.KIWOOM -> kiwoomStatusRepo.getRealizedPnl(acc, start, end)
+                BrokerType.LS -> lsStatusRepo.getRealizedPnl(acc, start, end)
+                else -> null
+            }
+            pnlSummary = result?.getOrNull()
+            pnlLoading = false
+        }
+    }
+
+    fun onDateRangeChange(range: PnlDateRange) {
+        pnlDateRange = range
+        if (range != PnlDateRange.CUSTOM) loadPnl()
+    }
+
+    fun onCustomDateChange(start: String, end: String) {
+        customStartDate = start
+        customEndDate = end
+        pnlDateRange = PnlDateRange.CUSTOM
+        loadPnl()
+    }
+
+    fun onGroupByStockToggle() {
+        groupByStock = !groupByStock
+    }
+
     fun load() {
+        loadPnl()
         viewModelScope.launch {
             state = StatusState.Loading
             val accountId = local.selectedOrderAccountId
@@ -171,4 +231,6 @@ class OrderStatusViewModel @Inject constructor(
     }
 
     fun clearActionResult() { actionResult = null }
+
+    private fun today(): String = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
 }

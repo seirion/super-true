@@ -50,3 +50,32 @@ data class KisFilledOrder(
     @SerialName("avg_prvs") val avgPrice: String = "",      // 체결평균가
     @SerialName("ord_tmd") val ordTime: String = "",
 )
+
+// TTTC8715R 일별 실현손익 조회 응답
+@Serializable
+data class KisRealizedPnlResponse(
+    @SerialName("output1") val items: List<KisRealizedPnlItem> = emptyList(),
+    @SerialName("output2") val summary: KisRealizedPnlSummary? = null,
+    @SerialName("rt_cd") val rtCd: String = "",
+    @SerialName("msg1") val msg1: String = "",
+)
+
+@Serializable
+data class KisRealizedPnlItem(
+    @SerialName("pdno") val code: String = "",
+    @SerialName("prdt_name") val name: String = "",
+    @SerialName("sll_qty") val sellQty: String = "",        // 매도수량
+    @SerialName("sll_pric") val sellPrice: String = "",     // 매도단가
+    @SerialName("bfee") val fee: String = "",               // 수수료
+    @SerialName("tax") val tax: String = "",                // 세금
+    @SerialName("rlzt_pfls") val pnlBeforeCost: String = "", // 실현손익(비용전)
+    @SerialName("ncls_pfls") val pnlAfterCost: String = "",  // 실현손익(비용후)
+)
+
+@Serializable
+data class KisRealizedPnlSummary(
+    @SerialName("tot_rlzt_pfls") val totalPnlBeforeCost: String = "", // 총실현손익(비용전)
+    @SerialName("tot_ncls_pfls") val totalPnlAfterCost: String = "",  // 총실현손익(비용후)
+    @SerialName("tot_bfee") val totalFee: String = "",               // 총수수료
+    @SerialName("tot_tax") val totalTax: String = "",                // 총세금
+)

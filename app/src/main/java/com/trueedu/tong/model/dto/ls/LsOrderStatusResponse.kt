@@ -76,3 +76,47 @@ data class LsOrderStatusInBlock(
     @SerialName("sortgb") val sortgb: String = "1",
     @SerialName("cts_ordno") val ctsOrdno: String = "",
 )
+
+// CSPAQ22200 실현손익 요청
+@Serializable
+data class LsRealizedPnlRequest(
+    @SerialName("CSPAQ22200InBlock1") val block: LsRealizedPnlInBlock1
+)
+
+@Serializable
+data class LsRealizedPnlInBlock1(
+    @SerialName("RecCnt") val recCnt: String = "1",
+    @SerialName("AcntNo") val acntNo: String,
+    @SerialName("Pwd") val pwd: String = "",
+    @SerialName("QrySrtDt") val qrystrtDt: String,   // 조회시작일 yyyyMMdd
+    @SerialName("QryEndDt") val qryendDt: String,    // 조회종료일 yyyyMMdd
+    @SerialName("TpCode") val tpCode: String = "0",
+    @SerialName("IsuNo") val isuNo: String = "",
+)
+
+// CSPAQ22200 실현손익 응답
+@Serializable
+data class LsRealizedPnlResponse(
+    @SerialName("CSPAQ22200OutBlock2") val summary: LsRealizedPnlSummary? = null,
+    @SerialName("CSPAQ22200OutBlock3") val items: List<LsRealizedPnlItem> = emptyList(),
+    @SerialName("rsp_cd") val rspCd: String = "",
+    @SerialName("rsp_msg") val rspMsg: String = "",
+)
+
+@Serializable
+data class LsRealizedPnlSummary(
+    @SerialName("reAlprc") val pnlBeforeCost: Long = 0L,   // 실현손익(비용전)
+    @SerialName("netReAlprc") val pnlAfterCost: Long = 0L,  // 실현손익(비용후)
+    @SerialName("fee") val fee: Long = 0L,                 // 수수료
+    @SerialName("tax") val tax: Long = 0L,                 // 세금
+)
+
+@Serializable
+data class LsRealizedPnlItem(
+    @SerialName("isuNo") val code: String = "",
+    @SerialName("isuNm") val name: String = "",
+    @SerialName("reAlprc") val pnlBeforeCost: Long = 0L,   // 실현손익(비용전)
+    @SerialName("netReAlprc") val pnlAfterCost: Long = 0L,  // 실현손익(비용후)
+    @SerialName("fee") val fee: Long = 0L,                 // 수수료
+    @SerialName("tax") val tax: Long = 0L,                 // 세금
+)
