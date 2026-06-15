@@ -89,9 +89,16 @@ class KisOrderStatusRepository @Inject constructor(
         val allItems = mutableListOf<RealizedPnlItem>()
         var fk100 = ""
         var nk100 = ""
+        var isFirstCall = true
 
-        // 연속조회: 응답 헤더 tr_cont = "M"이면 다음 페이지 있음, "D" 또는 공백이면 마지막
+        // KIS 연속조회 스펙:
+        // - 1차: 요청 헤더 tr_cont="" (빈값)
+        // - 응답 헤더 tr_cont="M"이면 다음 페이지 있음
+        // - 2차~: 요청 헤더 tr_cont="N" + CTX_AREA_FK100/NK100에 응답값 전달
         while (true) {
+            val headers = baseHeaders.toMutableMap().apply {
+                this["tr_cont"] = if (isFirstCall) "" else "N"
+            }
             val queries = mapOf(
                 "CANO" to account.accountNum.take(8),
                 "ACNT_PRDT_CD" to account.accountNum.drop(8),
@@ -105,7 +112,7 @@ class KisOrderStatusRepository @Inject constructor(
                 "CTX_AREA_FK100" to fk100,
                 "CTX_AREA_NK100" to nk100,
             )
-            val resp = service.getRealizedPnl(baseHeaders, queries)
+            val resp = service.getRealizedPnl(headers, queries)
             val body = resp.body() ?: break
             if (body.rtCd != "0") error("실현손익 조회 오류: ${body.msg1}")
 
@@ -128,13 +135,14 @@ class KisOrderStatusRepository @Inject constructor(
                 )
             }
 
-            // tr_cont 헤더: "M"=다음 페이지, "D"/공백=마지막
+            // 응답 헤더 tr_cont: "M"=다음 페이지, 그 외=마지막
             val trCont = resp.headers()["tr_cont"]?.trim() ?: ""
             if (trCont != "M") break
 
             fk100 = body.fk100
             nk100 = body.nk100
-            kotlinx.coroutines.delay(200L) // 초당 5건 이하로 안전하게
+            isFirstCall = false
+            kotlinx.coroutines.delay(300L) // 초당 3건 이하로 안전하게
         }
 
         RealizedPnlSummary(
