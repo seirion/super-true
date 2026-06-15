@@ -15,6 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.serialization.encodeToString
 import retrofit2.Retrofit
 import com.trueedu.tong.utils.logD
@@ -41,6 +42,9 @@ class KisQuoteManager @Inject constructor(
     val realtimeQuote = mutableStateOf<KisRealTimeQuote?>(null)
     val priceData = mutableStateOf<com.trueedu.tong.model.dto.kis.KisPriceDetail?>(null)
 
+    // 마지막 구독 시 사용한 TR ID — 시간대 전환 감지용
+    private var lastQuoteTrId: String = ""
+
     // approval key는 KisRealPriceManager에서 관리 — key 세팅 시 대기 중인 종목 재구독
     var approvalKey: String = ""
         set(value) {
@@ -50,6 +54,29 @@ class KisQuoteManager @Inject constructor(
                 currentCode?.let { sendQuoteSubscribe(it, subscribe = true) }
             }
         }
+
+    /**
+     * 시간대 전환 시 호가 구독 TR ID 갱신.
+     * KisRealPriceManager에서 NXT↔KRX 전환 시 호출한다.
+     */
+    fun refreshSubscription() {
+        val code = currentCode ?: return
+        val newTrId = KisRealPriceManager.quoteTransactionId()
+        if (newTrId == lastQuoteTrId) return  // TR ID 변경 없으면 불필요
+        logD("KisQuoteManager: 호가 TR ID 전환 $lastQuoteTrId → $newTrId")
+        // 기존 구독 해제 (이전 TR ID로)
+        if (lastQuoteTrId.isNotEmpty() && approvalKey.isNotEmpty()) {
+            val unsubReq = com.trueedu.tong.model.ws.KisWsRequest(
+                header = com.trueedu.tong.model.ws.KisWsHeader(approvalKey = approvalKey, transactionType = "2"),
+                body = com.trueedu.tong.model.ws.KisWsBody(
+                    input = com.trueedu.tong.model.ws.KisWsBodyInput(transactionId = lastQuoteTrId, transactionKey = code)
+                )
+            )
+            wsService.send(json.encodeToString(unsubReq))
+        }
+        // 새 구독 등록
+        sendQuoteSubscribe(code, subscribe = true)
+    }
 
     fun start(code: String) {
         currentCode = code
@@ -74,6 +101,7 @@ class KisQuoteManager @Inject constructor(
     private fun sendQuoteSubscribe(code: String, subscribe: Boolean) {
         if (approvalKey.isEmpty()) return
         val trId = KisRealPriceManager.quoteTransactionId()
+        if (subscribe) lastQuoteTrId = trId
         val req = com.trueedu.tong.model.ws.KisWsRequest(
             header = com.trueedu.tong.model.ws.KisWsHeader(
                 approvalKey = approvalKey,

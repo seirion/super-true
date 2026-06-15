@@ -49,6 +49,7 @@ class KisRealPriceManager @Inject constructor(
     private var approvalKey: String = ""
     private var connected = false
     private var intentionalDisconnect = false  // pause/stop 등 의도적 해제 중인지
+    private var lastTradeTrId: String = ""     // 마지막 체결 TR ID (KRX↔NXT 전환 감지용)
     private var account: BrokerAccount? = null
     private val subscribedCodes = mutableSetOf<String>()
     private var connectJob: kotlinx.coroutines.Job? = null  // 진행 중인 connect 코루틴 (중복 방지)
@@ -297,6 +298,11 @@ class KisRealPriceManager @Inject constructor(
                         val trade = KisRealTimeTrade.from(parts[3])
                         priceMap[trade.code] = trade
                         scope.launch { _tradeFlow.emit(trade) }
+                        // 체결 TR ID가 바뀌면(KRX↔NXT 전환) 호가 구독도 갱신
+                        if (trId != lastTradeTrId) {
+                            lastTradeTrId = trId
+                            quoteManager.refreshSubscription()
+                        }
                     }
                     "H0STASP0", "H0NXASP0" -> {
                         val quote = com.trueedu.tong.model.ws.KisRealTimeQuote.from(parts[3])
