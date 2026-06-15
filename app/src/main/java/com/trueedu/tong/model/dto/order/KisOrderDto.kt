@@ -14,6 +14,7 @@ data class KisOrderRequest(
     @SerialName("ORD_DVSN") val ordDvsn: String,          // 주문구분 00:지정가 01:시장가
     @SerialName("ORD_QTY") val ordQty: String,            // 주문수량
     @SerialName("ORD_UNPR") val ordUnpr: String,          // 주문단가 (시장가는 "0")
+    @SerialName("EXCG_ID_DVSN_CD") val excgIdDvsnCd: String = "SOR", // 거래소구분 KRX/NXT/SOR
 )
 
 @Serializable
