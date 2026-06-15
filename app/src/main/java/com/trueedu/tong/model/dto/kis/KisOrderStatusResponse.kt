@@ -56,6 +56,8 @@ data class KisFilledOrder(
 data class KisRealizedPnlResponse(
     @SerialName("output1") val items: List<KisRealizedPnlItem> = emptyList(),
     @SerialName("output2") val summary: KisRealizedPnlSummary? = null,
+    @SerialName("ctx_area_fk100") val fk100: String = "",
+    @SerialName("ctx_area_nk100") val nk100: String = "",
     @SerialName("rt_cd") val rtCd: String = "",
     @SerialName("msg1") val msg1: String = "",
 )
