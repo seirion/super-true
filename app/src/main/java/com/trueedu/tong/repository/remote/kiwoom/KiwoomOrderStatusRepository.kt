@@ -58,36 +58,47 @@ class KiwoomOrderStatusRepository @Inject constructor(
 
     suspend fun getRealizedPnl(account: BrokerAccount, startDate: String, endDate: String): Result<RealizedPnlSummary> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
-        val headers = authHeaders(account, "ka10072", token)
         val body = mapOf(
             "acnt_no" to account.accountNum,
             "strt_dt" to startDate,
             "end_dt" to endDate,
             "stk_cd" to "",
         )
-        val resp = service.getRealizedPnl(headers, body)
-        val b = resp.body() ?: error("실현손익 응답 없음")
-        if (b.returnCode != 0) error("실현손익 조회 오류: ${b.returnMsg}")
-        val items = b.items.map { o ->
+        // ka10073: 거래건별 상세 실현손익
+        val detailResp = service.getRealizedPnl(authHeaders(account, "ka10073", token), body)
+        val detail = detailResp.body() ?: error("실현손익 상세 응답 없음")
+        if (detail.returnCode != 0) error("실현손익 조회 오류: ${detail.returnMsg}")
+
+        // ka10074: 기간별 합계 (tot_pnl, trde_cmsn, trde_tax)
+        val summaryResp = service.getRealizedPnl(authHeaders(account, "ka10074", token), body)
+        val summary = summaryResp.body()
+
+        val items = detail.items.map { o ->
             val fee = o.fee.toLongOrNull() ?: 0L
             val tax = o.tax.toLongOrNull() ?: 0L
-            val pnlBefore = o.pnlBeforeCost.toLongOrNull() ?: 0L
+            val pnlBefore = o.pnlBeforeCost.replace(",", "").toDoubleOrNull()?.toLong() ?: 0L
             RealizedPnlItem(
                 code = o.code.removePrefix("A"),
                 name = o.name,
                 sellQty = o.sellQty.toLongOrNull() ?: 0L,
-                sellPrice = o.sellPrice.toLongOrNull() ?: 0L,
+                sellPrice = o.sellPrice.replace(",", "").toLongOrNull() ?: 0L,
                 fee = fee,
                 tax = tax,
                 pnlBeforeCost = pnlBefore,
-                pnlAfterCost = pnlBefore - fee - tax,  // ka10072는 비용후 필드 없음 → 직접 계산
+                pnlAfterCost = pnlBefore - fee - tax,
             )
         }
+        val totalPnlBefore = summary?.totalPnlBeforeCost?.replace(",", "")?.toLongOrNull()
+            ?: items.sumOf { it.pnlBeforeCost }
+        val totalFee = summary?.totalFee?.replace(",", "")?.toLongOrNull()
+            ?: items.sumOf { it.fee }
+        val totalTax = summary?.totalTax?.replace(",", "")?.toLongOrNull()
+            ?: items.sumOf { it.tax }
         RealizedPnlSummary(
-            totalPnlBeforeCost = items.sumOf { it.pnlBeforeCost },
-            totalPnlAfterCost = items.sumOf { it.pnlAfterCost },
-            totalFee = items.sumOf { it.fee },
-            totalTax = items.sumOf { it.tax },
+            totalPnlBeforeCost = totalPnlBefore,
+            totalPnlAfterCost = totalPnlBefore - totalFee - totalTax,
+            totalFee = totalFee,
+            totalTax = totalTax,
             items = items,
         )
     }
