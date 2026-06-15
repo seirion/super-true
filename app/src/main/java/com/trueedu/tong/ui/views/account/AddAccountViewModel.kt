@@ -63,7 +63,8 @@ class AddAccountViewModel @Inject constructor(
             accountNum.isNotBlank() &&
             appKey.isNotBlank() &&
             appSecret.isNotBlank() &&
-            (brokerType != BrokerType.KIWOOM || password.isNotBlank())
+            (brokerType != BrokerType.KIWOOM || password.isNotBlank()) &&
+            (brokerType != BrokerType.KIWOOM || accountNum.length == 10)
 
     fun onNameChange(value: String) { name = value }
     fun onBrokerTypeChange(value: BrokerType) { brokerType = value }

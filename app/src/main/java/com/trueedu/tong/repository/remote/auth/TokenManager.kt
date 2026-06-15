@@ -53,6 +53,7 @@ class TokenManager @Inject constructor(
     suspend fun refreshToken(account: BrokerAccount): Result<String> = runCatching {
         val appKey = credentialStorage.getAppKey(account.id)
         val appSecret = credentialStorage.getAppSecret(account.id)
+        logD("TokenManager: refreshToken - accountId=${account.id}, broker=${account.brokerType}, appKey=${appKey.take(8)}..., appSecretEmpty=${appSecret.isBlank()}")
 
         when (account.brokerType) {
             BrokerType.KIS -> {
@@ -72,6 +73,7 @@ class TokenManager @Inject constructor(
                 val body = resp.body() ?: error("키움 토큰 발급 실패: ${resp.code()}")
                 if (body.returnCode != 0) error("키움 토큰 오류: ${body.returnMsg}")
                 val expiredAtMs = parseKiwoomExpiry(body.expiresAt)
+                logD("TokenManager: 키움 토큰 발급 성공 - token=${body.accessToken.take(10)}..., expiresAt=${body.expiresAt}, expiredAtMs=$expiredAtMs")
                 credentialStorage.saveToken(account.id, body.accessToken, expiredAtMs)
                 body.accessToken
             }

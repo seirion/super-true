@@ -26,7 +26,7 @@ class KiwoomAccountRepository @Inject constructor(
         account: BrokerAccount,
         accessToken: String,
     ): Result<AccountSummary> = runCatching {
-        logD("KiwoomAccountRepository: getAccountSummary 시작 - accountId=${account.id}")
+        logD("KiwoomAccountRepository: getAccountSummary 시작 - accountId=${account.id}, token=${accessToken.take(10)}...")
         // kt00018 - 잔고/보유종목
         val balanceHeaders = mapOf(
             "authorization" to "Bearer $accessToken",
