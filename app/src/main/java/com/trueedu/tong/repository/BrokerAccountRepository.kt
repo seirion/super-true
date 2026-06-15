@@ -14,6 +14,7 @@ class BrokerAccountRepository @Inject constructor(
 
     suspend fun insert(account: BrokerAccount, appKey: String, appSecret: String, password: String = ""): Long {
         val id = dao.insert(account)
+        credentialStorage.clearToken(id)
         credentialStorage.saveCredentials(id, appKey, appSecret)
         if (password.isNotBlank()) credentialStorage.savePassword(id, password)
         return id
@@ -21,6 +22,7 @@ class BrokerAccountRepository @Inject constructor(
 
     suspend fun update(account: BrokerAccount, appKey: String, appSecret: String, password: String = "") {
         dao.update(account)
+        credentialStorage.clearToken(account.id)
         credentialStorage.saveCredentials(account.id, appKey, appSecret)
         if (password.isNotBlank()) credentialStorage.savePassword(account.id, password)
     }
