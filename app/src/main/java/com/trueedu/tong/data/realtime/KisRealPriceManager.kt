@@ -70,7 +70,11 @@ class KisRealPriceManager @Inject constructor(
         connectJob?.cancel()
         connectJob = null
 
-        val newCodes = codes.toSet()
+        // 41건 한도: 호가 1슬롯 예약 → 체결가 최대 40종목
+        val newCodes = codes.take(MAX_REALTIME_SYMBOLS).toSet()
+        if (codes.size > MAX_REALTIME_SYMBOLS) {
+            logW("KisRealPriceManager: 종목 ${codes.size}개 중 ${MAX_REALTIME_SYMBOLS}개만 구독 (KIS 한도)")
+        }
         this.account = account
 
         if (connected && approvalKey.isNotEmpty()) {
@@ -143,6 +147,10 @@ class KisRealPriceManager @Inject constructor(
     fun subscribe(codes: List<String>) {
         if (!connected || approvalKey.isEmpty()) return
         codes.forEach { code ->
+            if (subscribedCodes.size >= MAX_REALTIME_SYMBOLS) {
+                logW("KisRealPriceManager: 구독 한도(${MAX_REALTIME_SYMBOLS}) 초과 — $code 구독 스킵")
+                return@forEach
+            }
             if (subscribedCodes.add(code)) {
                 wsService.send(makeRequest(code, subscribe = true))
             }
@@ -323,6 +331,13 @@ class KisRealPriceManager @Inject constructor(
     }
 
     companion object {
+        /**
+         * KIS WebSocket 1세션 최대 등록 건수: 41건
+         * 체결가(H0STCNT0/H0NXCNT0) + 호가(H0STASP0/H0NXASP0) + 예상체결 + 체결통보 합산.
+         * 호가는 화면 진입 시 1종목만 사용하므로 체결가용으로 40종목 예약.
+         */
+        const val MAX_REALTIME_SYMBOLS = 40
+
         /**
          * NXT 운영 시간: 08:00~09:00, 15:30~20:00
          */
