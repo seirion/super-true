@@ -65,6 +65,7 @@ class OrderStatusViewModel @Inject constructor(
     }
 
     fun loadPnl() {
+        if (pnlLoading) return  // 이미 로딩 중이면 중복 호출 방지
         viewModelScope.launch {
             pnlLoading = true
             val accountId = local.selectedOrderAccountId
@@ -119,7 +120,8 @@ class OrderStatusViewModel @Inject constructor(
     }
 
     fun load() {
-        loadPnl()
+        // pnl은 아직 데이터 없거나 명시적 날짜 변경 시에만 호출 (탭 재진입마다 재조회 방지)
+        if (pnlSummary == null && !pnlLoading) loadPnl()
         viewModelScope.launch {
             state = StatusState.Loading
             val accountId = local.selectedOrderAccountId
