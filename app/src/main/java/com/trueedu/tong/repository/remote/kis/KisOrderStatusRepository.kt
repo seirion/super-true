@@ -92,8 +92,9 @@ class KisOrderStatusRepository @Inject constructor(
             "INQR_STRT_DT" to startDate,
             "INQR_END_DT" to endDate,
             "PDNO" to "",
-            "INQR_DVSN" to "00",
+            "INQR_DVSN" to "00",           // 00:전체
             "SORT_DVSN" to "00",           // 00:최근순
+            "CBLC_DVSN" to "00",           // 00:전체
             "EXCG_ID_DVSN_CD" to "",
             "CTX_AREA_FK100" to "",
             "CTX_AREA_NK100" to "",
@@ -102,23 +103,29 @@ class KisOrderStatusRepository @Inject constructor(
         val body = resp.body() ?: error("실현손익 조회 응답 없음")
         if (body.rtCd != "0") error("실현손익 조회 오류: ${body.msg1}")
         val items = body.items.map { o ->
+            val fee = o.fee.toLongOrNull() ?: 0L
+            val tax = o.tax.toLongOrNull() ?: 0L
+            val pnlBefore = o.pnlBeforeCost.toLongOrNull() ?: 0L
+            val sellQty = o.sellQty.toLongOrNull() ?: 0L
+            val sellAmt = o.sellAmt.toLongOrNull() ?: 0L
+            // sll_pric은 단가, sll_amt는 총액 → 총액 기준으로 sellPrice 사용
+            val sellPrice = if (sellQty > 0) sellAmt / sellQty else o.sellPrice.toLongOrNull() ?: 0L
             RealizedPnlItem(
                 code = o.code,
                 name = o.name,
-                sellQty = o.sellQty.toLongOrNull() ?: 0L,
-                sellPrice = o.sellPrice.toLongOrNull() ?: 0L,
-                fee = o.fee.toLongOrNull() ?: 0L,
-                tax = o.tax.toLongOrNull() ?: 0L,
-                pnlBeforeCost = o.pnlBeforeCost.toLongOrNull() ?: 0L,
-                pnlAfterCost = o.pnlAfterCost.toLongOrNull() ?: 0L,
+                sellQty = sellQty,
+                sellPrice = sellPrice,
+                fee = fee,
+                tax = tax,
+                pnlBeforeCost = pnlBefore,
+                pnlAfterCost = pnlBefore - fee - tax,  // 비용후 = 비용전 - 수수료 - 세금
             )
         }
-        val s = body.summary
         RealizedPnlSummary(
-            totalPnlBeforeCost = s?.totalPnlBeforeCost?.toLongOrNull() ?: items.sumOf { it.pnlBeforeCost },
-            totalPnlAfterCost = s?.totalPnlAfterCost?.toLongOrNull() ?: items.sumOf { it.pnlAfterCost },
-            totalFee = s?.totalFee?.toLongOrNull() ?: items.sumOf { it.fee },
-            totalTax = s?.totalTax?.toLongOrNull() ?: items.sumOf { it.tax },
+            totalPnlBeforeCost = items.sumOf { it.pnlBeforeCost },
+            totalPnlAfterCost = items.sumOf { it.pnlAfterCost },
+            totalFee = items.sumOf { it.fee },
+            totalTax = items.sumOf { it.tax },
             items = items,
         )
     }
