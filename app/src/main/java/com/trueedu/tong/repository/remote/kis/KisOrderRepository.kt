@@ -29,8 +29,8 @@ class KisOrderRepository @Inject constructor(
         request: OrderRequest,
     ): Result<String> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
-        // 매수: TTTC0802U, 매도: TTTC0801U (실전투자)
-        val trId = if (request.isBuy) "TTTC0802U" else "TTTC0801U"
+        // TTTC0012U(매수)/TTTC0011U(매도): SOR 통합 tr_id - 정규장/NXT 시간 모두 사용 가능
+        val trId = if (request.isBuy) "TTTC0012U" else "TTTC0011U"
         val headers = mapOf(
             "authorization" to "Bearer $token",
             "appkey" to credentialStorage.getAppKey(account.id),
