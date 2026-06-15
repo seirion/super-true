@@ -48,6 +48,7 @@ class KisRealPriceManager @Inject constructor(
 
     private var approvalKey: String = ""
     private var connected = false
+    private var intentionalDisconnect = false  // pause/stop 등 의도적 해제 중인지
     private var account: BrokerAccount? = null
     private val subscribedCodes = mutableSetOf<String>()
 
@@ -66,6 +67,7 @@ class KisRealPriceManager @Inject constructor(
     fun start(account: BrokerAccount, codes: List<String>) {
         // 이미 연결된 상태라면 기존 연결 정리 후 재시작
         if (connected || subscribedCodes.isNotEmpty()) {
+            intentionalDisconnect = true
             wsService.disconnect()
             connected = false
             subscribedCodes.clear()
@@ -82,6 +84,7 @@ class KisRealPriceManager @Inject constructor(
     }
 
     fun stop() {
+        intentionalDisconnect = true
         subscribedCodes.clear()
         wsService.disconnect()
         connected = false
@@ -93,6 +96,7 @@ class KisRealPriceManager @Inject constructor(
     fun pause() {
         if (!connected) return
         logD("KisRealPriceManager: pause")
+        intentionalDisconnect = true
         wsService.disconnect()
         connected = false
     }
@@ -212,6 +216,7 @@ class KisRealPriceManager @Inject constructor(
         wsService.connect(object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 logD("KisRealPriceManager: onOpen")
+                intentionalDisconnect = false
                 connected = true
                 // 연결 후 종목 구독
                 codes.forEach { code ->
@@ -225,15 +230,24 @@ class KisRealPriceManager @Inject constructor(
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                logE(t, "KisRealPriceManager: onFailure")
                 connected = false
+                // pause()/stop() 등 의도적 해제로 인한 onFailure는 재연결하지 않음
+                if (intentionalDisconnect) {
+                    logD("KisRealPriceManager: intentional disconnect, skip reconnect")
+                    intentionalDisconnect = false
+                    return
+                }
+                logE(t, "KisRealPriceManager: onFailure — reconnecting")
                 val currentAccount = account ?: return
+                val codesToReconnect = subscribedCodes.toList()
+                if (codesToReconnect.isEmpty()) return
                 // 재연결 시 approval key 재발급 (ALREADY IN USE 오류 방지)
                 scope.launch {
                     delay(2000)
                     val newKey = fetchApprovalKey(currentAccount) ?: return@launch
                     approvalKey = newKey
-                    connect(subscribedCodes.toList())
+                    quoteManager.approvalKey = newKey
+                    connect(codesToReconnect)
                 }
             }
         })
