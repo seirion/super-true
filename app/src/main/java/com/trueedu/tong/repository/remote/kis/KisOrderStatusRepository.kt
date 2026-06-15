@@ -5,6 +5,8 @@ import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.dto.kis.KisFilledOrder
 import com.trueedu.tong.model.dto.kis.KisUnfilledOrder
 import com.trueedu.tong.model.dto.order.OrderResult
+import com.trueedu.tong.model.dto.order.RealizedPnlItem
+import com.trueedu.tong.model.dto.order.RealizedPnlSummary
 import com.trueedu.tong.repository.local.CredentialStorage
 import com.trueedu.tong.repository.remote.auth.TokenManager
 import retrofit2.Retrofit
@@ -73,6 +75,51 @@ class KisOrderStatusRepository @Inject constructor(
         val body = resp.body() ?: error("체결 조회 응답 없음")
         if (body.rtCd != "0") error("체결 조회 오류: ${body.msg1}")
         body.orders
+    }
+
+    suspend fun getRealizedPnl(account: BrokerAccount, startDate: String, endDate: String): Result<RealizedPnlSummary> = runCatching {
+        val token = tokenManager.getValidToken(account).getOrThrow()
+        val headers = mapOf(
+            "authorization" to "Bearer $token",
+            "appkey" to credentialStorage.getAppKey(account.id),
+            "appsecret" to credentialStorage.getAppSecret(account.id),
+            "tr_id" to "TTTC8715R",
+            "custtype" to "P",
+        )
+        val queries = mapOf(
+            "CANO" to account.accountNum.take(8),
+            "ACNT_PRDT_CD" to account.accountNum.drop(8),
+            "INQR_STRT_DT" to startDate,
+            "INQR_END_DT" to endDate,
+            "PDNO" to "",
+            "INQR_DVSN" to "00",
+            "EXCG_ID_DVSN_CD" to "",
+            "CTX_AREA_FK100" to "",
+            "CTX_AREA_NK100" to "",
+        )
+        val resp = service.getRealizedPnl(headers, queries)
+        val body = resp.body() ?: error("실현손익 조회 응답 없음")
+        if (body.rtCd != "0") error("실현손익 조회 오류: ${body.msg1}")
+        val items = body.items.map { o ->
+            RealizedPnlItem(
+                code = o.code,
+                name = o.name,
+                sellQty = o.sellQty.toLongOrNull() ?: 0L,
+                sellPrice = o.sellPrice.toLongOrNull() ?: 0L,
+                fee = o.fee.toLongOrNull() ?: 0L,
+                tax = o.tax.toLongOrNull() ?: 0L,
+                pnlBeforeCost = o.pnlBeforeCost.toLongOrNull() ?: 0L,
+                pnlAfterCost = o.pnlAfterCost.toLongOrNull() ?: 0L,
+            )
+        }
+        val s = body.summary
+        RealizedPnlSummary(
+            totalPnlBeforeCost = s?.totalPnlBeforeCost?.toLongOrNull() ?: items.sumOf { it.pnlBeforeCost },
+            totalPnlAfterCost = s?.totalPnlAfterCost?.toLongOrNull() ?: items.sumOf { it.pnlAfterCost },
+            totalFee = s?.totalFee?.toLongOrNull() ?: items.sumOf { it.fee },
+            totalTax = s?.totalTax?.toLongOrNull() ?: items.sumOf { it.tax },
+            items = items,
+        )
     }
 
     suspend fun cancel(account: BrokerAccount, orgNo: String, ordNo: String, code: String): Result<OrderResult> = runCatching {

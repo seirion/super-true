@@ -1,6 +1,7 @@
 package com.trueedu.tong.repository.remote.kis
 
 import com.trueedu.tong.model.dto.kis.KisFilledOrderResponse
+import com.trueedu.tong.model.dto.kis.KisRealizedPnlResponse
 import com.trueedu.tong.model.dto.kis.KisUnfilledOrderResponse
 import retrofit2.Response
 import retrofit2.http.Body
@@ -23,6 +24,13 @@ interface KisOrderStatusService {
         @HeaderMap headers: Map<String, String>,
         @QueryMap queries: Map<String, String>,
     ): Response<KisFilledOrderResponse>
+
+    // 일별 실현손익 조회 (TTTC8715R)
+    @GET("uapi/domestic-stock/v1/trading/inquire-period-profit")
+    suspend fun getRealizedPnl(
+        @HeaderMap headers: Map<String, String>,
+        @QueryMap queries: Map<String, String>,
+    ): Response<KisRealizedPnlResponse>
 
     // 취소/정정 주문
     @POST("uapi/domestic-stock/v1/trading/order-rvsecncl")

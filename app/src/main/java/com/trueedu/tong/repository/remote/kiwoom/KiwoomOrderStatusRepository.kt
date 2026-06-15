@@ -5,6 +5,8 @@ import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.dto.kiwoom.KiwoomFilledOrder
 import com.trueedu.tong.model.dto.kiwoom.KiwoomUnfilledOrder
 import com.trueedu.tong.model.dto.order.OrderResult
+import com.trueedu.tong.model.dto.order.RealizedPnlItem
+import com.trueedu.tong.model.dto.order.RealizedPnlSummary
 import com.trueedu.tong.repository.local.CredentialStorage
 import com.trueedu.tong.repository.remote.auth.TokenManager
 import retrofit2.Retrofit
@@ -52,6 +54,39 @@ class KiwoomOrderStatusRepository @Inject constructor(
         val b = resp.body() ?: error("체결 응답 없음")
         if (b.returnCode != 0) error("체결 조회 오류: ${b.returnMsg}")
         b.orders
+    }
+
+    suspend fun getRealizedPnl(account: BrokerAccount, startDate: String, endDate: String): Result<RealizedPnlSummary> = runCatching {
+        val token = tokenManager.getValidToken(account).getOrThrow()
+        val headers = authHeaders(account, "kt00015", token)
+        val body = mapOf(
+            "acnt_no" to account.accountNum,
+            "strt_dt" to startDate,
+            "end_dt" to endDate,
+            "stk_cd" to "",
+        )
+        val resp = service.getRealizedPnl(headers, body)
+        val b = resp.body() ?: error("실현손익 응답 없음")
+        if (b.returnCode != 0) error("실현손익 조회 오류: ${b.returnMsg}")
+        val items = b.items.map { o ->
+            RealizedPnlItem(
+                code = o.code.removePrefix("A"),
+                name = o.name,
+                sellQty = o.sellQty.toLongOrNull() ?: 0L,
+                sellPrice = o.sellPrice.toLongOrNull() ?: 0L,
+                fee = o.fee.toLongOrNull() ?: 0L,
+                tax = o.tax.toLongOrNull() ?: 0L,
+                pnlBeforeCost = o.pnlBeforeCost.toLongOrNull() ?: 0L,
+                pnlAfterCost = o.pnlAfterCost.toLongOrNull() ?: 0L,
+            )
+        }
+        RealizedPnlSummary(
+            totalPnlBeforeCost = b.totalPnlBeforeCost.toLongOrNull() ?: items.sumOf { it.pnlBeforeCost },
+            totalPnlAfterCost = b.totalPnlAfterCost.toLongOrNull() ?: items.sumOf { it.pnlAfterCost },
+            totalFee = b.totalFee.toLongOrNull() ?: items.sumOf { it.fee },
+            totalTax = b.totalTax.toLongOrNull() ?: items.sumOf { it.tax },
+            items = items,
+        )
     }
 
     suspend fun cancel(account: BrokerAccount, ordNo: String, code: String, stexTp: String = "KRX"): Result<OrderResult> = runCatching {

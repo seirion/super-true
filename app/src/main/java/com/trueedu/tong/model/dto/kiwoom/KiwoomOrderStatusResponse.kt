@@ -54,3 +54,27 @@ data class KiwoomModifyCancelResponse(
     @SerialName("return_code") val returnCode: Int = -1,
     @SerialName("return_msg") val returnMsg: String = "",
 )
+
+// kt00015 일별 실현손익 응답
+@Serializable
+data class KiwoomRealizedPnlResponse(
+    @SerialName("reali_pnl_list") val items: List<KiwoomRealizedPnlItem> = emptyList(),
+    @SerialName("tot_reali_pnl") val totalPnlBeforeCost: String = "",  // 총실현손익(비용전)
+    @SerialName("tot_net_reali_pnl") val totalPnlAfterCost: String = "", // 총실현손익(비용후)
+    @SerialName("tot_fee") val totalFee: String = "",                  // 총수수료
+    @SerialName("tot_tax") val totalTax: String = "",                  // 총세금
+    @SerialName("return_code") val returnCode: Int = -1,
+    @SerialName("return_msg") val returnMsg: String = "",
+)
+
+@Serializable
+data class KiwoomRealizedPnlItem(
+    @SerialName("stk_cd") val code: String = "",
+    @SerialName("stk_nm") val name: String = "",
+    @SerialName("sell_qty") val sellQty: String = "",       // 매도수량
+    @SerialName("sell_pric") val sellPrice: String = "",    // 매도단가
+    @SerialName("fee") val fee: String = "",                // 수수료
+    @SerialName("tax") val tax: String = "",                // 세금
+    @SerialName("reali_pnl") val pnlBeforeCost: String = "", // 실현손익(비용전)
+    @SerialName("net_reali_pnl") val pnlAfterCost: String = "", // 실현손익(비용후)
+)
