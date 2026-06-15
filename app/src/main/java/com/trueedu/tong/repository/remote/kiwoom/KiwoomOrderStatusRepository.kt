@@ -58,36 +58,36 @@ class KiwoomOrderStatusRepository @Inject constructor(
 
     suspend fun getRealizedPnl(account: BrokerAccount, startDate: String, endDate: String): Result<RealizedPnlSummary> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
-        val headers = authHeaders(account, "kt00015", token)
+        val headers = authHeaders(account, "ka10072", token)
         val body = mapOf(
             "acnt_no" to account.accountNum,
             "strt_dt" to startDate,
             "end_dt" to endDate,
             "stk_cd" to "",
-            "tp" to "0",               // 0:전체
-            "gds_tp" to "0",           // 0:전체 상품구분
-            "dmst_stex_tp" to "SOR",   // 거래소구분
         )
         val resp = service.getRealizedPnl(headers, body)
         val b = resp.body() ?: error("실현손익 응답 없음")
         if (b.returnCode != 0) error("실현손익 조회 오류: ${b.returnMsg}")
         val items = b.items.map { o ->
+            val fee = o.fee.toLongOrNull() ?: 0L
+            val tax = o.tax.toLongOrNull() ?: 0L
+            val pnlBefore = o.pnlBeforeCost.toLongOrNull() ?: 0L
             RealizedPnlItem(
                 code = o.code.removePrefix("A"),
                 name = o.name,
                 sellQty = o.sellQty.toLongOrNull() ?: 0L,
                 sellPrice = o.sellPrice.toLongOrNull() ?: 0L,
-                fee = o.fee.toLongOrNull() ?: 0L,
-                tax = o.tax.toLongOrNull() ?: 0L,
-                pnlBeforeCost = o.pnlBeforeCost.toLongOrNull() ?: 0L,
-                pnlAfterCost = o.pnlAfterCost.toLongOrNull() ?: 0L,
+                fee = fee,
+                tax = tax,
+                pnlBeforeCost = pnlBefore,
+                pnlAfterCost = pnlBefore - fee - tax,  // ka10072는 비용후 필드 없음 → 직접 계산
             )
         }
         RealizedPnlSummary(
-            totalPnlBeforeCost = b.totalPnlBeforeCost.toLongOrNull() ?: items.sumOf { it.pnlBeforeCost },
-            totalPnlAfterCost = b.totalPnlAfterCost.toLongOrNull() ?: items.sumOf { it.pnlAfterCost },
-            totalFee = b.totalFee.toLongOrNull() ?: items.sumOf { it.fee },
-            totalTax = b.totalTax.toLongOrNull() ?: items.sumOf { it.tax },
+            totalPnlBeforeCost = items.sumOf { it.pnlBeforeCost },
+            totalPnlAfterCost = items.sumOf { it.pnlAfterCost },
+            totalFee = items.sumOf { it.fee },
+            totalTax = items.sumOf { it.tax },
             items = items,
         )
     }
