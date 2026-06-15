@@ -1,18 +1,22 @@
 package com.trueedu.tong.ui.views.watch
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -20,16 +24,24 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.trueedu.tong.data.realtime.InitialPrice
 import com.trueedu.tong.model.WatchlistItem
+import com.trueedu.tong.model.ws.KisRealTimeTrade
+import com.trueedu.tong.ui.theme.ChartColor
+import com.trueedu.tong.utils.NumberFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +49,12 @@ fun WatchScreen(
     vm: WatchViewModel = hiltViewModel(),
 ) {
     val watchlist by vm.watchlist.collectAsStateWithLifecycle()
+    val realtimePrices by vm.realtimePrices.collectAsStateWithLifecycle()
+    val initialPrices by vm.initialPrices.collectAsStateWithLifecycle()
+
+    // 삭제 확인 팝업용 상태
+    var pendingDeleteCode by remember { mutableStateOf<String?>(null) }
+    var pendingDeleteName by remember { mutableStateOf("") }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -53,7 +71,9 @@ fun WatchScreen(
     ) { innerPadding ->
         if (watchlist.isEmpty()) {
             Box(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -64,14 +84,47 @@ fun WatchScreen(
             }
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
             ) {
                 items(watchlist, key = { it.code }) { item ->
-                    WatchlistRow(item = item, onRemove = { vm.removeFromWatchlist(item.code) })
+                    val code = item.code.removePrefix("A")
+                    WatchlistRow(
+                        item = item,
+                        realtimePrice = realtimePrices[code],
+                        initialPrice = initialPrices[code],
+                        onLongClick = {
+                            pendingDeleteCode = item.code
+                            pendingDeleteName = item.nameKr
+                        },
+                    )
                     HorizontalDivider()
                 }
             }
         }
+    }
+
+    // 삭제 확인 다이얼로그
+    if (pendingDeleteCode != null) {
+        AlertDialog(
+            onDismissRequest = { pendingDeleteCode = null },
+            title = { Text("관심종목 삭제") },
+            text = { Text("'$pendingDeleteName'을(를) 관심종목에서 삭제하시겠어요?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingDeleteCode?.let { vm.removeFromWatchlist(it) }
+                    pendingDeleteCode = null
+                }) {
+                    Text("삭제", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteCode = null }) {
+                    Text("취소")
+                }
+            },
+        )
     }
 
     if (vm.showSearch) {
@@ -79,35 +132,61 @@ fun WatchScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun WatchlistRow(
     item: WatchlistItem,
-    onRemove: () -> Unit,
+    realtimePrice: KisRealTimeTrade?,
+    initialPrice: InitialPrice?,
+    onLongClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
+            .combinedClickable(
+                onClick = {},
+                onLongClick = onLongClick,
+            )
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        // 좌측: 종목명 + 코드
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.nameKr,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = item.code,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        IconButton(onClick = onRemove) {
-            Icon(
-                Icons.Filled.Delete,
-                contentDescription = "관심종목 삭제",
-                tint = MaterialTheme.colorScheme.outline,
+
+        // 우측: 현재가 + 등락금액(등락률) 두 줄
+        val currentPrice = realtimePrice?.price ?: initialPrice?.price
+        val delta = realtimePrice?.delta ?: initialPrice?.delta
+        val rate = realtimePrice?.rate ?: initialPrice?.rate
+
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = if (currentPrice != null) "${NumberFormatter.formatCash(currentPrice)}원" else "-",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = if (delta != null && rate != null) {
+                    "${NumberFormatter.formatCashWithSign(delta)} (${NumberFormatter.formatRate(rate)})"
+                } else {
+                    "-"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = ChartColor.color(delta ?: 0.0),
             )
         }
     }
