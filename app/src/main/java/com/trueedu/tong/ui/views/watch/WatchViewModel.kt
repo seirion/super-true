@@ -52,12 +52,11 @@ class WatchViewModel @Inject constructor(
     var searchQuery by mutableStateOf(""); private set
     var searchResults: List<StockInfoLocal> by mutableStateOf(emptyList()); private set
 
-    init {
-        // 관심종목 목록이 바뀌면 실시간 시세 구독 갱신
-        viewModelScope.launch {
-            watchlist.collect { items ->
-                if (items.isNotEmpty()) startRealtimeIfKis(items.map { it.code })
-            }
+    /** 관심 탭 활성화 시 호출 — 관심종목으로 실시간 시세 구독 교체 */
+    fun activateRealtime() {
+        val codes = watchlist.value.map { it.code }
+        if (codes.isNotEmpty()) {
+            startRealtimeIfKis(codes)
         }
     }
 

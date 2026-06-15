@@ -119,6 +119,14 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /** 홈 탭 활성화 시 호출 — 보유 종목으로 실시간 시세 구독 교체 */
+    fun activateRealtime() {
+        val success = uiState.value
+        if (success is UiState.Success) {
+            startRealtimeIfKis(success.summary.holdings.map { it.code })
+        }
+    }
+
     fun refresh() {
         viewModelScope.launch {
             selectedAccount.value?.let { fetchAndCache(it) }

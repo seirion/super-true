@@ -220,6 +220,21 @@ class OrderViewModel @Inject constructor(
     }
 
     /** 외부(다른 bottom tab)에서 주문 탭으로 진입 시 호출 — 정정 모드 해제 */
+    /** 주문 탭 활성화 시 호출 — 현재 선택 종목으로 실시간 시세 구독 교체 */
+    fun activateRealtime() {
+        val currentCode = code.removePrefix("A")
+        val acc = account ?: return
+        if (currentCode.isNotBlank()) {
+            viewModelScope.launch {
+                val allAccounts = brokerAccountRepo.getAll().first()
+                val kisAccount = allAccounts.firstOrNull { it.brokerType == com.trueedu.tong.model.BrokerType.KIS }
+                if (kisAccount != null) {
+                    kisPriceManager.start(kisAccount, listOf(currentCode))
+                }
+            }
+        }
+    }
+
     fun onOrderTabEntered(selectedAccountId: Long = -1L) {
         if (modifyEnteredFromUnfilled) {
             modifyEnteredFromUnfilled = false
