@@ -64,41 +64,34 @@ class KiwoomOrderStatusRepository @Inject constructor(
             "end_dt" to endDate,
             "stk_cd" to "",
         )
-        // ka10073: 거래건별 상세 실현손익
-        val detailResp = service.getRealizedPnl(authHeaders(account, "ka10073", token), body)
-        val detail = detailResp.body() ?: error("실현손익 상세 응답 없음")
-        if (detail.returnCode != 0) error("실현손익 조회 오류: ${detail.returnMsg}")
+        // ka10073: 거래건별 상세 실현손익 (단일 API로 모든 정보 포함)
+        val resp = service.getRealizedPnl(authHeaders(account, "ka10073", token), body)
+        val b = resp.body() ?: error("실현손익 응답 없음")
+        if (b.returnCode != 0) error("실현손익 조회 오류: ${b.returnMsg}")
 
-        // ka10074: 기간별 합계 (tot_pnl, trde_cmsn, trde_tax)
-        val summaryResp = service.getRealizedPnl(authHeaders(account, "ka10074", token), body)
-        val summary = summaryResp.body()
-
-        val items = detail.items.map { o ->
+        val items = b.items.map { o ->
             val fee = o.fee.toLongOrNull() ?: 0L
             val tax = o.tax.toLongOrNull() ?: 0L
             val pnlBefore = o.pnlBeforeCost.replace(",", "").toDoubleOrNull()?.toLong() ?: 0L
+            val sellQty = o.sellQty.toLongOrNull() ?: 0L
+            val sellPrice = o.sellPrice.replace(",", "").toDoubleOrNull()?.toLong() ?: 0L
             RealizedPnlItem(
                 code = o.code.removePrefix("A"),
                 name = o.name,
-                sellQty = o.sellQty.toLongOrNull() ?: 0L,
-                sellPrice = o.sellPrice.replace(",", "").toLongOrNull() ?: 0L,
+                sellQty = sellQty,
+                sellPrice = sellPrice,
                 fee = fee,
                 tax = tax,
                 pnlBeforeCost = pnlBefore,
                 pnlAfterCost = pnlBefore - fee - tax,
             )
         }
-        val totalPnlBefore = summary?.totalPnlBeforeCost?.replace(",", "")?.toLongOrNull()
-            ?: items.sumOf { it.pnlBeforeCost }
-        val totalFee = summary?.totalFee?.replace(",", "")?.toLongOrNull()
-            ?: items.sumOf { it.fee }
-        val totalTax = summary?.totalTax?.replace(",", "")?.toLongOrNull()
-            ?: items.sumOf { it.tax }
+        // 합계는 건별 합산으로 계산
         RealizedPnlSummary(
-            totalPnlBeforeCost = totalPnlBefore,
-            totalPnlAfterCost = totalPnlBefore - totalFee - totalTax,
-            totalFee = totalFee,
-            totalTax = totalTax,
+            totalPnlBeforeCost = items.sumOf { it.pnlBeforeCost },
+            totalPnlAfterCost = items.sumOf { it.pnlAfterCost },
+            totalFee = items.sumOf { it.fee },
+            totalTax = items.sumOf { it.tax },
             items = items,
         )
     }

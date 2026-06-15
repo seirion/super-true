@@ -56,15 +56,9 @@ data class KiwoomModifyCancelResponse(
 )
 
 // ka10073 일자별종목별 실현손익 (거래건별 상세)
-// ka10074 기간별 실현손익 합계
 @Serializable
 data class KiwoomRealizedPnlResponse(
-    // ka10073 응답: 거래별 상세
     @SerialName("dt_stk_rlzt_pl") val items: List<KiwoomRealizedPnlItem> = emptyList(),
-    // ka10074 응답: 합계
-    @SerialName("rlzt_pl") val totalPnlBeforeCost: String = "",   // 총 실현손익(비용전)
-    @SerialName("trde_cmsn") val totalFee: String = "",           // 총 수수료
-    @SerialName("trde_tax") val totalTax: String = "",            // 총 세금
     @SerialName("return_code") val returnCode: Int = -1,
     @SerialName("return_msg") val returnMsg: String = "",
 )
