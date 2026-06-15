@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -63,6 +64,7 @@ fun MenuScreen(
             }
         },
     ) { innerPadding ->
+        val itemColors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background)
         LazyColumn(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             item {
                 ListItem(
@@ -74,6 +76,7 @@ fun MenuScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     },
+                    colors = itemColors,
                 )
                 HorizontalDivider()
             }
@@ -86,6 +89,7 @@ fun MenuScreen(
                             onCheckedChange = { vm.onKeepScreenOnChange(it) },
                         )
                     },
+                    colors = itemColors,
                 )
                 HorizontalDivider()
             }
@@ -95,6 +99,7 @@ fun MenuScreen(
                     supportingContent = { Text("계좌 정보를 JSON으로 내보내거나 가져옵니다") },
                     leadingContent = { Icon(Icons.Filled.ImportExport, null) },
                     trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) },
+                    colors = itemColors,
                     modifier = Modifier.clickable {
                         navController?.navigate(AccountTransfer)
                     }
@@ -116,6 +121,7 @@ fun MenuScreen(
                             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
                         }
                     },
+                    colors = itemColors,
                     modifier = Modifier.clickable(enabled = !downloading) {
                         vm.downloadStockInfo { success ->
                             val message = if (success) "종목 파일 다운로드 완료" else "다운로드 실패"
