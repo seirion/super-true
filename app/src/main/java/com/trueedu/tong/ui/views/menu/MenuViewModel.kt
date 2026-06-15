@@ -1,8 +1,12 @@
 package com.trueedu.tong.ui.views.menu
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trueedu.tong.model.StockInfoLocal
+import com.trueedu.tong.repository.local.Local
 import com.trueedu.tong.repository.local.StockLocal
 import com.trueedu.tong.utils.StockInfoDownloader
 import com.trueedu.tong.utils.logE
@@ -17,7 +21,16 @@ import javax.inject.Inject
 class MenuViewModel @Inject constructor(
     private val stockInfoDownloader: StockInfoDownloader,
     private val stockLocal: StockLocal,
+    private val local: Local,
 ) : ViewModel() {
+
+    var keepScreenOn by mutableStateOf(local.keepScreenOn)
+        private set
+
+    fun onKeepScreenOnChange(value: Boolean) {
+        keepScreenOn = value
+        local.keepScreenOn = value
+    }
 
     private val _downloading = MutableStateFlow(false)
     val downloading: StateFlow<Boolean> = _downloading.asStateFlow()
