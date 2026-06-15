@@ -93,6 +93,7 @@ class KisOrderStatusRepository @Inject constructor(
             "INQR_END_DT" to endDate,
             "PDNO" to "",
             "INQR_DVSN" to "00",
+            "SORT_DVSN" to "00",           // 00:최근순
             "EXCG_ID_DVSN_CD" to "",
             "CTX_AREA_FK100" to "",
             "CTX_AREA_NK100" to "",
