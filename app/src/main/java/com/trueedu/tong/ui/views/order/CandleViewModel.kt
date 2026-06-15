@@ -57,6 +57,9 @@ class CandleViewModel @Inject constructor(
     // 마지막으로 로드한 종목코드 (중복 호출 방지)
     private var loadedCode: String? = null
 
+    // 분봉 거래량 계산용: 현재 분봉 시작 시점의 누적거래량 (분봉 전환 시 리셋)
+    private var minuteStartCumulativeVolume: Long = -1L
+
     // 외부에서 현재 종목코드 접근 (기간 변경 재조회 등)
     val currentCode: String get() = loadedCode ?: ""
 
@@ -94,18 +97,22 @@ class CandleViewModel @Inject constructor(
                 val latestMin = if (latest.datetime.length >= 12) latest.datetime.substring(8, 12)
                                else if (latest.datetime.length >= 4) latest.datetime.substring(0, 4)
                                else return
+                val cumulativeVol = trade.volume.toLong()
                 if (currentMin != latestMin) {
-                    // 새 분봉 추가 (리스트 앞에 추가 — 최신→과거 순서 유지)
+                    // 새 분봉 시작: 누적거래량 기준점 리셋
+                    minuteStartCumulativeVolume = cumulativeVol
                     val newDatetime = "${today}${trade.time.padEnd(6, '0')}"
                     candles.add(0, CandleData(newDatetime, trade.price, trade.price, trade.price, trade.price, 0L))
                     logD("CandleViewModel: 새 분봉 추가 $newDatetime")
                 } else {
-                    // 현재 분봉 갱신
+                    // 현재 분봉 갱신: 분 시작 시점 대비 증분 거래량 계산
+                    if (minuteStartCumulativeVolume < 0L) minuteStartCumulativeVolume = cumulativeVol
+                    val minuteVolume = maxOf(0L, cumulativeVol - minuteStartCumulativeVolume)
                     candles[0] = latest.copy(
                         high = maxOf(latest.high, trade.price),
                         low = if (latest.low > 0) minOf(latest.low, trade.price) else trade.price,
                         close = trade.price,
-                        volume = trade.volume.toLong(),
+                        volume = minuteVolume,
                     )
                 }
             }
@@ -152,6 +159,7 @@ class CandleViewModel @Inject constructor(
         }
         val periodChanged = period != currentPeriod
         currentPeriod = period
+        if (periodChanged || target != loadedCode) minuteStartCumulativeVolume = -1L
         val mustReload = force || periodChanged
         if (!mustReload && target == loadedCode && state is State.Success) return
         loadedCode = target
