@@ -27,11 +27,16 @@ class CandleChartState(
     // MA 표시 여부
     var showMa by mutableStateOf(true)
 
-    /** 새 데이터로 초기화 */
+    /** 새 데이터로 초기화 (스크롤 리셋 포함) */
     fun loadCandles(data: List<CandleData>) {
         candles = data
         scrollOffset = 0f
         error = null
+    }
+
+    /** 실시간 업데이트 — 스크롤/줌 상태 유지 */
+    fun updateCandles(data: List<CandleData>) {
+        candles = data
     }
 
     /** 과거 데이터 추가 (앞에 붙이기) */

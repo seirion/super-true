@@ -38,7 +38,11 @@ class CandleViewModel @Inject constructor(
     sealed class State {
         object Idle : State()
         object Loading : State()
-        data class Success(val candles: List<CandleData>, val broker: BrokerType) : State()
+        data class Success(
+            val candles: List<CandleData>,
+            val broker: BrokerType,
+            val isRealtimeUpdate: Boolean = false,
+        ) : State()
         object NoAccount : State()
         data class Error(val msg: String) : State()
     }
@@ -125,7 +129,7 @@ class CandleViewModel @Inject constructor(
                 )
             }
         }
-        state = State.Success(candles, s.broker)
+        state = State.Success(candles, s.broker, isRealtimeUpdate = true)
     }
 
     /**

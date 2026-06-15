@@ -48,6 +48,7 @@ fun CandleChartView(
     candles: List<CandleData>,
     period: CandlePeriod = CandlePeriod.DAY,
     minuteInterval: Int = 1,
+    isRealtimeUpdate: Boolean = false,
     config: ChartConfig = ChartConfig(),
     onLoadMore: () -> Unit = {},
     onPeriodChange: (CandlePeriod) -> Unit = {},
@@ -56,13 +57,21 @@ fun CandleChartView(
     val state = remember { CandleChartState() }
     var needSnap by remember { mutableStateOf(true) }
 
-    // 입력은 최신→과거 순서이므로 차트 내부에서는 과거→최신(좌→우)으로 뒤집어 사용
-    LaunchedEffect(candles) {
-        Timber.tag("CandleChartView").d("candles updated: size=${candles.size}")
-        state.loadCandles(candles.asReversed())
-        needSnap = true
-    }
     LaunchedEffect(period) { state.period = period }
+
+    LaunchedEffect(candles, isRealtimeUpdate) {
+        val reversed = candles.asReversed()
+        if (isRealtimeUpdate) {
+            // 실시간 업데이트: 스크롤/줌 유지
+            Timber.tag("CandleChartView").d("candles realtime update: size=${candles.size}")
+            state.updateCandles(reversed)
+        } else {
+            // 전체 새로고침 (종목/기간 변경): 스크롤 리셋 + 최신으로 스냅
+            Timber.tag("CandleChartView").d("candles reset: size=${candles.size}")
+            state.loadCandles(reversed)
+            needSnap = true
+        }
+    }
 
     Column(modifier.background(config.backgroundColor)) {
         ChartControlBar(

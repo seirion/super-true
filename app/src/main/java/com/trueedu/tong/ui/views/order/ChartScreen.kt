@@ -78,6 +78,7 @@ fun ChartScreen(vm: CandleViewModel) {
                     candles = s.candles,
                     period = vm.currentPeriod,
                     minuteInterval = vm.minuteInterval,
+                    isRealtimeUpdate = s.isRealtimeUpdate,
                     onPeriodChange = { vm.load(vm.currentCode, period = it, force = true) },
                     onLoadMore = { vm.loadMore() },
                     modifier = Modifier.weight(1f).fillMaxWidth(),
