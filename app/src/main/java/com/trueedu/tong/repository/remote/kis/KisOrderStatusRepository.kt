@@ -90,8 +90,8 @@ class KisOrderStatusRepository @Inject constructor(
         var fk100 = ""
         var nk100 = ""
 
-        // 연속조회: nk100이 공백이 될 때까지 반복
-        do {
+        // 연속조회: 응답 헤더 tr_cont = "M"이면 다음 페이지 있음, "D" 또는 공백이면 마지막
+        while (true) {
             val queries = mapOf(
                 "CANO" to account.accountNum.take(8),
                 "ACNT_PRDT_CD" to account.accountNum.drop(8),
@@ -110,31 +110,32 @@ class KisOrderStatusRepository @Inject constructor(
             if (body.rtCd != "0") error("실현손익 조회 오류: ${body.msg1}")
 
             body.items.mapTo(allItems) { o ->
-            val fee = o.fee.toLongOrNull() ?: 0L
-            val tax = o.tax.toLongOrNull() ?: 0L
-            val pnlBefore = o.pnlBeforeCost.toLongOrNull() ?: 0L
-            val sellQty = o.sellQty.toLongOrNull() ?: 0L
-            val sellAmt = o.sellAmt.toLongOrNull() ?: 0L
-            val sellPrice = if (sellQty > 0) sellAmt / sellQty else o.sellPrice.toLongOrNull() ?: 0L
-            RealizedPnlItem(
-                code = o.code,
-                name = o.name,
-                sellQty = sellQty,
-                sellPrice = sellPrice,
-                fee = fee,
-                tax = tax,
-                pnlBeforeCost = pnlBefore,
-                pnlAfterCost = pnlBefore - fee - tax,
-            )
+                val fee = o.fee.toLongOrNull() ?: 0L
+                val tax = o.tax.toLongOrNull() ?: 0L
+                val pnlBefore = o.pnlBeforeCost.toLongOrNull() ?: 0L
+                val sellQty = o.sellQty.toLongOrNull() ?: 0L
+                val sellAmt = o.sellAmt.toLongOrNull() ?: 0L
+                val sellPrice = if (sellQty > 0) sellAmt / sellQty else o.sellPrice.toLongOrNull() ?: 0L
+                RealizedPnlItem(
+                    code = o.code,
+                    name = o.name,
+                    sellQty = sellQty,
+                    sellPrice = sellPrice,
+                    fee = fee,
+                    tax = tax,
+                    pnlBeforeCost = pnlBefore,
+                    pnlAfterCost = pnlBefore - fee - tax,
+                )
             }
 
-            // 다음 페이지 여부: nk100이 공백이면 마지막
-            fk100 = body.fk100.trim()
-            nk100 = body.nk100.trim()
-            if (nk100.isNotBlank()) {
-                kotlinx.coroutines.delay(100L) // KIS 초당 20건 제한 (100ms = 10건/초)
-            }
-        } while (nk100.isNotBlank())
+            // tr_cont 헤더: "M"=다음 페이지, "D"/공백=마지막
+            val trCont = resp.headers()["tr_cont"]?.trim() ?: ""
+            if (trCont != "M") break
+
+            fk100 = body.fk100
+            nk100 = body.nk100
+            kotlinx.coroutines.delay(200L) // 초당 5건 이하로 안전하게
+        }
 
         RealizedPnlSummary(
             totalPnlBeforeCost = allItems.sumOf { it.pnlBeforeCost },
