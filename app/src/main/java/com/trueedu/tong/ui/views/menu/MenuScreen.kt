@@ -19,12 +19,15 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,6 +41,18 @@ fun MenuScreen(
 ) {
     val context = LocalContext.current
     val downloading by vm.downloading.collectAsStateWithLifecycle()
+    val view = LocalView.current
+
+    // keepScreenOn 상태가 바뀔 때마다 Window 플래그 갱신
+    DisposableEffect(vm.keepScreenOn) {
+        val window = (context as? android.app.Activity)?.window
+        if (vm.keepScreenOn) {
+            window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {}
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -57,6 +72,18 @@ fun MenuScreen(
                             text = com.trueedu.tong.BuildConfig.VERSION_NAME,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                )
+                HorizontalDivider()
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text("화면 항상 켜기") },
+                    trailingContent = {
+                        Switch(
+                            checked = vm.keepScreenOn,
+                            onCheckedChange = { vm.onKeepScreenOnChange(it) },
                         )
                     },
                 )
