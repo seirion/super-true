@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.trueedu.tong.model.BrokerType
 import com.trueedu.tong.model.dto.order.FilledOrderItem
 import com.trueedu.tong.model.dto.order.PnlDateRange
+import com.trueedu.tong.model.dto.order.RealizedPnlItem
 import com.trueedu.tong.model.dto.order.RealizedPnlSummary
 import com.trueedu.tong.model.dto.order.UnfilledOrderItem
 import com.trueedu.tong.repository.BrokerAccountRepository
@@ -94,6 +95,24 @@ class OrderStatusViewModel @Inject constructor(
         pnlDateRange = PnlDateRange.CUSTOM
         loadPnl()
     }
+
+    // 종목별 집계: code 기준으로 RealizedPnlItem 합산
+    val groupedItems: List<RealizedPnlItem>
+        get() {
+            val items = pnlSummary?.items ?: return emptyList()
+            return items.groupBy { it.code }.map { (_, group) ->
+                RealizedPnlItem(
+                    code = group.first().code,
+                    name = group.first().name,
+                    sellQty = group.sumOf { it.sellQty },
+                    sellPrice = if (group.size == 1) group.first().sellPrice else 0L, // 복수건은 단가 의미없음
+                    fee = group.sumOf { it.fee },
+                    tax = group.sumOf { it.tax },
+                    pnlBeforeCost = group.sumOf { it.pnlBeforeCost },
+                    pnlAfterCost = group.sumOf { it.pnlAfterCost },
+                )
+            }.sortedByDescending { it.pnlBeforeCost }
+        }
 
     fun onGroupByStockToggle() {
         groupByStock = !groupByStock
