@@ -10,6 +10,8 @@ import com.trueedu.tong.model.dto.order.RealizedPnlSummary
 import com.trueedu.tong.repository.local.CredentialStorage
 import com.trueedu.tong.repository.remote.auth.TokenManager
 import retrofit2.Retrofit
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -58,41 +60,54 @@ class KiwoomOrderStatusRepository @Inject constructor(
 
     suspend fun getRealizedPnl(account: BrokerAccount, startDate: String, endDate: String): Result<RealizedPnlSummary> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
-        val body = mapOf(
-            "acnt_no" to account.accountNum,
-            "strt_dt" to startDate,
-            "end_dt" to endDate,
-            "stk_cd" to "",
-        )
-        // ka10073: 거래건별 상세 실현손익 (단일 API로 모든 정보 포함)
-        val resp = service.getRealizedPnl(authHeaders(account, "ka10073", token), body)
-        val b = resp.body() ?: error("실현손익 응답 없음")
-        if (b.returnCode != 0) error("실현손익 조회 오류: ${b.returnMsg}")
+        val fmt = DateTimeFormatter.ofPattern("yyyyMMdd")
+        val start = LocalDate.parse(startDate, fmt)
+        val end = LocalDate.parse(endDate, fmt)
 
-        val items = b.items.map { o ->
-            val fee = o.fee.toLongOrNull() ?: 0L
-            val tax = o.tax.toLongOrNull() ?: 0L
-            val pnlBefore = o.pnlBeforeCost.replace(",", "").toDoubleOrNull()?.toLong() ?: 0L
-            val sellQty = o.sellQty.toLongOrNull() ?: 0L
-            val sellPrice = o.sellPrice.replace(",", "").toDoubleOrNull()?.toLong() ?: 0L
-            RealizedPnlItem(
-                code = o.code.removePrefix("A"),
-                name = o.name,
-                sellQty = sellQty,
-                sellPrice = sellPrice,
-                fee = fee,
-                tax = tax,
-                pnlBeforeCost = pnlBefore,
-                pnlAfterCost = pnlBefore - fee - tax,
-            )
+        // ka10073은 종료일 기준 3개월까지만 조회 가능 → 3개월 단위로 분할 호출
+        val chunks = mutableListOf<Pair<LocalDate, LocalDate>>()
+        var chunkEnd = end
+        while (!chunkEnd.isBefore(start)) {
+            val chunkStart = maxOf(start, chunkEnd.minusMonths(3).plusDays(1))
+            chunks.add(0, Pair(chunkStart, chunkEnd))
+            chunkEnd = chunkStart.minusDays(1)
         }
-        // 합계는 건별 합산으로 계산
+
+        val allItems = mutableListOf<RealizedPnlItem>()
+        for ((s, e) in chunks) {
+            val body = mapOf(
+                "acnt_no" to account.accountNum,
+                "strt_dt" to s.format(fmt),
+                "end_dt" to e.format(fmt),
+                "stk_cd" to "",
+            )
+            val resp = service.getRealizedPnl(authHeaders(account, "ka10073", token), body)
+            val b = resp.body() ?: continue
+            if (b.returnCode != 0) continue  // 해당 구간 오류 시 스킵
+
+            b.items.mapTo(allItems) { o ->
+                val fee = o.fee.toLongOrNull() ?: 0L
+                val tax = o.tax.toLongOrNull() ?: 0L
+                val pnlBefore = o.pnlBeforeCost.replace(",", "").toDoubleOrNull()?.toLong() ?: 0L
+                RealizedPnlItem(
+                    code = o.code.removePrefix("A"),
+                    name = o.name,
+                    sellQty = o.sellQty.toLongOrNull() ?: 0L,
+                    sellPrice = o.sellPrice.replace(",", "").toDoubleOrNull()?.toLong() ?: 0L,
+                    fee = fee,
+                    tax = tax,
+                    pnlBeforeCost = pnlBefore,
+                    pnlAfterCost = pnlBefore - fee - tax,
+                )
+            }
+        }
+
         RealizedPnlSummary(
-            totalPnlBeforeCost = items.sumOf { it.pnlBeforeCost },
-            totalPnlAfterCost = items.sumOf { it.pnlAfterCost },
-            totalFee = items.sumOf { it.fee },
-            totalTax = items.sumOf { it.tax },
-            items = items,
+            totalPnlBeforeCost = allItems.sumOf { it.pnlBeforeCost },
+            totalPnlAfterCost = allItems.sumOf { it.pnlAfterCost },
+            totalFee = allItems.sumOf { it.fee },
+            totalTax = allItems.sumOf { it.tax },
+            items = allItems,
         )
     }
 
