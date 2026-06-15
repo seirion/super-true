@@ -82,49 +82,50 @@ class CandleViewModel @Inject constructor(
         if (trade.code != loadedCode) return
         if (trade.price <= 0.0) return
 
+        // candles는 최신→과거 순서이므로 index 0이 가장 최근 봉
         val candles = s.candles.toMutableList()
-        val last = candles.lastOrNull() ?: return
+        val latest = candles.firstOrNull() ?: return
         val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
 
         when (currentPeriod) {
             CandlePeriod.MINUTE -> {
                 // 분봉: 현재 분(HHmm) 비교
                 val currentMin = if (trade.time.length >= 4) trade.time.substring(0, 4) else return
-                val lastMin = if (last.datetime.length >= 12) last.datetime.substring(8, 12)
-                             else if (last.datetime.length >= 4) last.datetime.substring(0, 4)
-                             else return
-                if (currentMin != lastMin) {
-                    // 새 분봉 추가
+                val latestMin = if (latest.datetime.length >= 12) latest.datetime.substring(8, 12)
+                               else if (latest.datetime.length >= 4) latest.datetime.substring(0, 4)
+                               else return
+                if (currentMin != latestMin) {
+                    // 새 분봉 추가 (리스트 앞에 추가 — 최신→과거 순서 유지)
                     val newDatetime = "${today}${trade.time.padEnd(6, '0')}"
-                    candles.add(CandleData(newDatetime, trade.price, trade.price, trade.price, trade.price, 0L))
+                    candles.add(0, CandleData(newDatetime, trade.price, trade.price, trade.price, trade.price, 0L))
                     logD("CandleViewModel: 새 분봉 추가 $newDatetime")
                 } else {
                     // 현재 분봉 갱신
-                    candles[candles.lastIndex] = last.copy(
-                        high = maxOf(last.high, trade.price),
-                        low = if (last.low > 0) minOf(last.low, trade.price) else trade.price,
+                    candles[0] = latest.copy(
+                        high = maxOf(latest.high, trade.price),
+                        low = if (latest.low > 0) minOf(latest.low, trade.price) else trade.price,
                         close = trade.price,
                         volume = trade.volume.toLong(),
                     )
                 }
             }
             CandlePeriod.DAY -> {
-                // 일봉: 오늘 날짜 캔들 갱신 (시가는 KIS WebSocket의 open 필드 사용)
-                if (last.datetime.take(8) == today) {
-                    candles[candles.lastIndex] = last.copy(
-                        open = if (trade.open > 0 && last.open == 0.0) trade.open else last.open,
-                        high = maxOf(last.high, trade.high.takeIf { it > 0 } ?: trade.price),
-                        low = if (last.low > 0) minOf(last.low, trade.low.takeIf { it > 0 } ?: trade.price) else trade.price,
+                // 일봉: 오늘 날짜 캔들 갱신
+                if (latest.datetime.take(8) == today) {
+                    candles[0] = latest.copy(
+                        open = if (trade.open > 0 && latest.open == 0.0) trade.open else latest.open,
+                        high = maxOf(latest.high, trade.high.takeIf { it > 0 } ?: trade.price),
+                        low = if (latest.low > 0) minOf(latest.low, trade.low.takeIf { it > 0 } ?: trade.price) else trade.price,
                         close = trade.price,
                         volume = trade.volume.toLong(),
                     )
                 }
             }
             CandlePeriod.WEEK, CandlePeriod.MONTH -> {
-                // 주/월봉: 마지막 봉의 close/high/low만 갱신
-                candles[candles.lastIndex] = last.copy(
-                    high = maxOf(last.high, trade.price),
-                    low = if (last.low > 0) minOf(last.low, trade.price) else trade.price,
+                // 주/월봉: 최신 봉의 close/high/low만 갱신
+                candles[0] = latest.copy(
+                    high = maxOf(latest.high, trade.price),
+                    low = if (latest.low > 0) minOf(latest.low, trade.price) else trade.price,
                     close = trade.price,
                 )
             }
