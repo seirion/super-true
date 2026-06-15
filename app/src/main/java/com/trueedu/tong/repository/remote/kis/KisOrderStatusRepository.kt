@@ -142,7 +142,7 @@ class KisOrderStatusRepository @Inject constructor(
             fk100 = body.fk100
             nk100 = body.nk100
             isFirstCall = false
-            kotlinx.coroutines.delay(300L) // 초당 3건 이하로 안전하게
+            kotlinx.coroutines.delay(100L) // KIS 초당 20건 제한 → 100ms = 최대 10건/초
         }
 
         RealizedPnlSummary(
