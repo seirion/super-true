@@ -667,7 +667,7 @@ private fun FilledOrderList(vm: OrderStatusViewModel) {
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                text = if (vm.groupByStock) "종목별 실현손익" else "체결 내역",
+                text = if (vm.groupByStock) "종목별 합산" else "매도 건별",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
             )
@@ -683,38 +683,19 @@ private fun FilledOrderList(vm: OrderStatusViewModel) {
         HorizontalDivider()
         // 목록 본문
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            if (vm.groupByStock) {
-                val items = vm.pnlSummary?.items ?: emptyList()
-                if (items.isEmpty()) {
-                    StatusMessage("실현손익 내역이 없습니다")
-                } else {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(items) { item ->
-                            RealizedPnlRow(item)
-                            HorizontalDivider()
-                        }
-                    }
+            val displayItems = if (vm.groupByStock) vm.groupedItems else vm.pnlSummary?.items ?: emptyList()
+            if (vm.pnlLoading && vm.pnlSummary == null) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
+            } else if (displayItems.isEmpty()) {
+                StatusMessage("매도 내역이 없습니다")
             } else {
-                when (val s = vm.state) {
-                    is OrderStatusViewModel.StatusState.Loading ->
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    is OrderStatusViewModel.StatusState.Error -> StatusMessage("오류: ${s.msg}")
-                    is OrderStatusViewModel.StatusState.Success -> {
-                        if (s.filled.isEmpty()) {
-                            StatusMessage("체결 내역이 없습니다")
-                        } else {
-                            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                                items(s.filled) { order ->
-                                    FilledOrderRow(order)
-                                    HorizontalDivider()
-                                }
-                            }
-                        }
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(displayItems) { item ->
+                        RealizedPnlRow(item, showSellAmount = true)
+                        HorizontalDivider()
                     }
-                    else -> StatusMessage("체결 내역")
                 }
             }
         }
@@ -828,7 +809,8 @@ private fun PnlDateRangeRow(vm: OrderStatusViewModel) {
 }
 
 @Composable
-private fun RealizedPnlRow(item: RealizedPnlItem) {
+private fun RealizedPnlRow(item: RealizedPnlItem, showSellAmount: Boolean = false) {
+    val sellAmount = item.sellQty * item.sellPrice
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -839,6 +821,13 @@ private fun RealizedPnlRow(item: RealizedPnlItem) {
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
             )
+            if (showSellAmount && sellAmount > 0) {
+                Text(
+                    text = "거래액 ${NumberFormatter.formatCash(sellAmount.toDouble())}원 · ${item.sellQty}주",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
                 text = "수수료 ${NumberFormatter.formatCash(item.fee.toDouble())} · 세금 ${NumberFormatter.formatCash(item.tax.toDouble())}",
                 style = MaterialTheme.typography.labelSmall,
@@ -853,7 +842,7 @@ private fun RealizedPnlRow(item: RealizedPnlItem) {
                 color = ChartColor.color(item.pnlAfterCost.toDouble()),
             )
             Text(
-                text = "비용전 ${NumberFormatter.formatCashWithSign(item.pnlBeforeCost.toDouble())}",
+                text = "세전 ${NumberFormatter.formatCashWithSign(item.pnlBeforeCost.toDouble())}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
