@@ -64,6 +64,9 @@ class KiwoomOrderStatusRepository @Inject constructor(
             "strt_dt" to startDate,
             "end_dt" to endDate,
             "stk_cd" to "",
+            "tp" to "0",               // 0:전체
+            "gds_tp" to "0",           // 0:전체 상품구분
+            "dmst_stex_tp" to "SOR",   // 거래소구분
         )
         val resp = service.getRealizedPnl(headers, body)
         val b = resp.body() ?: error("실현손익 응답 없음")
