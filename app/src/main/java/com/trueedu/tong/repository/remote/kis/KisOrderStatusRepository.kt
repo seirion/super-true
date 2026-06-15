@@ -131,6 +131,9 @@ class KisOrderStatusRepository @Inject constructor(
             // 다음 페이지 여부: nk100이 공백이면 마지막
             fk100 = body.fk100.trim()
             nk100 = body.nk100.trim()
+            if (nk100.isNotBlank()) {
+                kotlinx.coroutines.delay(100L) // KIS 초당 20건 제한 (100ms = 10건/초)
+            }
         } while (nk100.isNotBlank())
 
         RealizedPnlSummary(
