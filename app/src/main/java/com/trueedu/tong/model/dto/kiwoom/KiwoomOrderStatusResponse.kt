@@ -55,10 +55,16 @@ data class KiwoomModifyCancelResponse(
     @SerialName("return_msg") val returnMsg: String = "",
 )
 
-// ka10072 일자별종목별실현손익 응답
+// ka10073 일자별종목별 실현손익 (거래건별 상세)
+// ka10074 기간별 실현손익 합계
 @Serializable
 data class KiwoomRealizedPnlResponse(
-    @SerialName("dt_stk_div_rlzt_pl") val items: List<KiwoomRealizedPnlItem> = emptyList(),
+    // ka10073 응답: 거래별 상세
+    @SerialName("dt_stk_rlzt_pl") val items: List<KiwoomRealizedPnlItem> = emptyList(),
+    // ka10074 응답: 합계
+    @SerialName("rlzt_pl") val totalPnlBeforeCost: String = "",   // 총 실현손익(비용전)
+    @SerialName("trde_cmsn") val totalFee: String = "",           // 총 수수료
+    @SerialName("trde_tax") val totalTax: String = "",            // 총 세금
     @SerialName("return_code") val returnCode: Int = -1,
     @SerialName("return_msg") val returnMsg: String = "",
 )
@@ -72,5 +78,5 @@ data class KiwoomRealizedPnlItem(
     @SerialName("tdy_trde_cmsn") val fee: String = "",        // 당일매매수수료
     @SerialName("tdy_trde_tax") val tax: String = "",         // 당일매매세금
     @SerialName("tdy_sel_pl") val pnlBeforeCost: String = "", // 당일매도손익(비용전)
-    // 비용후 손익은 별도 필드 없음 → pnlBeforeCost - fee - tax 로 계산
+    // 비용후 = pnlBeforeCost - fee - tax
 )
