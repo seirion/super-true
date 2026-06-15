@@ -6,6 +6,7 @@ import com.trueedu.tong.model.dto.order.KisOrderRequest
 import com.trueedu.tong.model.dto.order.OrderRequest
 import com.trueedu.tong.repository.local.CredentialStorage
 import com.trueedu.tong.repository.remote.auth.TokenManager
+import com.trueedu.tong.utils.MarketHours
 import retrofit2.Retrofit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,8 +30,9 @@ class KisOrderRepository @Inject constructor(
         request: OrderRequest,
     ): Result<String> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
-        // 매수: TTTC0802U, 매도: TTTC0801U (실전투자)
-        val trId = if (request.isBuy) "TTTC0802U" else "TTTC0801U"
+        // 정규장(09:00~15:30): SOR → TTTC0802U/TTTC0801U
+        // NXT 시간(08:00~09:00, 15:30~20:00): NXT → TTTC0012U/TTTC0011U
+        val trId = if (request.isBuy) MarketHours.kisBuyTrId() else MarketHours.kisSellTrId()
         val headers = mapOf(
             "authorization" to "Bearer $token",
             "appkey" to credentialStorage.getAppKey(account.id),

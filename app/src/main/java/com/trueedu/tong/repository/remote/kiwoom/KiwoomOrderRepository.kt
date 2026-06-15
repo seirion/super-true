@@ -6,6 +6,7 @@ import com.trueedu.tong.model.dto.order.OrderRequest
 import com.trueedu.tong.model.dto.order.OrderResult
 import com.trueedu.tong.repository.local.CredentialStorage
 import com.trueedu.tong.repository.remote.auth.TokenManager
+import com.trueedu.tong.utils.MarketHours
 import retrofit2.Retrofit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,7 +27,7 @@ class KiwoomOrderRepository @Inject constructor(
             "ord_qty" to request.quantity.toString(),
             "ord_uv" to request.price.toString(),          // 주문단가 (ord_unpr 아닌 ord_uv)
             "trde_tp" to if (request.isMarket) "3" else "0", // 0=보통(지정가), 3=시장가
-            "dmst_stex_tp" to "SOR",                       // KRX/NXT/SOR
+            "dmst_stex_tp" to MarketHours.kiwoomExchangeType(), // 정규장:SOR, NXT시간:NXT
         )
         val resp = service.order(headers, body)
         val body2 = resp.body() ?: error("키움 주문 응답 없음")
