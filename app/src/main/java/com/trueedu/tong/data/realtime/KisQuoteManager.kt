@@ -41,8 +41,15 @@ class KisQuoteManager @Inject constructor(
     val realtimeQuote = mutableStateOf<KisRealTimeQuote?>(null)
     val priceData = mutableStateOf<com.trueedu.tong.model.dto.kis.KisPriceDetail?>(null)
 
-    // approval key는 KisRealPriceManager에서 관리 — 여기서는 setter로 받아서 사용
+    // approval key는 KisRealPriceManager에서 관리 — key 세팅 시 대기 중인 종목 재구독
     var approvalKey: String = ""
+        set(value) {
+            field = value
+            // key가 새로 세팅될 때 이미 start()된 종목이 있으면 구독 재시도
+            if (value.isNotEmpty()) {
+                currentCode?.let { sendQuoteSubscribe(it, subscribe = true) }
+            }
+        }
 
     fun start(code: String) {
         currentCode = code
