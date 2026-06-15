@@ -79,36 +79,42 @@ class KisOrderStatusRepository @Inject constructor(
 
     suspend fun getRealizedPnl(account: BrokerAccount, startDate: String, endDate: String): Result<RealizedPnlSummary> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
-        val headers = mapOf(
+        val baseHeaders = mapOf(
             "authorization" to "Bearer $token",
             "appkey" to credentialStorage.getAppKey(account.id),
             "appsecret" to credentialStorage.getAppSecret(account.id),
             "tr_id" to "TTTC8715R",
             "custtype" to "P",
         )
-        val queries = mapOf(
-            "CANO" to account.accountNum.take(8),
-            "ACNT_PRDT_CD" to account.accountNum.drop(8),
-            "INQR_STRT_DT" to startDate,
-            "INQR_END_DT" to endDate,
-            "PDNO" to "",
-            "INQR_DVSN" to "00",           // 00:전체
-            "SORT_DVSN" to "00",           // 00:최근순
-            "CBLC_DVSN" to "00",           // 00:전체
-            "EXCG_ID_DVSN_CD" to "",
-            "CTX_AREA_FK100" to "",
-            "CTX_AREA_NK100" to "",
-        )
-        val resp = service.getRealizedPnl(headers, queries)
-        val body = resp.body() ?: error("실현손익 조회 응답 없음")
-        if (body.rtCd != "0") error("실현손익 조회 오류: ${body.msg1}")
-        val items = body.items.map { o ->
+        val allItems = mutableListOf<RealizedPnlItem>()
+        var fk100 = ""
+        var nk100 = ""
+
+        // 연속조회: nk100이 공백이 될 때까지 반복
+        do {
+            val queries = mapOf(
+                "CANO" to account.accountNum.take(8),
+                "ACNT_PRDT_CD" to account.accountNum.drop(8),
+                "INQR_STRT_DT" to startDate,
+                "INQR_END_DT" to endDate,
+                "PDNO" to "",
+                "INQR_DVSN" to "00",
+                "SORT_DVSN" to "00",
+                "CBLC_DVSN" to "00",
+                "EXCG_ID_DVSN_CD" to "",
+                "CTX_AREA_FK100" to fk100,
+                "CTX_AREA_NK100" to nk100,
+            )
+            val resp = service.getRealizedPnl(baseHeaders, queries)
+            val body = resp.body() ?: break
+            if (body.rtCd != "0") error("실현손익 조회 오류: ${body.msg1}")
+
+            body.items.mapTo(allItems) { o ->
             val fee = o.fee.toLongOrNull() ?: 0L
             val tax = o.tax.toLongOrNull() ?: 0L
             val pnlBefore = o.pnlBeforeCost.toLongOrNull() ?: 0L
             val sellQty = o.sellQty.toLongOrNull() ?: 0L
             val sellAmt = o.sellAmt.toLongOrNull() ?: 0L
-            // sll_pric은 단가, sll_amt는 총액 → 총액 기준으로 sellPrice 사용
             val sellPrice = if (sellQty > 0) sellAmt / sellQty else o.sellPrice.toLongOrNull() ?: 0L
             RealizedPnlItem(
                 code = o.code,
@@ -118,15 +124,21 @@ class KisOrderStatusRepository @Inject constructor(
                 fee = fee,
                 tax = tax,
                 pnlBeforeCost = pnlBefore,
-                pnlAfterCost = pnlBefore - fee - tax,  // 비용후 = 비용전 - 수수료 - 세금
+                pnlAfterCost = pnlBefore - fee - tax,
             )
-        }
+            }
+
+            // 다음 페이지 여부: nk100이 공백이면 마지막
+            fk100 = body.fk100.trim()
+            nk100 = body.nk100.trim()
+        } while (nk100.isNotBlank())
+
         RealizedPnlSummary(
-            totalPnlBeforeCost = items.sumOf { it.pnlBeforeCost },
-            totalPnlAfterCost = items.sumOf { it.pnlAfterCost },
-            totalFee = items.sumOf { it.fee },
-            totalTax = items.sumOf { it.tax },
-            items = items,
+            totalPnlBeforeCost = allItems.sumOf { it.pnlBeforeCost },
+            totalPnlAfterCost = allItems.sumOf { it.pnlAfterCost },
+            totalFee = allItems.sumOf { it.fee },
+            totalTax = allItems.sumOf { it.tax },
+            items = allItems,
         )
     }
 
