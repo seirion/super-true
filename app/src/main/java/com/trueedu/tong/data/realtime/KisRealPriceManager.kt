@@ -70,23 +70,35 @@ class KisRealPriceManager @Inject constructor(
         connectJob?.cancel()
         connectJob = null
 
-        // 이미 연결된 상태라면 기존 연결 정리 후 재시작
-        if (connected || subscribedCodes.isNotEmpty()) {
-            intentionalDisconnect = true
-            wsService.disconnect()
-            connected = false
-            subscribedCodes.clear()
-        }
+        val newCodes = codes.toSet()
         this.account = account
-        // 초기 현재가 조회는 WebSocket 연결과 병렬로 실행
-        scope.launch { fetchInitialPrices(account, codes) }
-        connectJob = scope.launch {
-            // disconnect 직후 바로 재연결하면 ALREADY IN USE 발생 → 짧게 대기
-            if (intentionalDisconnect) delay(500)
-            val key = fetchApprovalKey(account) ?: return@launch
-            approvalKey = key
-            quoteManager.approvalKey = key  // 호가 구독에도 동일 key 공유
-            connect(codes)
+
+        if (connected && approvalKey.isNotEmpty()) {
+            // WebSocket이 이미 연결된 상태 → 종목 구독만 교체 (재연결 불필요)
+            logD("KisRealPriceManager: 연결 유지 — 종목 교체 (기존 ${subscribedCodes.size}개 → 신규 ${newCodes.size}개)")
+            val toUnsubscribe = subscribedCodes - newCodes
+            val toSubscribe = newCodes - subscribedCodes
+            toUnsubscribe.forEach { code ->
+                subscribedCodes.remove(code)
+                wsService.send(makeRequest(code, subscribe = false))
+            }
+            toSubscribe.forEach { code ->
+                subscribedCodes.add(code)
+                wsService.send(makeRequest(code, subscribe = true))
+            }
+            priceMap.clear()
+            scope.launch { fetchInitialPrices(account, newCodes.toList()) }
+        } else {
+            // 연결이 없는 경우 → 새로 연결
+            logD("KisRealPriceManager: 신규 연결 시작 (${newCodes.size}개 종목)")
+            subscribedCodes.clear()
+            scope.launch { fetchInitialPrices(account, newCodes.toList()) }
+            connectJob = scope.launch {
+                val key = fetchApprovalKey(account) ?: return@launch
+                approvalKey = key
+                quoteManager.approvalKey = key
+                connect(newCodes.toList())
+            }
         }
     }
 
