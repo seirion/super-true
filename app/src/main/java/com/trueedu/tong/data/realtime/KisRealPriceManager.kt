@@ -51,6 +51,7 @@ class KisRealPriceManager @Inject constructor(
     private var intentionalDisconnect = false  // pause/stop 등 의도적 해제 중인지
     private var account: BrokerAccount? = null
     private val subscribedCodes = mutableSetOf<String>()
+    private var connectJob: kotlinx.coroutines.Job? = null  // 진행 중인 connect 코루틴 (중복 방지)
 
     // 실시간 체결가 스트림
     private val _tradeFlow = MutableSharedFlow<KisRealTimeTrade>(extraBufferCapacity = 64)
@@ -65,6 +66,10 @@ class KisRealPriceManager @Inject constructor(
     val initialPriceFlow = _initialPriceFlow.asSharedFlow()
 
     fun start(account: BrokerAccount, codes: List<String>) {
+        // 진행 중인 connect 코루틴 취소 (중복 연결 방지)
+        connectJob?.cancel()
+        connectJob = null
+
         // 이미 연결된 상태라면 기존 연결 정리 후 재시작
         if (connected || subscribedCodes.isNotEmpty()) {
             intentionalDisconnect = true
@@ -75,7 +80,9 @@ class KisRealPriceManager @Inject constructor(
         this.account = account
         // 초기 현재가 조회는 WebSocket 연결과 병렬로 실행
         scope.launch { fetchInitialPrices(account, codes) }
-        scope.launch {
+        connectJob = scope.launch {
+            // disconnect 직후 바로 재연결하면 ALREADY IN USE 발생 → 짧게 대기
+            if (intentionalDisconnect) delay(500)
             val key = fetchApprovalKey(account) ?: return@launch
             approvalKey = key
             quoteManager.approvalKey = key  // 호가 구독에도 동일 key 공유
@@ -84,6 +91,8 @@ class KisRealPriceManager @Inject constructor(
     }
 
     fun stop() {
+        connectJob?.cancel()
+        connectJob = null
         intentionalDisconnect = true
         subscribedCodes.clear()
         wsService.disconnect()
@@ -96,6 +105,8 @@ class KisRealPriceManager @Inject constructor(
     fun pause() {
         if (!connected) return
         logD("KisRealPriceManager: pause")
+        connectJob?.cancel()
+        connectJob = null
         intentionalDisconnect = true
         wsService.disconnect()
         connected = false
@@ -107,8 +118,9 @@ class KisRealPriceManager @Inject constructor(
         val codes = subscribedCodes.toList()
         if (codes.isEmpty()) return
         logD("KisRealPriceManager: resume (${codes.size}종목)")
+        connectJob?.cancel()
         scope.launch { fetchInitialPrices(currentAccount, codes) }
-        scope.launch {
+        connectJob = scope.launch {
             val key = fetchApprovalKey(currentAccount) ?: return@launch
             approvalKey = key
             quoteManager.approvalKey = key
