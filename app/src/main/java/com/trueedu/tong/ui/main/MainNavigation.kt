@@ -1,12 +1,9 @@
 package com.trueedu.tong.ui.main
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -17,6 +14,7 @@ import com.trueedu.tong.ui.views.home.HomeScreen
 import com.trueedu.tong.ui.views.menu.AccountTransferScreen
 import com.trueedu.tong.ui.views.menu.MenuScreen
 import com.trueedu.tong.ui.views.order.OrderScreen
+import com.trueedu.tong.ui.views.watch.WatchScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -41,7 +39,7 @@ fun MainNavigation(
             HomeScreen(navController = navController)
         }
         composable<BottomNavItem.Watch> {
-            PlaceholderScreen("관심 화면")
+            WatchScreen()
         }
         composable<BottomNavItem.Order> {
             OrderScreen()
@@ -55,15 +53,5 @@ fun MainNavigation(
         composable<AccountTransfer> {
             AccountTransferScreen(onBack = { navController.popBackStack() })
         }
-    }
-}
-
-@Composable
-private fun PlaceholderScreen(text: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text = text)
     }
 }

@@ -25,15 +25,23 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
-// 다음 버전 업 시 아래에 추가
-// val MIGRATION_4_5 = object : Migration(4, 5) {
-//     override fun migrate(db: SupportSQLiteDatabase) {
-//         // ALTER TABLE 또는 CREATE TABLE 등
-//     }
-// }
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `watchlist` (
+                `code` TEXT NOT NULL,
+                `nameKr` TEXT NOT NULL,
+                `addedAt` INTEGER NOT NULL,
+                PRIMARY KEY(`code`)
+            )
+            """.trimIndent()
+        )
+    }
+}
 
 /** 등록된 모든 Migration 목록 */
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_3_4,
-    // MIGRATION_4_5,
+    MIGRATION_4_5,
 )

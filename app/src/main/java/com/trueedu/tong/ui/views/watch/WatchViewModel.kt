@@ -1,0 +1,78 @@
+package com.trueedu.tong.ui.views.watch
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.trueedu.tong.model.StockInfoLocal
+import com.trueedu.tong.model.WatchlistItem
+import com.trueedu.tong.repository.WatchlistRepository
+import com.trueedu.tong.repository.local.StockLocal
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class WatchViewModel @Inject constructor(
+    private val watchlistRepo: WatchlistRepository,
+    private val stockLocal: StockLocal,
+) : ViewModel() {
+
+    // 관심종목 목록
+    val watchlist: StateFlow<List<WatchlistItem>> = watchlistRepo.getAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    // 검색 화면 표시 여부
+    var showSearch by mutableStateOf(false)
+
+    // 종목 검색
+    private var allStocks: List<StockInfoLocal> = emptyList()
+    var searchQuery by mutableStateOf(""); private set
+    var searchResults: List<StockInfoLocal> by mutableStateOf(emptyList()); private set
+
+    /** 검색 화면 진입 시 호출 — 종목 목록 캐시 로드 */
+    fun loadStocksForSearch() {
+        if (allStocks.isNotEmpty()) return
+        viewModelScope.launch {
+            allStocks = stockLocal.getAllStocks()
+            applySearch()
+        }
+    }
+
+    fun onSearchQueryChange(q: String) {
+        searchQuery = q
+        applySearch()
+    }
+
+    private fun applySearch() {
+        val q = searchQuery.trim()
+        searchResults = if (q.isBlank()) {
+            allStocks
+        } else {
+            allStocks.filter { it.nameKr.contains(q, ignoreCase = true) || it.code.contains(q, ignoreCase = true) }
+        }
+    }
+
+    fun openSearch() { showSearch = true }
+
+    fun closeSearch() {
+        showSearch = false
+        onSearchQueryChange("")
+    }
+
+    fun addToWatchlist(code: String, nameKr: String) {
+        viewModelScope.launch {
+            watchlistRepo.add(code, nameKr)
+        }
+    }
+
+    fun removeFromWatchlist(code: String) {
+        viewModelScope.launch {
+            watchlistRepo.remove(code)
+        }
+    }
+}

@@ -7,6 +7,7 @@ import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.CachedAccountSummary
 import com.trueedu.tong.model.CachedHolding
 import com.trueedu.tong.model.StockInfoLocal
+import com.trueedu.tong.model.WatchlistItem
 
 @Database(
     entities = [
@@ -14,12 +15,14 @@ import com.trueedu.tong.model.StockInfoLocal
         CachedAccountSummary::class,
         CachedHolding::class,
         StockInfoLocal::class,
+        WatchlistItem::class,
     ],
-    version = 4,
+    version = 5,
 )
 @TypeConverters(BrokerTypeConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun brokerAccountDao(): BrokerAccountDao
     abstract fun accountSummaryCacheDao(): AccountSummaryCacheDao
     abstract fun stockInfoLocalDao(): StockInfoLocalDao
+    abstract fun watchlistDao(): WatchlistDao
 }
