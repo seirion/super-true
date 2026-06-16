@@ -30,8 +30,8 @@ class MainActivity : AppCompatActivity() {
 
         setContent {
             TrueSuperTheme {
-                MainScreen { navController, innerPadding ->
-                    MainNavigation(navController = navController, innerPadding = innerPadding)
+                MainScreen { backStack, innerPadding ->
+                    MainNavigation(backStack = backStack, innerPadding = innerPadding)
                 }
             }
         }

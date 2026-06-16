@@ -44,8 +44,9 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 material-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 
-# Navigation
-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version = "2.9.7" }
+# Navigation 3
+navigation3-runtime = { group = "androidx.navigation3", name = "navigation3-runtime", version = "1.0.0-alpha04" }
+navigation3-ui = { group = "androidx.navigation3", name = "navigation3-ui", version = "1.0.0-alpha04" }
 
 # Hilt
 hilt = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }

@@ -47,14 +47,14 @@ import com.trueedu.tong.data.realtime.InitialPrice
 import com.trueedu.tong.model.account.AccountSummary
 import com.trueedu.tong.model.account.HoldingStock
 import com.trueedu.tong.model.ws.KisRealTimeTrade
-import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.trueedu.tong.ui.theme.ChartColor
 import com.trueedu.tong.utils.NumberFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    navController: androidx.navigation.NavController? = null,
+    backStack: SnapshotStateList<Any>? = null,
     vm: HomeViewModel = hiltViewModel(),
     orderVm: com.trueedu.tong.ui.views.order.OrderViewModel = hiltViewModel(androidx.compose.ui.platform.LocalContext.current as androidx.activity.ComponentActivity),
 ) {
@@ -128,10 +128,11 @@ fun HomeScreen(
                             onClick = {
                                 selectedAccount?.let { acc ->
                                     orderVm.selectStock(holding.code, holding.name, acc.id)
-                                    navController?.navigate(com.trueedu.tong.ui.views.home.BottomNavItem.Order) {
-                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
+                                    backStack?.let { bs ->
+                                        if (bs.lastOrNull() != BottomNavItem.Order) {
+                                            bs.clear()
+                                            bs.add(BottomNavItem.Order)
+                                        }
                                     }
                                 }
                             },

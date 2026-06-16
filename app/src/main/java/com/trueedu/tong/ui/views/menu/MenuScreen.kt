@@ -26,6 +26,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -37,7 +38,7 @@ import com.trueedu.tong.ui.main.AccountTransfer
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MenuScreen(
-    navController: androidx.navigation.NavController? = null,
+    backStack: SnapshotStateList<Any>? = null,
     vm: MenuViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -101,7 +102,7 @@ fun MenuScreen(
                     trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) },
                     colors = itemColors,
                     modifier = Modifier.clickable {
-                        navController?.navigate(AccountTransfer)
+                        backStack?.add(AccountTransfer)
                     }
                 )
                 HorizontalDivider()
