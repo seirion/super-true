@@ -11,16 +11,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.trueedu.tong.ui.views.order.OrderViewModel
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
-import com.trueedu.tong.ui.navigation.bottomNavItemOrNull
 import com.trueedu.tong.ui.views.home.BottomNavItem
 import com.trueedu.tong.ui.views.home.HomeBottomNavigation
 import com.trueedu.tong.ui.views.home.HomeDrawer
@@ -31,12 +30,12 @@ import kotlinx.coroutines.launch
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun MainScreen(
-    mainNavigation: @Composable (navController: NavHostController, innerPadding: PaddingValues) -> Unit,
+    mainNavigation: @Composable (backStack: SnapshotStateList<Any>, innerPadding: PaddingValues) -> Unit,
 ) {
-    val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val backStack = rememberSaveable { mutableStateListOf<Any>(BottomNavItem.Home) }
     var currentTab by remember { mutableStateOf<BottomNavItem?>(BottomNavItem.Home) }
-    currentTab = navBackStackEntry.bottomNavItemOrNull() ?: currentTab
+    // 최상단이 탭이면 현재 탭을 갱신, 상세 화면(AddAccount 등)에서는 직전 탭을 유지
+    (backStack.lastOrNull() as? BottomNavItem)?.let { currentTab = it }
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -46,9 +45,9 @@ fun MainScreen(
         gesturesEnabled = currentTab == BottomNavItem.Home,
         drawerContent = {
             HomeDrawer(
-                onAddAccount = { navController.navigate(AddAccount()) },
+                onAddAccount = { backStack.add(AddAccount()) },
                 onEditAccount = { id ->
-                    navController.navigate(AddAccount(accountId = id))
+                    backStack.add(AddAccount(accountId = id))
                     scope.launch { drawerState.close() }
                 },
                 close = { scope.launch { drawerState.close() } },
@@ -62,7 +61,7 @@ fun MainScreen(
                     val watchVm: WatchViewModel = hiltViewModel(LocalContext.current as ComponentActivity)
                     val selectedAccount by homeVm.selectedAccount.collectAsState()
                     HomeBottomNavigation(
-                        navController = navController,
+                        backStack = backStack,
                         currentTab = currentTab,
                         onTabSelected = { currentTab = it },
                         onOrderTabClicked = {
@@ -87,7 +86,7 @@ fun MainScreen(
             ) { innerPadding ->
                 // 탭 영역 제외하고 화면이 그려지도록
                 val padding = PaddingValues(bottom = innerPadding.calculateBottomPadding())
-                mainNavigation(navController, padding)
+                mainNavigation(backStack, padding)
             }
         }
     )

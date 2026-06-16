@@ -43,10 +43,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.compose.ui.platform.LocalContext
 import com.trueedu.tong.data.realtime.InitialPrice
 import com.trueedu.tong.data.realtime.MarketIndex
@@ -62,7 +61,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WatchScreen(
-    navController: NavController? = null,
+    backStack: SnapshotStateList<Any>? = null,
     vm: WatchViewModel = hiltViewModel(),
     orderVm: OrderViewModel = hiltViewModel(LocalContext.current as ComponentActivity),
 ) {
@@ -164,10 +163,11 @@ fun WatchScreen(
                             marketIndex = indexMap[code],
                             onClick = {
                                 orderVm.selectStock(item.code, item.nameKr, orderVm.account?.id ?: -1L)
-                                navController?.navigate(BottomNavItem.Order) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
+                                backStack?.let { bs ->
+                                    if (bs.lastOrNull() != BottomNavItem.Order) {
+                                        bs.clear()
+                                        bs.add(BottomNavItem.Order)
+                                    }
                                 }
                             },
                             onLongClick = {
