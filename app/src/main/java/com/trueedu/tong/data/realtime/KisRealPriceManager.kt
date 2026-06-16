@@ -5,6 +5,8 @@ import com.trueedu.tong.di.KisRetrofitQualifier
 import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.dto.auth.KisApprovalKeyRequest
 import com.trueedu.tong.model.ws.KisRealTimeTrade
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import com.trueedu.tong.model.ws.KisWsBody
 import com.trueedu.tong.model.ws.KisWsBodyInput
 import com.trueedu.tong.model.ws.KisWsHeader
@@ -68,6 +70,12 @@ class KisRealPriceManager @Inject constructor(
     val initialPriceMap = mutableStateMapOf<String, InitialPrice>()
     private val _initialPriceFlow = MutableSharedFlow<Map<String, InitialPrice>>(replay = 1)
     val initialPriceFlow = _initialPriceFlow.asSharedFlow()
+
+    // 업종지수 (코스피/코스닥)
+    private val _indexFlow = MutableSharedFlow<MarketIndex>(extraBufferCapacity = 16)
+    val indexFlow = _indexFlow.asSharedFlow()
+    val indexMap = mutableStateMapOf<String, MarketIndex>()
+    private var indexSubscribed = false
 
     fun start(account: BrokerAccount, codes: List<String>) {
         scope.launch {
@@ -203,6 +211,32 @@ class KisRealPriceManager @Inject constructor(
         wsService.send(json.encodeToString(req))
     }
 
+    /** 코스피/코스닥 업종지수 구독 (기존 WebSocket 세션에 추가) */
+    fun subscribeIndex() {
+        scope.launch {
+            mutex.withLock {
+                if (!connected || approvalKey.isEmpty() || indexSubscribed) return@withLock
+                logD("KisRealPriceManager: subscribeIndex")
+                wsService.send(makeIndexRequest(MarketIndex.KIS_KOSPI, subscribe = true))
+                wsService.send(makeIndexRequest(MarketIndex.KIS_KOSDAQ, subscribe = true))
+                indexSubscribed = true
+            }
+        }
+    }
+
+    /** 코스피/코스닥 업종지수 구독 해제 */
+    fun unsubscribeIndex() {
+        scope.launch {
+            mutex.withLock {
+                if (!indexSubscribed) return@withLock
+                logD("KisRealPriceManager: unsubscribeIndex")
+                wsService.send(makeIndexRequest(MarketIndex.KIS_KOSPI, subscribe = false))
+                wsService.send(makeIndexRequest(MarketIndex.KIS_KOSDAQ, subscribe = false))
+                indexSubscribed = false
+            }
+        }
+    }
+
     /** 호가 구독 해제 */
     fun unsubscribeQuote(code: String) {
         if (approvalKey.isEmpty()) return
@@ -283,6 +317,11 @@ class KisRealPriceManager @Inject constructor(
                     subscribedCodes.add(code)
                     wsService.send(makeRequest(code, subscribe = true))
                 }
+                // 지수 구독 복구
+                if (indexSubscribed) {
+                    wsService.send(makeIndexRequest(MarketIndex.KIS_KOSPI, subscribe = true))
+                    wsService.send(makeIndexRequest(MarketIndex.KIS_KOSDAQ, subscribe = true))
+                }
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -335,6 +374,13 @@ class KisRealPriceManager @Inject constructor(
                         val quote = com.trueedu.tong.model.ws.KisRealTimeQuote.from(parts[3])
                         quoteManager.onRealtimeQuote(quote)
                     }
+                    "H0UPCNT0", "H0NXUPC0" -> {
+                        val index = MarketIndex.fromKis(parts[3])
+                        if (index.code.isNotEmpty()) {
+                            indexMap[index.code] = index
+                            scope.launch { _indexFlow.emit(index) }
+                        }
+                    }
                 }
             }
             text.contains("PINGPONG") -> {
@@ -363,6 +409,22 @@ class KisRealPriceManager @Inject constructor(
         return json.encodeToString(req)
     }
 
+    private fun makeIndexRequest(code: String, subscribe: Boolean): String {
+        val req = KisWsRequest(
+            header = KisWsHeader(
+                approvalKey = approvalKey,
+                transactionType = if (subscribe) "1" else "2",
+            ),
+            body = KisWsBody(
+                input = KisWsBodyInput(
+                    transactionId = indexTransactionId(),
+                    transactionKey = code,
+                )
+            )
+        )
+        return json.encodeToString(req)
+    }
+
     companion object {
         /**
          * KIS WebSocket 1세션 최대 등록 건수: 41건
@@ -383,5 +445,6 @@ class KisRealPriceManager @Inject constructor(
 
         fun tradeTransactionId() = if (isNxtTradingHour()) "H0NXCNT0" else "H0STCNT0"
         fun quoteTransactionId() = if (isNxtTradingHour()) "H0NXASP0" else "H0STASP0"
+        fun indexTransactionId() = if (isNxtTradingHour()) "H0NXUPC0" else "H0UPCNT0"
     }
 }

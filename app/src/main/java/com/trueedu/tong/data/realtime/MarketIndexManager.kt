@@ -17,17 +17,16 @@ import javax.inject.Singleton
 /**
  * 코스피/코스닥 실시간 지수 통합 관리자(Facade).
  *
- * 활성 계좌의 증권사 종류에 따라 [KisMarketIndexManager] 또는 [KiwoomMarketIndexManager] 를 사용하고,
- * 종목코드를 KIS 기준("0001"/"1001")으로 정규화하여 코스피/코스닥 스트림을 노출한다.
+ * KIS: [KisRealPriceManager]의 기존 WebSocket에 H0UPCNT0/H0NXUPC0 TR을 추가 구독
+ * 키움: [KiwoomMarketIndexManager]를 통해 별도 WebSocket 구독
  */
 @Singleton
 class MarketIndexManager @Inject constructor(
-    private val kisManager: KisMarketIndexManager,
+    private val kisRealPriceManager: KisRealPriceManager,
     private val kiwoomManager: KiwoomMarketIndexManager,
 ) {
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    // 현재 어떤 매니저를 사용 중인지 (pause/resume 분기용)
     private var activeBroker: BrokerType? = null
 
     private val _kospiFlow = MutableSharedFlow<MarketIndex>(extraBufferCapacity = 16)
@@ -36,17 +35,17 @@ class MarketIndexManager @Inject constructor(
     private val _kosdaqFlow = MutableSharedFlow<MarketIndex>(extraBufferCapacity = 16)
     val kosdaqFlow = _kosdaqFlow.asSharedFlow()
 
-    // 현재값 (KIS 기준 코드로 정규화하여 보관)
     var kospi: MarketIndex? by mutableStateOf(null)
         private set
     var kosdaq: MarketIndex? by mutableStateOf(null)
         private set
 
     init {
-        // 두 매니저의 스트림을 구독하여 정규화 후 코스피/코스닥으로 분기
+        // KisRealPriceManager의 indexFlow 구독
         scope.launch {
-            kisManager.indexFlow.collect { dispatch(it) }
+            kisRealPriceManager.indexFlow.collect { dispatch(it) }
         }
+        // 키움 매니저의 indexFlow 구독
         scope.launch {
             kiwoomManager.indexFlow.collect { dispatch(it) }
         }
@@ -71,15 +70,15 @@ class MarketIndexManager @Inject constructor(
         logD("MarketIndexManager: start (${account.brokerType})")
         when (account.brokerType) {
             BrokerType.KIWOOM -> {
-                if (activeBroker == BrokerType.KIS) kisManager.stop()
+                if (activeBroker == BrokerType.KIS) kisRealPriceManager.unsubscribeIndex()
                 activeBroker = BrokerType.KIWOOM
                 kiwoomManager.start(account)
             }
-            // 코스피/코스닥 지수는 KIS 업종지수로 제공 (KIS/LS/TOSS 계좌 공통)
             else -> {
                 if (activeBroker == BrokerType.KIWOOM) kiwoomManager.stop()
                 activeBroker = BrokerType.KIS
-                kisManager.start(account)
+                // 기존 WebSocket 세션에 지수 TR 추가 구독
+                kisRealPriceManager.subscribeIndex()
             }
         }
     }
@@ -87,8 +86,9 @@ class MarketIndexManager @Inject constructor(
     fun stop() {
         when (activeBroker) {
             BrokerType.KIWOOM -> kiwoomManager.stop()
-            else -> kisManager.stop()
+            else -> kisRealPriceManager.unsubscribeIndex()
         }
+        activeBroker = null
         kospi = null
         kosdaq = null
     }
@@ -96,14 +96,17 @@ class MarketIndexManager @Inject constructor(
     fun pause() {
         when (activeBroker) {
             BrokerType.KIWOOM -> kiwoomManager.pause()
-            else -> kisManager.pause()
+            else -> Unit // KIS는 KisRealPriceManager.pause()가 WebSocket을 처리함
         }
     }
 
     fun resume() {
         when (activeBroker) {
             BrokerType.KIWOOM -> kiwoomManager.resume()
-            else -> kisManager.resume()
+            else -> {
+                // KisRealPriceManager.resume() 후 연결되면 onOpen에서 지수도 재구독됨
+                Unit
+            }
         }
     }
 }
