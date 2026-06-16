@@ -86,10 +86,12 @@ class HomeViewModel @Inject constructor(
         // 선택된 계좌가 바뀌면 자동으로 데이터 로딩 (캐시 우선)
         viewModelScope.launch {
             selectedAccount.collectLatest { account ->
-                // 계좌 전환 시 이전 실시간 연결 정리
-                kisRealPriceManager.stop()
                 if (account != null) loadFromCacheOrFetch(account)
-                else _uiState.value = UiState.Idle
+                else {
+                    // 로그아웃 등 계좌 없는 경우에만 완전 정리
+                    kisRealPriceManager.stop()
+                    _uiState.value = UiState.Idle
+                }
             }
         }
     }

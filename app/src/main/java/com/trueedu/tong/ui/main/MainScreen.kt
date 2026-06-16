@@ -72,6 +72,8 @@ fun MainScreen(
                             } ?: orderVm.onOrderTabEntered()
                         },
                         onTabActivated = { tab ->
+                            // 이전 탭 비활성화
+                            if (tab != BottomNavItem.Watch) watchVm.deactivate()
                             // 탭 전환 시 해당 탭의 종목으로 실시간 시세 구독 교체
                             when (tab) {
                                 BottomNavItem.Home -> homeVm.activateRealtime()
