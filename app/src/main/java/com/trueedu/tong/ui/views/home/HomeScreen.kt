@@ -15,8 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
+
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
@@ -83,12 +82,6 @@ fun HomeScreen(
                             label = { Text("평가") },
                         )
                     }
-                    IconButton(onClick = vm::toggleSummary) {
-                        Icon(
-                            imageVector = if (vm.summaryExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                            contentDescription = if (vm.summaryExpanded) "요약 접기" else "요약 펼치기",
-                        )
-                    }
                 },
             )
         },
@@ -121,6 +114,7 @@ fun HomeScreen(
                             realtimePrices = realtimePrices,
                             initialPrices = initialPrices,
                             expanded = vm.summaryExpanded,
+                            onToggle = vm::toggleSummary,
                             onRefresh = vm::refresh,
                         )
                         HorizontalDivider()
@@ -223,6 +217,7 @@ private fun AccountInfoSection(
     realtimePrices: Map<String, KisRealTimeTrade>,
     initialPrices: Map<String, InitialPrice>,
     expanded: Boolean,
+    onToggle: () -> Unit,
     onRefresh: () -> Unit,
 ) {
     // 실시간 데이터가 없으면 초기 현재가(REST)로 fallback
@@ -267,6 +262,7 @@ private fun AccountInfoSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onToggle)
             .padding(horizontal = 16.dp, vertical = if (expanded) 16.dp else 8.dp),
     ) {
         if (expanded) {
