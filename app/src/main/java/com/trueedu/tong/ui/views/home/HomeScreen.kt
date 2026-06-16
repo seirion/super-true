@@ -25,6 +25,8 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -39,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.trueedu.tong.data.realtime.InitialPrice
@@ -252,8 +255,14 @@ private fun AccountInfoSection(
     }
 
     val profitLabel = if (marketPriceMode && hasPrices) "일간 " else ""
-    val profitText = "$profitLabel${NumberFormatter.formatCashWithSign(displayProfit)}원 " +
-        "(${NumberFormatter.formatRate(displayProfitRate)})"
+    val profitAmountText = "$profitLabel${NumberFormatter.formatCashWithSign(displayProfit)}원 "
+    val profitRateText = "(${NumberFormatter.formatRate(displayProfitRate)})"
+    val profitText = buildAnnotatedString {
+        append(profitAmountText)
+        pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+        append(profitRateText)
+        pop()
+    }
 
     Column(
         modifier = Modifier
@@ -284,14 +293,14 @@ private fun AccountInfoSection(
 
             Text(
                 text = profitText,
-                style = MaterialTheme.typography.bodyMedium,
+                fontSize = 15.sp,
                 color = ChartColor.color(displayProfit),
             )
         } else {
             // 접힘: 수익/수익률만 한 줄
             Text(
                 text = profitText,
-                style = MaterialTheme.typography.bodyMedium,
+                fontSize = 15.sp,
                 color = ChartColor.color(displayProfit),
             )
         }
