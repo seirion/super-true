@@ -20,6 +20,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.Response
@@ -46,6 +48,7 @@ class KisRealPriceManager @Inject constructor(
     private val priceService: KisPriceService by lazy { retrofit.create(KisPriceService::class.java) }
     private val scope = CoroutineScope(Dispatchers.IO)
 
+    private val mutex = Mutex()
     private var approvalKey: String = ""
     private var connected = false
     private var intentionalDisconnect = false  // pause/stop 등 의도적 해제 중인지
@@ -67,101 +70,125 @@ class KisRealPriceManager @Inject constructor(
     val initialPriceFlow = _initialPriceFlow.asSharedFlow()
 
     fun start(account: BrokerAccount, codes: List<String>) {
-        // 진행 중인 connect 코루틴 취소 (중복 연결 방지)
-        connectJob?.cancel()
-        connectJob = null
+        scope.launch {
+            mutex.withLock {
+                // 진행 중인 connect 코루틴 취소 (중복 연결 방지)
+                connectJob?.cancel()
+                connectJob = null
 
-        // 41건 한도: 호가 1슬롯 예약 → 체결가 최대 40종목
-        val newCodes = codes.take(MAX_REALTIME_SYMBOLS).toSet()
-        if (codes.size > MAX_REALTIME_SYMBOLS) {
-            logW("KisRealPriceManager: 종목 ${codes.size}개 중 ${MAX_REALTIME_SYMBOLS}개만 구독 (KIS 한도)")
-        }
-        this.account = account
+                // 41건 한도: 호가 1슬롯 예약 → 체결가 최대 40종목
+                val newCodes = codes.take(MAX_REALTIME_SYMBOLS).toSet()
+                if (codes.size > MAX_REALTIME_SYMBOLS) {
+                    logW("KisRealPriceManager: 종목 ${codes.size}개 중 ${MAX_REALTIME_SYMBOLS}개만 구독 (KIS 한도)")
+                }
+                this@KisRealPriceManager.account = account
 
-        if (connected && approvalKey.isNotEmpty()) {
-            // WebSocket이 이미 연결된 상태 → 종목 구독만 교체 (재연결 불필요)
-            logD("KisRealPriceManager: 연결 유지 — 종목 교체 (기존 ${subscribedCodes.size}개 → 신규 ${newCodes.size}개)")
-            val toUnsubscribe = subscribedCodes - newCodes
-            val toSubscribe = newCodes - subscribedCodes
-            toUnsubscribe.forEach { code ->
-                subscribedCodes.remove(code)
-                wsService.send(makeRequest(code, subscribe = false))
-            }
-            toSubscribe.forEach { code ->
-                subscribedCodes.add(code)
-                wsService.send(makeRequest(code, subscribe = true))
-            }
-            priceMap.clear()
-            scope.launch { fetchInitialPrices(account, newCodes.toList()) }
-        } else {
-            // 연결이 없는 경우 → 새로 연결
-            logD("KisRealPriceManager: 신규 연결 시작 (${newCodes.size}개 종목)")
-            subscribedCodes.clear()
-            scope.launch { fetchInitialPrices(account, newCodes.toList()) }
-            connectJob = scope.launch {
-                val key = fetchApprovalKey(account) ?: return@launch
-                approvalKey = key
-                quoteManager.approvalKey = key
-                connect(newCodes.toList())
+                if (connected && approvalKey.isNotEmpty()) {
+                    // WebSocket이 이미 연결된 상태 → 종목 구독만 교체 (재연결 불필요)
+                    logD("KisRealPriceManager: 연결 유지 — 종목 교체 (기존 ${subscribedCodes.size}개 → 신규 ${newCodes.size}개)")
+                    val toUnsubscribe = subscribedCodes - newCodes
+                    val toSubscribe = newCodes - subscribedCodes
+                    toUnsubscribe.forEach { code ->
+                        subscribedCodes.remove(code)
+                        wsService.send(makeRequest(code, subscribe = false))
+                    }
+                    toSubscribe.forEach { code ->
+                        subscribedCodes.add(code)
+                        wsService.send(makeRequest(code, subscribe = true))
+                    }
+                    priceMap.clear()
+                    launch { fetchInitialPrices(account, newCodes.toList()) }
+                } else {
+                    // 연결이 없는 경우 → 새로 연결
+                    logD("KisRealPriceManager: 신규 연결 시작 (${newCodes.size}개 종목)")
+                    subscribedCodes.clear()
+                    launch { fetchInitialPrices(account, newCodes.toList()) }
+                    connectJob = launch {
+                        val key = fetchApprovalKey(account) ?: return@launch
+                        approvalKey = key
+                        quoteManager.approvalKey = key
+                        connect(newCodes.toList())
+                    }
+                }
             }
         }
     }
 
     fun stop() {
-        connectJob?.cancel()
-        connectJob = null
-        intentionalDisconnect = true
-        subscribedCodes.clear()
-        wsService.disconnect()
-        connected = false
-        priceMap.clear()
-        initialPriceMap.clear()
+        scope.launch {
+            mutex.withLock {
+                connectJob?.cancel()
+                connectJob = null
+                intentionalDisconnect = true
+                subscribedCodes.clear()
+                wsService.disconnect()
+                connected = false
+                priceMap.clear()
+                initialPriceMap.clear()
+            }
+        }
     }
 
     /** 백그라운드 진입 시: WebSocket만 끊고 구독 목록/계좌는 유지 */
     fun pause() {
-        if (!connected) return
-        logD("KisRealPriceManager: pause")
-        connectJob?.cancel()
-        connectJob = null
-        intentionalDisconnect = true
-        wsService.disconnect()
-        connected = false
+        scope.launch {
+            mutex.withLock {
+                if (!connected) return@withLock
+                logD("KisRealPriceManager: pause")
+                connectJob?.cancel()
+                connectJob = null
+                intentionalDisconnect = true
+                wsService.disconnect()
+                connected = false
+            }
+        }
     }
 
     /** 포그라운드 복귀 시: 기존 구독 목록으로 재연결 + 초기값 재조회 */
     fun resume() {
-        val currentAccount = account ?: return
-        val codes = subscribedCodes.toList()
-        if (codes.isEmpty()) return
-        logD("KisRealPriceManager: resume (${codes.size}종목)")
-        connectJob?.cancel()
-        scope.launch { fetchInitialPrices(currentAccount, codes) }
-        connectJob = scope.launch {
-            val key = fetchApprovalKey(currentAccount) ?: return@launch
-            approvalKey = key
-            quoteManager.approvalKey = key
-            connect(codes)
+        scope.launch {
+            mutex.withLock {
+                val currentAccount = account ?: return@withLock
+                val codes = subscribedCodes.toList()
+                if (codes.isEmpty()) return@withLock
+                logD("KisRealPriceManager: resume (${codes.size}종목)")
+                connectJob?.cancel()
+                launch { fetchInitialPrices(currentAccount, codes) }
+                connectJob = launch {
+                    val key = fetchApprovalKey(currentAccount) ?: return@launch
+                    approvalKey = key
+                    quoteManager.approvalKey = key
+                    connect(codes)
+                }
+            }
         }
     }
 
     fun subscribe(codes: List<String>) {
-        if (!connected || approvalKey.isEmpty()) return
-        codes.forEach { code ->
-            if (subscribedCodes.size >= MAX_REALTIME_SYMBOLS) {
-                logW("KisRealPriceManager: 구독 한도(${MAX_REALTIME_SYMBOLS}) 초과 — $code 구독 스킵")
-                return@forEach
-            }
-            if (subscribedCodes.add(code)) {
-                wsService.send(makeRequest(code, subscribe = true))
+        scope.launch {
+            mutex.withLock {
+                if (!connected || approvalKey.isEmpty()) return@withLock
+                codes.forEach { code ->
+                    if (subscribedCodes.size >= MAX_REALTIME_SYMBOLS) {
+                        logW("KisRealPriceManager: 구독 한도(${MAX_REALTIME_SYMBOLS}) 초과 — $code 구독 스킵")
+                        return@forEach
+                    }
+                    if (subscribedCodes.add(code)) {
+                        wsService.send(makeRequest(code, subscribe = true))
+                    }
+                }
             }
         }
     }
 
     fun unsubscribe(codes: List<String>) {
-        codes.forEach { code ->
-            if (subscribedCodes.remove(code)) {
-                wsService.send(makeRequest(code, subscribe = false))
+        scope.launch {
+            mutex.withLock {
+                codes.forEach { code ->
+                    if (subscribedCodes.remove(code)) {
+                        wsService.send(makeRequest(code, subscribe = false))
+                    }
+                }
             }
         }
     }
