@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trueedu.tong.data.realtime.InitialPrice
 import com.trueedu.tong.data.realtime.KisRealPriceManager
+import com.trueedu.tong.data.realtime.MarketIndex
+import com.trueedu.tong.data.realtime.MarketIndexManager
 import com.trueedu.tong.model.BrokerType
 import com.trueedu.tong.model.StockInfoLocal
 import com.trueedu.tong.model.WatchlistItem
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -30,6 +33,7 @@ class WatchViewModel @Inject constructor(
     private val watchlistRepo: WatchlistRepository,
     private val stockLocal: StockLocal,
     private val kisRealPriceManager: KisRealPriceManager,
+    private val marketIndexManager: MarketIndexManager,
     private val brokerAccountRepo: BrokerAccountRepository,
 ) : ViewModel() {
 
@@ -45,6 +49,17 @@ class WatchViewModel @Inject constructor(
     // 초기 현재가 (REST fallback)
     val initialPrices: StateFlow<Map<String, InitialPrice>> = kisRealPriceManager.initialPriceFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    // 실시간 지수 (코스피/코스닥) — KIS 기준 코드("0001"/"1001") 기준 Map
+    val indexMap: StateFlow<Map<String, MarketIndex>> =
+        merge(marketIndexManager.kospiFlow, marketIndexManager.kosdaqFlow)
+            .map {
+                buildMap {
+                    marketIndexManager.kospi?.let { put(MarketIndex.KIS_KOSPI, it) }
+                    marketIndexManager.kosdaq?.let { put(MarketIndex.KIS_KOSDAQ, it) }
+                }
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     // 관심 탭이 활성화된 상태인지
     private var isActive = false
@@ -90,16 +105,32 @@ class WatchViewModel @Inject constructor(
     /** 관심 탭 비활성화 시 호출 (다른 탭으로 이동) */
     fun deactivate() {
         isActive = false
+        marketIndexManager.stop()
     }
 
     private suspend fun startRealtimeIfKis(codes: List<String>) {
         val allAccounts = brokerAccountRepo.getAll().first()
         val kisAccount = allAccounts.firstOrNull { it.brokerType == BrokerType.KIS }
-        if (kisAccount != null && codes.isNotEmpty()) {
-            val normalizedCodes = codes.map { it.removePrefix("A") }
-            kisRealPriceManager.start(kisAccount, normalizedCodes)
+
+        val normalizedCodes = codes.map { it.removePrefix("A") }
+
+        // 일반 종목(지수 제외) 실시간 시세 구독
+        val stockCodes = normalizedCodes.filterNot { isIndexCode(it) }
+        if (kisAccount != null && stockCodes.isNotEmpty()) {
+            kisRealPriceManager.start(kisAccount, stockCodes)
+        }
+
+        // 지수(코스피/코스닥) 구독: watchlist에 지수 코드가 있으면 KIS 우선, 없으면 첫 계좌로 시작
+        if (normalizedCodes.any { isIndexCode(it) }) {
+            val indexAccount = kisAccount ?: allAccounts.firstOrNull()
+            if (indexAccount != null) {
+                marketIndexManager.start(indexAccount)
+            }
         }
     }
+
+    private fun isIndexCode(code: String): Boolean =
+        code == MarketIndex.KIS_KOSPI || code == MarketIndex.KIS_KOSDAQ
 
     /** 검색 화면 진입 시 호출 — 종목 목록 캐시 로드 */
     fun loadStocksForSearch() {
@@ -117,11 +148,22 @@ class WatchViewModel @Inject constructor(
 
     private fun applySearch() {
         val q = searchQuery.trim()
-        searchResults = if (q.isBlank()) {
+        val base = if (q.isBlank()) {
             allStocks
         } else {
             allStocks.filter { it.nameKr.contains(q, ignoreCase = true) || it.code.contains(q, ignoreCase = true) }
         }
+        // 지수(코스피/코스닥) 고정 항목을 상단에 노출
+        searchResults = matchingIndexStocks(q) + base
+    }
+
+    private fun matchingIndexStocks(q: String): List<StockInfoLocal> {
+        if (q.isBlank()) return listOf(KOSPI_STOCK, KOSDAQ_STOCK)
+        val lower = q.lowercase()
+        val result = mutableListOf<StockInfoLocal>()
+        if (KOSPI_KEYWORDS.any { it.contains(lower) }) result.add(KOSPI_STOCK)
+        if (KOSDAQ_KEYWORDS.any { it.contains(lower) }) result.add(KOSDAQ_STOCK)
+        return result
     }
 
     fun openSearch() { showSearch = true }
@@ -141,5 +183,14 @@ class WatchViewModel @Inject constructor(
         viewModelScope.launch {
             watchlistRepo.remove(code)
         }
+    }
+
+    companion object {
+        // 지수 전용 검색 항목 (KIS 기준 코드)
+        val KOSPI_STOCK = StockInfoLocal(code = "0001", nameKr = "코스피", attributes = "", kospi = true)
+        val KOSDAQ_STOCK = StockInfoLocal(code = "1001", nameKr = "코스닥", attributes = "", kospi = false)
+
+        private val KOSPI_KEYWORDS = listOf("코스피", "kospi", "0001", "001")
+        private val KOSDAQ_KEYWORDS = listOf("코스닥", "kosdaq", "1001", "101")
     }
 }
