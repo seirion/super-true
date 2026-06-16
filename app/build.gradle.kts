@@ -211,6 +211,9 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.bundles.firebase)
 
+    // 드래그&드랍 재정렬
+    implementation(libs.reorderable)
+
     // Test
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

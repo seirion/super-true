@@ -77,6 +77,37 @@ class WatchViewModel @Inject constructor(
         }
     }
 
+    // 편집(순서 변경) 모드
+    var editMode by mutableStateOf(false)
+        private set
+
+    // 편집 중 임시 순서. 드래그 중에는 DB 대신 이 리스트만 갱신하고, 완료 시 한 번에 저장한다.
+    var editList: List<WatchlistItem> by mutableStateOf(emptyList())
+        private set
+
+    fun toggleEditMode() {
+        if (editMode) {
+            // 편집 완료 → 현재 순서를 저장
+            val ordered = editList.map { it.code }
+            editMode = false
+            viewModelScope.launch {
+                watchlistRepo.saveOrder(ordered)
+            }
+        } else {
+            // 편집 시작 → 현재 목록을 스냅샷
+            editList = watchlist.value
+            editMode = true
+        }
+    }
+
+    /** 드래그&드랍 이동마다 호출 — 로컬 임시 순서만 갱신 */
+    fun reorderWatchlist(from: Int, to: Int) {
+        val current = editList.toMutableList()
+        if (from !in current.indices || to !in current.indices) return
+        current.add(to, current.removeAt(from))
+        editList = current
+    }
+
     // 검색 화면 표시 여부
     var showSearch by mutableStateOf(false)
 

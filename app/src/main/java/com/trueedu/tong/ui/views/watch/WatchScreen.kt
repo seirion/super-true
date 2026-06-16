@@ -12,9 +12,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -23,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -50,6 +56,8 @@ import com.trueedu.tong.ui.theme.ChartColor
 import com.trueedu.tong.ui.views.home.BottomNavItem
 import com.trueedu.tong.ui.views.order.OrderViewModel
 import com.trueedu.tong.utils.NumberFormatter
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,6 +87,14 @@ fun WatchScreen(
             TopAppBar(
                 title = { Text("관심") },
                 actions = {
+                    if (watchlist.isNotEmpty()) {
+                        IconButton(onClick = vm::toggleEditMode) {
+                            Icon(
+                                if (vm.editMode) Icons.Filled.Done else Icons.Filled.Edit,
+                                contentDescription = "편집",
+                            )
+                        }
+                    }
                     IconButton(onClick = vm::openSearch) {
                         Icon(Icons.Filled.Search, contentDescription = "종목 검색")
                     }
@@ -100,32 +116,67 @@ fun WatchScreen(
                 )
             }
         } else {
+            val lazyListState = rememberLazyListState()
+            val reorderState = rememberReorderableLazyListState(lazyListState) { from, to ->
+                vm.reorderWatchlist(from.index, to.index)
+            }
+            // 편집 모드에서는 로컬 임시 순서(editList)를, 평소에는 watchlist를 노출
+            val displayList = if (vm.editMode) vm.editList else watchlist
+
             LazyColumn(
+                state = lazyListState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
             ) {
-                items(watchlist, key = { it.code }) { item ->
+                items(displayList, key = { it.code }) { item ->
                     val code = item.code.removePrefix("A")
-                    WatchlistRow(
-                        item = item,
-                        realtimePrice = realtimePrices[code],
-                        initialPrice = initialPrices[code],
-                        marketIndex = indexMap[code],
-                        onClick = {
-                            orderVm.selectStock(item.code, item.nameKr, orderVm.account?.id ?: -1L)
-                            navController?.navigate(BottomNavItem.Order) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                    if (vm.editMode) {
+                        ReorderableItem(reorderState, key = item.code) { isDragging ->
+                            val elevation by animateDpAsState(
+                                if (isDragging) 4.dp else 0.dp,
+                                label = "drag-elevation",
+                            )
+                            Surface(shadowElevation = elevation) {
+                                WatchlistRow(
+                                    item = item,
+                                    realtimePrice = realtimePrices[code],
+                                    initialPrice = initialPrices[code],
+                                    marketIndex = indexMap[code],
+                                    editMode = true,
+                                    dragHandle = {
+                                        Icon(
+                                            Icons.Filled.DragHandle,
+                                            contentDescription = "순서 변경",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.draggableHandle(),
+                                        )
+                                    },
+                                )
                             }
-                        },
-                        onLongClick = {
-                            pendingDeleteCode = item.code
-                            pendingDeleteName = item.nameKr
-                        },
-                    )
-                    HorizontalDivider()
+                        }
+                        HorizontalDivider()
+                    } else {
+                        WatchlistRow(
+                            item = item,
+                            realtimePrice = realtimePrices[code],
+                            initialPrice = initialPrices[code],
+                            marketIndex = indexMap[code],
+                            onClick = {
+                                orderVm.selectStock(item.code, item.nameKr, orderVm.account?.id ?: -1L)
+                                navController?.navigate(BottomNavItem.Order) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            onLongClick = {
+                                pendingDeleteCode = item.code
+                                pendingDeleteName = item.nameKr
+                            },
+                        )
+                        HorizontalDivider()
+                    }
                 }
             }
         }
@@ -165,15 +216,18 @@ private fun WatchlistRow(
     realtimePrice: KisRealTimeTrade?,
     initialPrice: InitialPrice?,
     marketIndex: MarketIndex? = null,
+    editMode: Boolean = false,
     onClick: () -> Unit = {},
-    onLongClick: () -> Unit,
+    onLongClick: () -> Unit = {},
+    dragHandle: (@Composable () -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick,
+            .then(
+                // 편집 모드에서는 클릭/롱클릭 비활성화
+                if (editMode) Modifier
+                else Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
             )
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -192,6 +246,12 @@ private fun WatchlistRow(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+
+        // 편집 모드: 우측에 드래그 핸들 표시
+        if (editMode) {
+            dragHandle?.invoke()
+            return@Row
         }
 
         // 우측: 현재가 + 등락금액(등락률) 두 줄
