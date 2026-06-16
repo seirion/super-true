@@ -106,11 +106,13 @@ class KisRealPriceManager @Inject constructor(
                     }
                     priceMap.clear()
                     launch { fetchInitialPrices(account, newCodes.toList()) }
+                    if (indexSubscribed) launch { fetchInitialIndexPrices(account) }
                 } else {
                     // 연결이 없는 경우 → 새로 연결
                     logD("KisRealPriceManager: 신규 연결 시작 (${newCodes.size}개 종목)")
                     subscribedCodes.clear()
                     launch { fetchInitialPrices(account, newCodes.toList()) }
+                    if (indexSubscribed) launch { fetchInitialIndexPrices(account) }
                     connectJob = launch {
                         val key = fetchApprovalKey(account) ?: return@launch
                         approvalKey = key
@@ -211,15 +213,19 @@ class KisRealPriceManager @Inject constructor(
         wsService.send(json.encodeToString(req))
     }
 
-    /** 코스피/코스닥 업종지수 구독 (기존 WebSocket 세션에 추가) */
+    /** 코스피/코스닥 업종지수 구독 (기존 WebSocket 세션에 추가) + 초기값 즉시 조회 */
     fun subscribeIndex() {
         scope.launch {
             mutex.withLock {
-                if (!connected || approvalKey.isEmpty() || indexSubscribed) return@withLock
                 logD("KisRealPriceManager: subscribeIndex")
-                wsService.send(makeIndexRequest(MarketIndex.KIS_KOSPI, subscribe = true))
-                wsService.send(makeIndexRequest(MarketIndex.KIS_KOSDAQ, subscribe = true))
+                // WebSocket 구독 (연결된 경우)
+                if (connected && approvalKey.isNotEmpty() && !indexSubscribed) {
+                    wsService.send(makeIndexRequest(MarketIndex.KIS_KOSPI, subscribe = true))
+                    wsService.send(makeIndexRequest(MarketIndex.KIS_KOSDAQ, subscribe = true))
+                }
                 indexSubscribed = true
+                // 계좌 있으면 REST로 초기값 즉시 조회 (장 마감 후에도 종가 반환)
+                account?.let { launch { fetchInitialIndexPrices(it) } }
             }
         }
     }
@@ -303,6 +309,56 @@ class KisRealPriceManager @Inject constructor(
                 logE(e, "KIS 초기 현재가 조회 오류: code=$code")
             }
             delay(60) // 초당 20건 제한 대응
+        }
+    }
+
+    /**
+     * 코스피/코스닥 업종지수 초기값 REST API로 즉시 조회.
+     * WebSocket 이벤트가 오기 전, 장 마감 후에도 종가를 표시하기 위해 사용.
+     * tr_id: FHKUP03500100, FID_COND_MRKT_DIV_CODE=U
+     */
+    private suspend fun fetchInitialIndexPrices(account: BrokerAccount) {
+        val token = tokenManager.getValidToken(account).getOrElse {
+            logE(it, "KIS 업종지수 초기값: 토큰 발급 실패")
+            return
+        }
+        val headers = mapOf(
+            "authorization" to "Bearer $token",
+            "appkey" to credentialStorage.getAppKey(account.id),
+            "appsecret" to credentialStorage.getAppSecret(account.id),
+            "tr_id" to "FHKUP03500100",
+            "custtype" to "P",
+        )
+        val today = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.getDefault())
+            .format(java.util.Date())
+        listOf(MarketIndex.KIS_KOSPI, MarketIndex.KIS_KOSDAQ).forEach { code ->
+            try {
+                val queries = mapOf(
+                    "FID_COND_MRKT_DIV_CODE" to "U",
+                    "FID_INPUT_ISCD" to code,
+                    "FID_INPUT_DATE_1" to today,
+                    "FID_INPUT_DATE_2" to today,
+                    "FID_PERIOD_DIV_CODE" to "D",
+                )
+                val body = priceService.getIndexPrice(headers, queries).body()
+                val output = body?.output1
+                if (body?.rtCd == "0" && output != null) {
+                    val index = MarketIndex(
+                        code = code,
+                        price = output.price.toDoubleOrNull() ?: 0.0,
+                        delta = output.delta.toDoubleOrNull() ?: 0.0,
+                        rate = output.rate.toDoubleOrNull() ?: 0.0,
+                    )
+                    indexMap[code] = index
+                    _indexFlow.emit(index)
+                    logD("KisRealPriceManager: 업종지수 초기값 $code = ${index.price}")
+                } else {
+                    logW("KIS 업종지수 초기값 실패: code=$code, msg=${body?.msg1}")
+                }
+            } catch (e: Exception) {
+                logE(e, "KIS 업종지수 초기값 조회 오류: code=$code")
+            }
+            delay(60)
         }
     }
 
