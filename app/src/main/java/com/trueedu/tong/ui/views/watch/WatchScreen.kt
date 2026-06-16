@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,6 +52,12 @@ fun WatchScreen(
     val watchlist by vm.watchlist.collectAsStateWithLifecycle()
     val realtimePrices by vm.realtimePrices.collectAsStateWithLifecycle()
     val initialPrices by vm.initialPrices.collectAsStateWithLifecycle()
+
+    // 화면이 처음 그려질 때 실시간 구독 보장
+    // (탭 클릭 시 activateRealtime()은 watchlist 로드 전일 수 있으므로 이중 호출)
+    LaunchedEffect(Unit) {
+        vm.activateRealtime()
+    }
 
     // 삭제 확인 팝업용 상태
     var pendingDeleteCode by remember { mutableStateOf<String?>(null) }
