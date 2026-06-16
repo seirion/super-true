@@ -14,14 +14,13 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.NavHostController
 
 val HomeBottomNavHeight = 48.dp
 
@@ -37,7 +36,7 @@ fun HomeBottomNavigation(
     containerColor: Color = MaterialTheme.colorScheme.surface,
     contentColor: Color = MaterialTheme.colorScheme.primary,
     indicatorColor: Color = MaterialTheme.colorScheme.outlineVariant,
-    navController: NavHostController,
+    backStack: SnapshotStateList<Any>,
     currentTab: BottomNavItem?,
     onTabSelected: (BottomNavItem) -> Unit,
     onOrderTabClicked: (() -> Unit)? = null,
@@ -85,12 +84,10 @@ fun HomeBottomNavigation(
                         onTabSelected(item)
                         if (item == BottomNavItem.Order) onOrderTabClicked?.invoke()
                         onTabActivated?.invoke(item)
-                        navController.navigate(item) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
+                        // 탭 전환: 백스택을 해당 탭 루트로 초기화 (상세 화면은 정리)
+                        if (backStack.lastOrNull() != item) {
+                            backStack.clear()
+                            backStack.add(item)
                         }
                     },
                     colors = NavigationBarItemDefaults.colors().copy(

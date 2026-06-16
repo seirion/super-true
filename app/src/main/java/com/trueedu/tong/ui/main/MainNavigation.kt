@@ -4,10 +4,11 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
+import androidx.navigation3.runtime.entry
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.ui.NavDisplay
 import com.trueedu.tong.ui.views.account.AddAccountScreen
 import com.trueedu.tong.ui.views.home.BottomNavItem
 import com.trueedu.tong.ui.views.home.HomeScreen
@@ -25,33 +26,34 @@ data object AccountTransfer
 
 @Composable
 fun MainNavigation(
-    navController: NavHostController,
+    backStack: SnapshotStateList<Any>,
     innerPadding: PaddingValues,
 ) {
-    NavHost(
-        navController = navController,
-        startDestination = BottomNavItem.Home,
+    NavDisplay(
+        backStack = backStack,
+        onBack = { backStack.removeLastOrNull() },
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding),
-    ) {
-        composable<BottomNavItem.Home> {
-            HomeScreen(navController = navController)
-        }
-        composable<BottomNavItem.Watch> {
-            WatchScreen(navController = navController)
-        }
-        composable<BottomNavItem.Order> {
-            OrderScreen()
-        }
-        composable<BottomNavItem.Menu> {
-            MenuScreen(navController = navController)
-        }
-        composable<AddAccount> {
-            AddAccountScreen(onBack = { navController.popBackStack() })
-        }
-        composable<AccountTransfer> {
-            AccountTransferScreen(onBack = { navController.popBackStack() })
-        }
-    }
+        entryProvider = entryProvider {
+            entry<BottomNavItem.Home> {
+                HomeScreen(backStack = backStack)
+            }
+            entry<BottomNavItem.Watch> {
+                WatchScreen(backStack = backStack)
+            }
+            entry<BottomNavItem.Order> {
+                OrderScreen()
+            }
+            entry<BottomNavItem.Menu> {
+                MenuScreen(backStack = backStack)
+            }
+            entry<AddAccount> {
+                AddAccountScreen(onBack = { backStack.removeLastOrNull() })
+            }
+            entry<AccountTransfer> {
+                AccountTransferScreen(onBack = { backStack.removeLastOrNull() })
+            }
+        },
+    )
 }
