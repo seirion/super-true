@@ -48,4 +48,8 @@ annotation class KiwoomOkHttp
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
+annotation class KiwoomWsOkHttp
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
 annotation class LsOkHttp
