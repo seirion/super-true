@@ -148,17 +148,6 @@ tasks.matching { it.name.startsWith("ksp") && it.name.endsWith("Kotlin") }.confi
     }
 }
 
-configurations.all {
-    // navigation3-ui:1.0.0-alpha04 는 navigationevent-compose:1.0.0-alpha03 을 기대하지만
-    // 다른 의존성이 1.0.1 로 올려버려 NoSuchMethodError 발생 → alpha03 으로 강제 고정
-    resolutionStrategy {
-        force("androidx.navigationevent:navigationevent-compose:1.0.0-alpha03")
-        force("androidx.navigationevent:navigationevent-compose-android:1.0.0-alpha03")
-        force("androidx.navigationevent:navigationevent:1.0.0-alpha03")
-        force("androidx.navigationevent:navigationevent-android:1.0.0-alpha03")
-    }
-}
-
 dependencies {
 
     implementation(libs.androidx.core.ktx)
