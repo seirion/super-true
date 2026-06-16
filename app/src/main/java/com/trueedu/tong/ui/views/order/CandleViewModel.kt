@@ -181,9 +181,14 @@ class CandleViewModel @Inject constructor(
                 val result = fetch(broker, account, target, currentPeriod, minuteInterval)
                 result
                     .onSuccess {
-                        logD("CandleViewModel: ${broker.displayName} 성공 - ${it.size}개 캔들")
-                        state = State.Success(it, broker)
-                        return@launch
+                        if (it.isNotEmpty()) {
+                            logD("CandleViewModel: ${broker.displayName} 성공 - ${it.size}개 캔들")
+                            state = State.Success(it, broker)
+                            return@launch
+                        } else {
+                            lastError = "데이터 없음"
+                            logW("CandleViewModel: ${broker.displayName} 빈 데이터 - 다음 증권사 시도")
+                        }
                     }
                     .onFailure {
                         lastError = it.message
