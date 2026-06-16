@@ -43,6 +43,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.compose.ui.platform.LocalContext
 import com.trueedu.tong.data.realtime.InitialPrice
+import com.trueedu.tong.data.realtime.MarketIndex
 import com.trueedu.tong.model.WatchlistItem
 import com.trueedu.tong.model.ws.KisRealTimeTrade
 import com.trueedu.tong.ui.theme.ChartColor
@@ -60,6 +61,7 @@ fun WatchScreen(
     val watchlist by vm.watchlist.collectAsStateWithLifecycle()
     val realtimePrices by vm.realtimePrices.collectAsStateWithLifecycle()
     val initialPrices by vm.initialPrices.collectAsStateWithLifecycle()
+    val indexMap by vm.indexMap.collectAsStateWithLifecycle()
 
     // 화면이 처음 그려질 때 실시간 구독 보장
     // (탭 클릭 시 activateRealtime()은 watchlist 로드 전일 수 있으므로 이중 호출)
@@ -109,6 +111,7 @@ fun WatchScreen(
                         item = item,
                         realtimePrice = realtimePrices[code],
                         initialPrice = initialPrices[code],
+                        marketIndex = indexMap[code],
                         onClick = {
                             orderVm.selectStock(item.code, item.nameKr, orderVm.account?.id ?: -1L)
                             navController?.navigate(BottomNavItem.Order) {
@@ -161,6 +164,7 @@ private fun WatchlistRow(
     item: WatchlistItem,
     realtimePrice: KisRealTimeTrade?,
     initialPrice: InitialPrice?,
+    marketIndex: MarketIndex? = null,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit,
 ) {
@@ -191,13 +195,19 @@ private fun WatchlistRow(
         }
 
         // 우측: 현재가 + 등락금액(등락률) 두 줄
-        val currentPrice = realtimePrice?.price ?: initialPrice?.price
-        val delta = realtimePrice?.delta ?: initialPrice?.delta
-        val rate = realtimePrice?.rate ?: initialPrice?.rate
+        // 지수(코스피/코스닥)는 marketIndex 우선 사용
+        val currentPrice = marketIndex?.price ?: realtimePrice?.price ?: initialPrice?.price
+        val delta = marketIndex?.delta ?: realtimePrice?.delta ?: initialPrice?.delta
+        val rate = marketIndex?.rate ?: realtimePrice?.rate ?: initialPrice?.rate
+        val isIndex = marketIndex != null
 
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = if (currentPrice != null) "${NumberFormatter.formatCash(currentPrice)}원" else "-",
+                text = when {
+                    currentPrice == null -> "-"
+                    isIndex -> NumberFormatter.formatIndex(currentPrice)
+                    else -> "${NumberFormatter.formatCash(currentPrice)}원"
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -205,7 +215,9 @@ private fun WatchlistRow(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = if (delta != null && rate != null) {
-                    "${NumberFormatter.formatCashWithSign(delta)} (${NumberFormatter.formatRate(rate)})"
+                    val deltaText = if (isIndex) NumberFormatter.formatIndexWithSign(delta)
+                        else NumberFormatter.formatCashWithSign(delta)
+                    "$deltaText (${NumberFormatter.formatRate(rate)})"
                 } else {
                     "-"
                 },
