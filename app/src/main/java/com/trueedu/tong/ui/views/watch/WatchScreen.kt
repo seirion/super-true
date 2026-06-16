@@ -36,18 +36,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.activity.ComponentActivity
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.compose.ui.platform.LocalContext
 import com.trueedu.tong.data.realtime.InitialPrice
 import com.trueedu.tong.model.WatchlistItem
 import com.trueedu.tong.model.ws.KisRealTimeTrade
 import com.trueedu.tong.ui.theme.ChartColor
+import com.trueedu.tong.ui.views.home.BottomNavItem
+import com.trueedu.tong.ui.views.order.OrderViewModel
 import com.trueedu.tong.utils.NumberFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WatchScreen(
+    navController: NavController? = null,
     vm: WatchViewModel = hiltViewModel(),
+    orderVm: OrderViewModel = hiltViewModel(LocalContext.current as ComponentActivity),
 ) {
     val watchlist by vm.watchlist.collectAsStateWithLifecycle()
     val realtimePrices by vm.realtimePrices.collectAsStateWithLifecycle()
@@ -101,6 +109,14 @@ fun WatchScreen(
                         item = item,
                         realtimePrice = realtimePrices[code],
                         initialPrice = initialPrices[code],
+                        onClick = {
+                            orderVm.selectStock(item.code, item.nameKr, orderVm.account?.id ?: -1L)
+                            navController?.navigate(BottomNavItem.Order) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
                         onLongClick = {
                             pendingDeleteCode = item.code
                             pendingDeleteName = item.nameKr
@@ -145,13 +161,14 @@ private fun WatchlistRow(
     item: WatchlistItem,
     realtimePrice: KisRealTimeTrade?,
     initialPrice: InitialPrice?,
+    onClick: () -> Unit = {},
     onLongClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
-                onClick = {},
+                onClick = onClick,
                 onLongClick = onLongClick,
             )
             .padding(horizontal = 16.dp, vertical = 12.dp),

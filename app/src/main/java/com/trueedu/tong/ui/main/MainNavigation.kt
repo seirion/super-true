@@ -39,7 +39,7 @@ fun MainNavigation(
             HomeScreen(navController = navController)
         }
         composable<BottomNavItem.Watch> {
-            WatchScreen()
+            WatchScreen(navController = navController)
         }
         composable<BottomNavItem.Order> {
             OrderScreen()
