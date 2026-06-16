@@ -54,20 +54,27 @@ class WatchViewModel @Inject constructor(
 
     /** 관심 탭 활성화 시 호출 — 관심종목으로 실시간 시세 구독 교체 */
     fun activateRealtime() {
-        val codes = watchlist.value.map { it.code }
-        if (codes.isNotEmpty()) {
-            startRealtimeIfKis(codes)
+        viewModelScope.launch {
+            // watchlist StateFlow가 아직 emptyList()인 경우(구독자 없어 로드 전)
+            // 첫 번째 비어있지 않은 값을 기다리거나, 이미 로드됐으면 바로 사용
+            val codes = if (watchlist.value.isNotEmpty()) {
+                watchlist.value.map { it.code }
+            } else {
+                // 최대 1번 emit 대기 (이미 값이 있으면 즉시 반환)
+                watchlistRepo.getAll().first().map { it.code }
+            }
+            if (codes.isNotEmpty()) {
+                startRealtimeIfKis(codes)
+            }
         }
     }
 
-    private fun startRealtimeIfKis(codes: List<String>) {
-        viewModelScope.launch {
-            val allAccounts = brokerAccountRepo.getAll().first()
-            val kisAccount = allAccounts.firstOrNull { it.brokerType == BrokerType.KIS }
-            if (kisAccount != null && codes.isNotEmpty()) {
-                val normalizedCodes = codes.map { it.removePrefix("A") }
-                kisRealPriceManager.start(kisAccount, normalizedCodes)
-            }
+    private suspend fun startRealtimeIfKis(codes: List<String>) {
+        val allAccounts = brokerAccountRepo.getAll().first()
+        val kisAccount = allAccounts.firstOrNull { it.brokerType == BrokerType.KIS }
+        if (kisAccount != null && codes.isNotEmpty()) {
+            val normalizedCodes = codes.map { it.removePrefix("A") }
+            kisRealPriceManager.start(kisAccount, normalizedCodes)
         }
     }
 
