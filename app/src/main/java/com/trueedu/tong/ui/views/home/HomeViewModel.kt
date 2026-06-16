@@ -16,6 +16,7 @@ import com.trueedu.tong.repository.BrokerAccountRepository
 import com.trueedu.tong.repository.local.Local
 import com.trueedu.tong.repository.remote.AccountSummaryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -82,7 +83,37 @@ class HomeViewModel @Inject constructor(
     val initialPrices: StateFlow<Map<String, InitialPrice>> = kisRealPriceManager.initialPriceFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
+    /**
+     * 현재 거래 시간대
+     * - KRX: 정규장 09:00~15:30
+     * - NXT: 장외 08:00~09:00, 15:30~20:00
+     * - null: 거래 없음 (20:00~08:00)
+     */
+    enum class MarketSession { KRX, NXT }
+
+    var marketSession by mutableStateOf(currentMarketSession())
+        private set
+
+    private fun currentMarketSession(): MarketSession? {
+        val cal = java.util.Calendar.getInstance()
+        val h = cal.get(java.util.Calendar.HOUR_OF_DAY)
+        val m = cal.get(java.util.Calendar.MINUTE)
+        val total = h * 60 + m
+        return when {
+            total in 9 * 60 until 15 * 60 + 30 -> MarketSession.KRX
+            total in 8 * 60 until 9 * 60 || total in 15 * 60 + 30 until 20 * 60 -> MarketSession.NXT
+            else -> null
+        }
+    }
+
     init {
+        // 1분마다 거래 시간 갱신
+        viewModelScope.launch {
+            while (true) {
+                delay(60_000L)
+                marketSession = currentMarketSession()
+            }
+        }
         // 선택된 계좌가 바뀌면 자동으로 데이터 로딩 (캐시 우선)
         viewModelScope.launch {
             selectedAccount.collectLatest { account ->

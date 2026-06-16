@@ -39,6 +39,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -67,7 +69,33 @@ fun HomeScreen(
         contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
-                title = { Text("홈") },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("홈")
+                        Spacer(Modifier.width(6.dp))
+                        vm.marketSession?.let { session ->
+                            val label = when (session) {
+                                HomeViewModel.MarketSession.KRX -> "KRX"
+                                HomeViewModel.MarketSession.NXT -> "NXT"
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .border(
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = RoundedCornerShape(4.dp),
+                                    )
+                                    .padding(horizontal = 4.dp, vertical = 1.dp),
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    }
+                },
                 actions = {
                     Row(modifier = Modifier.padding(end = 8.dp)) {
                         FilterChip(
