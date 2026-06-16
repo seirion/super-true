@@ -36,7 +36,7 @@ data class MarketIndex(
                 code = f.getOrNull(0) ?: "",
                 price = f.getOrNull(2)?.toDoubleOrNull() ?: 0.0,
                 delta = f.getOrNull(4)?.toDoubleOrNull() ?: 0.0,
-                rate = f.getOrNull(5)?.toDoubleOrNull() ?: 0.0,
+                rate = f.getOrNull(9)?.toDoubleOrNull() ?: 0.0,  // [9] 등락률
             )
         }
 
