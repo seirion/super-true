@@ -1,5 +1,6 @@
 package com.trueedu.tong.repository.remote.kis
 
+import com.trueedu.tong.model.dto.kis.KisIndexPriceResponse
 import com.trueedu.tong.model.dto.kis.KisPriceResponse
 import com.trueedu.tong.model.dto.kis.KisQuoteResponse
 import retrofit2.Response
@@ -19,4 +20,10 @@ interface KisPriceService {
         @HeaderMap headers: Map<String, String>,
         @QueryMap queries: Map<String, String>,
     ): Response<KisQuoteResponse>
+
+    @GET("uapi/domestic-stock/v1/quotations/inquire-index-price")
+    suspend fun getIndexPrice(
+        @HeaderMap headers: Map<String, String>,
+        @QueryMap queries: Map<String, String>,
+    ): Response<KisIndexPriceResponse>
 }
