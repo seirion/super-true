@@ -58,6 +58,8 @@ class KisRealPriceManager @Inject constructor(
     private var account: BrokerAccount? = null
     private val subscribedCodes = mutableSetOf<String>()
     private var connectJob: kotlinx.coroutines.Job? = null  // 진행 중인 connect 코루틴 (중복 방지)
+    private var currentSubscribedTrId: String = ""          // 현재 구독 중인 체결 TR ID (H0STCNT0/H0NXCNT0/H0STEXP0)
+    private var transitionJob: kotlinx.coroutines.Job? = null  // 동시호가 ↔ 실시간 체결 전환 스케줄러
 
     // 실시간 체결가 스트림
     private val _tradeFlow = MutableSharedFlow<KisRealTimeTrade>(extraBufferCapacity = 64)
@@ -133,8 +135,11 @@ class KisRealPriceManager @Inject constructor(
             mutex.withLock {
                 connectJob?.cancel()
                 connectJob = null
+                transitionJob?.cancel()
+                transitionJob = null
                 intentionalDisconnect = true
                 subscribedCodes.clear()
+                currentSubscribedTrId = ""
                 wsService.disconnect()
                 connected = false
                 priceMap.clear()
@@ -151,6 +156,8 @@ class KisRealPriceManager @Inject constructor(
                 logD("KisRealPriceManager: pause")
                 connectJob?.cancel()
                 connectJob = null
+                transitionJob?.cancel()
+                transitionJob = null
                 intentionalDisconnect = true
                 wsService.disconnect()
                 connected = false
@@ -372,16 +379,21 @@ class KisRealPriceManager @Inject constructor(
                 logD("KisRealPriceManager: onOpen")
                 intentionalDisconnect = false
                 connected = true
+                // 현재 시간 기준 올바른 체결 TR로 초기 구독
+                currentSubscribedTrId = currentTradeTrId()
+                lastTradeTrId = currentSubscribedTrId
                 // 연결 후 종목 구독
                 codes.forEach { code ->
                     subscribedCodes.add(code)
-                    wsService.send(makeRequest(code, subscribe = true))
+                    wsService.send(makeRequest(code, subscribe = true, trId = currentSubscribedTrId))
                 }
                 // 지수 구독 복구
                 if (indexSubscribed) {
                     wsService.send(makeIndexRequest(MarketIndex.KIS_KOSPI, subscribe = true))
                     wsService.send(makeIndexRequest(MarketIndex.KIS_KOSDAQ, subscribe = true))
                 }
+                // 동시호가 ↔ 실시간 체결 전환 스케줄러 시작
+                startTransitionScheduler()
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -412,6 +424,42 @@ class KisRealPriceManager @Inject constructor(
         })
     }
 
+    /**
+     * 동시호가 시간대(08:50~09:00, 15:20~15:30) 진입/이탈 시점에 체결 구독 TR을
+     * 실시간 체결(H0STCNT0) ↔ 예상체결(H0STEXP0)로 자동 전환한다.
+     *
+     * 전환 경계(08:50, 09:00, 15:20, 15:30)까지 delay 후,
+     * 목표 TR이 현재 구독 TR과 다르면 기존 구독을 모두 해제하고 새 TR로 재구독한다.
+     */
+    private fun startTransitionScheduler() {
+        transitionJob?.cancel()
+        transitionJob = scope.launch {
+            while (true) {
+                val waitMillis = millisUntilNextTransition().coerceAtLeast(0)
+                logD("KisRealPriceManager: 다음 체결 TR 전환까지 ${waitMillis / 1000}초")
+                delay(waitMillis)
+                mutex.withLock {
+                    if (!connected || approvalKey.isEmpty()) return@withLock
+                    val targetTrId = currentTradeTrId()
+                    if (targetTrId == currentSubscribedTrId) return@withLock
+                    val oldTrId = currentSubscribedTrId
+                    val codes = subscribedCodes.toList()
+                    logI("KisRealPriceManager: 체결 TR 전환 $oldTrId → $targetTrId (${codes.size}종목)")
+                    // 기존 TR 구독 해제
+                    codes.forEach { code ->
+                        wsService.send(makeRequest(code, subscribe = false, trId = oldTrId))
+                    }
+                    // 새 TR로 재구독
+                    codes.forEach { code ->
+                        wsService.send(makeRequest(code, subscribe = true, trId = targetTrId))
+                    }
+                    currentSubscribedTrId = targetTrId
+                    lastTradeTrId = targetTrId
+                }
+            }
+        }
+    }
+
     private fun handleMessage(text: String) {
         when {
             text.startsWith("0|") -> {
@@ -429,6 +477,12 @@ class KisRealPriceManager @Inject constructor(
                             lastTradeTrId = trId
                             quoteManager.refreshSubscription()
                         }
+                    }
+                    "H0STEXP0" -> {
+                        // 동시호가 시간대 예상체결
+                        val trade = KisRealTimeTrade.fromExpected(parts[3])
+                        priceMap[trade.code] = trade
+                        scope.launch { _tradeFlow.emit(trade) }
                     }
                     "H0STASP0", "H0NXASP0" -> {
                         val quote = com.trueedu.tong.model.ws.KisRealTimeQuote.from(parts[3])
@@ -453,7 +507,11 @@ class KisRealPriceManager @Inject constructor(
         }
     }
 
-    private fun makeRequest(code: String, subscribe: Boolean): String {
+    private fun makeRequest(
+        code: String,
+        subscribe: Boolean,
+        trId: String = currentSubscribedTrId.ifEmpty { tradeTransactionId() },
+    ): String {
         val req = KisWsRequest(
             header = KisWsHeader(
                 approvalKey = approvalKey,
@@ -461,7 +519,7 @@ class KisRealPriceManager @Inject constructor(
             ),
             body = KisWsBody(
                 input = KisWsBodyInput(
-                    transactionId = tradeTransactionId(),
+                    transactionId = trId,
                     transactionKey = code,
                 )
             )
@@ -503,8 +561,48 @@ class KisRealPriceManager @Inject constructor(
                    totalMinutes in 15 * 60 + 30 until 20 * 60
         }
 
-        fun tradeTransactionId() = if (isNxtTradingHour()) "H0NXCNT0" else "H0STCNT0"
+        /**
+         * 동시호가(단일가) 시간: 08:50~09:00(장 시작), 15:20~15:30(장 마감).
+         * 이 시간엔 실시간 체결이 없으므로 예상체결(H0STEXP0)로 전환한다.
+         */
+        fun isSimultaneousQuoteTime(): Boolean {
+            val cal = java.util.Calendar.getInstance()
+            val totalMinutes = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
+            return totalMinutes in 8 * 60 + 50 until 9 * 60 ||
+                   totalMinutes in 15 * 60 + 20 until 15 * 60 + 30
+        }
+
+        /**
+         * 현재 시간 기준 체결 TR ID.
+         * 동시호가 → H0STEXP0(예상체결), NXT 시간 → H0NXCNT0, 그 외 → H0STCNT0.
+         */
+        fun currentTradeTrId(): String = when {
+            isSimultaneousQuoteTime() -> "H0STEXP0"
+            isNxtTradingHour() -> "H0NXCNT0"
+            else -> "H0STCNT0"
+        }
+
+        // 하위 호환: 내부 구현은 currentTradeTrId()로 통일
+        fun tradeTransactionId() = currentTradeTrId()
         fun quoteTransactionId() = if (isNxtTradingHour()) "H0NXASP0" else "H0STASP0"
         fun indexTransactionId() = if (isNxtTradingHour()) "H0NXUPC0" else "H0UPCNT0"
+
+        /**
+         * 다음 구독 전환 시점까지 남은 밀리초.
+         * 전환 경계: 08:50, 09:00, 15:20, 15:30 (분 단위).
+         * 경계가 지난 시점에는 다음 날 첫 경계(08:50)까지 대기.
+         */
+        fun millisUntilNextTransition(): Long {
+            val cal = java.util.Calendar.getInstance()
+            val nowMinutes = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
+            val secondsIntoMinute = cal.get(java.util.Calendar.SECOND)
+            val millisIntoSecond = cal.get(java.util.Calendar.MILLISECOND)
+
+            val boundaries = listOf(8 * 60 + 50, 9 * 60, 15 * 60 + 20, 15 * 60 + 30)
+            val nextBoundary = boundaries.firstOrNull { it > nowMinutes } ?: (boundaries.first() + 24 * 60)
+            val minutesUntil = nextBoundary - nowMinutes
+            // (남은 분 - 1)분 + (현재 분에서 남은 초/밀리초)
+            return (minutesUntil - 1) * 60_000L + (60 - secondsIntoMinute) * 1_000L - millisIntoSecond
+        }
     }
 }
