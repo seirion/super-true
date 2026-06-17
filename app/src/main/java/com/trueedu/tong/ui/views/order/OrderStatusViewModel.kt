@@ -177,7 +177,7 @@ class OrderStatusViewModel @Inject constructor(
                                 ordNo = o.ordNo,
                                 code = o.code,
                                 name = o.name,
-                                isBuy = o.tradeType.trim() == "2",
+                                isBuy = o.ordTypeName.contains("매수"),  // "+매수"/"+매도" 등
                                 ordPrice = o.ordPrice.trim().toLongOrNull() ?: 0L,
                                 ordQty = o.ordQty.trim().toLongOrNull() ?: 0L,
                                 filledQty = o.filledQty.trim().toLongOrNull() ?: 0L,
@@ -191,7 +191,7 @@ class OrderStatusViewModel @Inject constructor(
                             FilledOrderItem(
                                 code = o.code,
                                 name = o.name,
-                                isBuy = o.tradeType.trim() == "2",
+                                isBuy = o.ordTypeName.contains("매수"),  // "+매수"/"+매도" 등
                                 filledPrice = o.filledPrice.trim().toLongOrNull() ?: 0L,
                                 filledQty = o.filledQty.trim().toLongOrNull() ?: 0L,
                                 filledTime = o.filledTime,
