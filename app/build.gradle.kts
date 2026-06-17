@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.devtools.ksp)
     alias(libs.plugins.kotlinSerialization)
+    id("kotlin-parcelize")
     // Firebase 사용 시점에 google-services.json 추가 후 아래 두 플러그인을 활성화한다.
     // alias(libs.plugins.googleServices)
     // alias(libs.plugins.firebase.crashlytics)
