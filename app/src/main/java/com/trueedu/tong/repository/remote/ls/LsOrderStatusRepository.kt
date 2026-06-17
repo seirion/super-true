@@ -132,7 +132,7 @@ private fun LsOrderStatusItem.toUnfilled() = UnfilledOrderItem(
     ordNo = ordNo.toString(),
     code = code,
     name = name,
-    isBuy = medosu == "2",
+    isBuy = medosu.trim() == "2",
     ordPrice = price,
     ordQty = qty,
     filledQty = filledQty,
@@ -144,7 +144,7 @@ private fun LsOrderStatusItem.toUnfilled() = UnfilledOrderItem(
 private fun LsOrderStatusItem.toFilled() = FilledOrderItem(
     code = code,
     name = name,
-    isBuy = medosu == "2",
+    isBuy = medosu.trim() == "2",
     filledPrice = currentPrice,
     filledQty = filledQty,
     filledTime = ordTime,
