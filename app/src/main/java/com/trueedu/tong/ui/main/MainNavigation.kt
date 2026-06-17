@@ -15,13 +15,17 @@ import com.trueedu.tong.ui.views.menu.AccountTransferScreen
 import com.trueedu.tong.ui.views.menu.MenuScreen
 import com.trueedu.tong.ui.views.order.OrderScreen
 import com.trueedu.tong.ui.views.watch.WatchScreen
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 
+@Parcelize
 @Serializable
-data class AddAccount(val accountId: Long = -1L)  // -1L = 신규 추가
+data class AddAccount(val accountId: Long = -1L) : Parcelable  // -1L = 신규 추가
 
+@Parcelize
 @Serializable
-data object AccountTransfer
+data object AccountTransfer : Parcelable
 
 @Composable
 fun MainNavigation(
