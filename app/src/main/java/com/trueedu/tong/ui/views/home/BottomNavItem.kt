@@ -10,10 +10,12 @@ import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.ui.graphics.vector.ImageVector
+import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
+import android.os.Parcelable
 
 @Serializable
-sealed class BottomNavItem {
+sealed class BottomNavItem : Parcelable {
     abstract val title: String
 
     abstract fun iconSelected(): ImageVector
@@ -21,6 +23,7 @@ sealed class BottomNavItem {
 
     fun icon(selected: Boolean) = if (selected) iconSelected() else iconNormal()
 
+    @Parcelize
     @Serializable
     data object Home : BottomNavItem() {
         override val title: String = "홈"
@@ -28,6 +31,7 @@ sealed class BottomNavItem {
         override fun iconNormal(): ImageVector = Icons.Outlined.Home
     }
 
+    @Parcelize
     @Serializable
     data object Watch : BottomNavItem() {
         override val title: String = "관심"
@@ -35,6 +39,7 @@ sealed class BottomNavItem {
         override fun iconNormal(): ImageVector = Icons.Outlined.StarOutline
     }
 
+    @Parcelize
     @Serializable
     data object Order : BottomNavItem() {
         override val title: String = "주문"
@@ -42,6 +47,7 @@ sealed class BottomNavItem {
         override fun iconNormal(): ImageVector = Icons.Outlined.ShoppingCart
     }
 
+    @Parcelize
     @Serializable
     data object Menu : BottomNavItem() {
         override val title: String = "더보기"
