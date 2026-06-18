@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ImportExport
+import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.trueedu.tong.ui.main.AccountTransfer
+import com.trueedu.tong.ui.main.RealizedPnl
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,6 +93,19 @@ fun MenuScreen(
                         )
                     },
                     colors = itemColors,
+                )
+                HorizontalDivider()
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text("실현수익") },
+                    supportingContent = { Text("체결 내역 및 실현 손익을 조회합니다") },
+                    leadingContent = { Icon(Icons.Filled.TrendingUp, null) },
+                    trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) },
+                    colors = itemColors,
+                    modifier = Modifier.clickable {
+                        backStack?.add(RealizedPnl)
+                    }
                 )
                 HorizontalDivider()
             }
