@@ -145,7 +145,9 @@ private fun LsOrderStatusItem.toFilled() = FilledOrderItem(
     code = code,
     name = name,
     isBuy = medosu.trim() == "2",
-    filledPrice = currentPrice,
+    // t0425 응답에 실제 체결단가 필드가 없음 → 주문단가(price) 사용.
+    // 지정가 주문은 체결가와 일치하나, 시장가 주문은 0이 반환될 수 있음.
+    filledPrice = price,
     filledQty = filledQty,
     filledTime = ordTime,
 )
