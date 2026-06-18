@@ -13,6 +13,7 @@ import com.trueedu.tong.ui.views.home.BottomNavItem
 import com.trueedu.tong.ui.views.home.HomeScreen
 import com.trueedu.tong.ui.views.menu.AccountTransferScreen
 import com.trueedu.tong.ui.views.menu.MenuScreen
+import com.trueedu.tong.ui.views.menu.RealizedPnlScreen
 import com.trueedu.tong.ui.views.order.OrderScreen
 import com.trueedu.tong.ui.views.watch.WatchScreen
 import android.os.Parcelable
@@ -26,6 +27,10 @@ data class AddAccount(val accountId: Long = -1L) : Parcelable  // -1L = 신규 �
 @Parcelize
 @Serializable
 data object AccountTransfer : Parcelable
+
+@Parcelize
+@Serializable
+data object RealizedPnl : Parcelable
 
 @Composable
 fun MainNavigation(
@@ -56,6 +61,9 @@ fun MainNavigation(
             }
             entry<AccountTransfer> {
                 AccountTransferScreen(onBack = { backStack.removeLastOrNull() })
+            }
+            entry<RealizedPnl> {
+                RealizedPnlScreen(backStack = backStack)
             }
         },
     )
