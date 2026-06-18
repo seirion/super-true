@@ -119,7 +119,7 @@ fun OrderScreen(
                     vm.enterModifyMode(order, vm.account?.id ?: -1L)
                     selectedTab = 0
                 })
-                2 -> StatusMessage("체결 내역은 더보기 > 실현수익에서 확인하세요")
+                2 -> FilledOrderList(statusVm)
                 3 -> StockInfoScreen(vm = stockInfoVm)
                 else -> ChartScreen(vm = candleVm)
             }
@@ -493,6 +493,74 @@ private fun BuySellBadge(isBuy: Boolean) {
             .background(color.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
             .padding(horizontal = 6.dp, vertical = 2.dp),
     )
+}
+
+@Composable
+private fun FilledOrderList(vm: OrderStatusViewModel) {
+    when (val s = vm.state) {
+        is OrderStatusViewModel.StatusState.Loading ->
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        is OrderStatusViewModel.StatusState.Error -> StatusMessage("오류: ${s.msg}")
+        is OrderStatusViewModel.StatusState.Success -> {
+            if (s.filled.isEmpty()) {
+                StatusMessage("당일 체결 내역이 없습니다")
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(s.filled) { order ->
+                        FilledOrderRow(order)
+                        HorizontalDivider()
+                    }
+                }
+            }
+        }
+        else -> StatusMessage("체결 내역")
+    }
+}
+
+@Composable
+private fun FilledOrderRow(order: com.trueedu.tong.model.dto.order.FilledOrderItem) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                BuySellBadge(order.isBuy)
+                Text(
+                    text = order.name.ifBlank { order.code },
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Text(
+                text = formatOrderTime(order.filledTime),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = NumberFormatter.formatCash(order.filledPrice.toDouble()) + "원",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = "체결 ${order.filledQty}주",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }
 
 @Composable
