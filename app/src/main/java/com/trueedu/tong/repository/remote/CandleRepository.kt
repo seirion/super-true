@@ -184,9 +184,13 @@ class CandleRepository @Inject constructor(
             "tr_id" to "FHKST03010100",
             "custtype" to "P",
         )
+        val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+        val startDate = LocalDate.now().minusYears(1).format(DateTimeFormatter.ofPattern("yyyyMMdd"))
         val queries = mapOf(
             "FID_COND_MRKT_DIV_CODE" to "J",
             "FID_INPUT_ISCD" to shortCode,
+            "FID_INPUT_DATE_1" to startDate,
+            "FID_INPUT_DATE_2" to today,
             "FID_PERIOD_DIV_CODE" to periodCode,
             "FID_ORG_ADJ_PRC" to "0",
         )
