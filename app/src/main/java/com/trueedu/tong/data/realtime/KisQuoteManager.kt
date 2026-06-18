@@ -98,6 +98,25 @@ class KisQuoteManager @Inject constructor(
         realtimeQuote.value = null
     }
 
+    /**
+     * 동시호가(08:50~09:00, 15:20~15:30) 진입 시 호가 구독 일시 중단.
+     * 이 시간대에는 체결이 없으므로 호가 슬롯을 낭비하지 않는다.
+     */
+    fun pauseForSimultaneousQuote() {
+        val code = currentCode ?: return
+        logD("KisQuoteManager: 동시호가 진입 — 호가 구독 중단 ($code)")
+        sendQuoteSubscribe(code, subscribe = false)
+    }
+
+    /**
+     * 동시호가 이탈 시 호가 구독 재개.
+     */
+    fun resumeAfterSimultaneousQuote() {
+        val code = currentCode ?: return
+        logD("KisQuoteManager: 동시호가 이탈 — 호가 구독 재개 ($code)")
+        sendQuoteSubscribe(code, subscribe = true)
+    }
+
     private fun sendQuoteSubscribe(code: String, subscribe: Boolean) {
         if (approvalKey.isEmpty()) return
         val trId = KisRealPriceManager.quoteTransactionId()

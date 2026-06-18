@@ -440,17 +440,20 @@ class KisRealPriceManager @Inject constructor(
                     if (targetTrId == currentSubscribedTrId) return@withLock
                     val oldTrId = currentSubscribedTrId
                     val codes = subscribedCodes.toList()
+                    val enteringSimultaneous = targetTrId == "H0STEXP0"
+                    val leavingSimultaneous = oldTrId == "H0STEXP0"
                     logI("KisRealPriceManager: 체결 TR 전환 $oldTrId → $targetTrId (${codes.size}종목)")
-                    // 기존 TR 구독 해제
+                    // 동시호가 진입 시: 호가 구독 일시 중단
+                    if (enteringSimultaneous) quoteManager.pauseForSimultaneousQuote()
+                    // 기존 TR 구독 해제 + 새 TR 즉시 구독 (code별 교체로 gap 최소화)
                     codes.forEach { code ->
                         wsService.send(makeRequest(code, subscribe = false, trId = oldTrId))
-                    }
-                    // 새 TR로 재구독
-                    codes.forEach { code ->
                         wsService.send(makeRequest(code, subscribe = true, trId = targetTrId))
                     }
                     currentSubscribedTrId = targetTrId
                     lastTradeTrId = targetTrId
+                    // 동시호가 이탈 시: 호가 구독 재개
+                    if (leavingSimultaneous) quoteManager.resumeAfterSimultaneousQuote()
                 }
             }
         }
@@ -548,12 +551,13 @@ class KisRealPriceManager @Inject constructor(
         const val MAX_REALTIME_SYMBOLS = 40
 
         /**
-         * NXT 운영 시간: 08:00~09:00, 15:30~20:00
+         * NXT 운영 시간: 08:00~08:50, 15:30~20:00
+         * 08:50~09:00은 동시호가(예상체결) 시간이므로 NXT 구독에서 제외한다.
          */
         fun isNxtTradingHour(): Boolean {
             val cal = java.util.Calendar.getInstance()
             val totalMinutes = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
-            return totalMinutes in 8 * 60 until 9 * 60 ||
+            return totalMinutes in 8 * 60 until 8 * 60 + 50 ||
                    totalMinutes in 15 * 60 + 30 until 20 * 60
         }
 
