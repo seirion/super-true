@@ -13,6 +13,8 @@ import com.trueedu.tong.repository.remote.kis.KisPriceService
 import com.trueedu.tong.repository.remote.kis.KisWebSocketService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -32,11 +34,15 @@ class KisQuoteManager @Inject constructor(
     private val tokenManager: TokenManager,
     private val brokerAccountRepo: BrokerAccountRepository,
     private val wsService: KisWebSocketService,
+    private val realPriceManager: dagger.Lazy<KisRealPriceManager>,
     private val json: kotlinx.serialization.json.Json,
 ) {
     private val priceService: KisPriceService by lazy { retrofit.create(KisPriceService::class.java) }
     private val scope = CoroutineScope(Dispatchers.IO)
     private var currentCode: String? = null
+
+    // 실시간 호가 스트림 구독 job (메인 스레드에서 collect)
+    private var quoteCollectJob: Job? = null
 
     val quoteData = mutableStateOf<KisQuoteResponse?>(null)
     val realtimeQuote = mutableStateOf<KisRealTimeQuote?>(null)
@@ -84,6 +90,7 @@ class KisQuoteManager @Inject constructor(
         realtimeQuote.value = null
         priceData.value = null
         sendQuoteSubscribe(code, subscribe = true)
+        startQuoteCollect()
         scope.launch {
             val kisAccount = brokerAccountRepo.getAll().first()
                 .firstOrNull { it.brokerType == BrokerType.KIS } ?: return@launch
@@ -96,6 +103,23 @@ class KisQuoteManager @Inject constructor(
         currentCode = null
         quoteData.value = null
         realtimeQuote.value = null
+        quoteCollectJob?.cancel()
+        quoteCollectJob = null
+    }
+
+    /**
+     * KisRealPriceManager의 실시간 호가 스트림을 구독하여 현재 종목([currentCode])
+     * 호가만 [realtimeQuote]에 반영한다. collect는 메인 스레드에서 진행한다.
+     */
+    private fun startQuoteCollect() {
+        if (quoteCollectJob != null) return
+        quoteCollectJob = MainScope().launch {
+            realPriceManager.get().quoteFlow.collect { quote ->
+                if (quote.code == currentCode) {
+                    realtimeQuote.value = quote
+                }
+            }
+        }
     }
 
     private fun sendQuoteSubscribe(code: String, subscribe: Boolean) {
@@ -115,14 +139,6 @@ class KisQuoteManager @Inject constructor(
             )
         )
         wsService.send(json.encodeToString(req))
-    }
-
-    fun onRealtimeQuote(quote: KisRealTimeQuote) {
-        if (quote.code == currentCode) {
-            scope.launch(Dispatchers.Main) {
-                realtimeQuote.value = quote
-            }
-        }
     }
 
     private suspend fun fetchInitialQuote(account: BrokerAccount, code: String) {

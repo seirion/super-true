@@ -63,6 +63,10 @@ class KisRealPriceManager @Inject constructor(
     private val _tradeFlow = MutableSharedFlow<KisRealTimeTrade>(extraBufferCapacity = 64)
     val tradeFlow = _tradeFlow.asSharedFlow()
 
+    // 실시간 호가 스트림
+    private val _quoteFlow = MutableSharedFlow<com.trueedu.tong.model.ws.KisRealTimeQuote>(extraBufferCapacity = 64)
+    val quoteFlow = _quoteFlow.asSharedFlow()
+
     // 종목코드 → 최신 체결 데이터
     val priceMap = mutableStateMapOf<String, KisRealTimeTrade>()
 
@@ -428,7 +432,7 @@ class KisRealPriceManager @Inject constructor(
                     }
                     "H0STASP0", "H0NXASP0" -> {
                         val quote = com.trueedu.tong.model.ws.KisRealTimeQuote.from(parts[3])
-                        quoteManager.onRealtimeQuote(quote)
+                        scope.launch { _quoteFlow.emit(quote) }
                     }
                     "H0UPCNT0", "H0NXUPC0" -> {
                         val index = MarketIndex.fromKis(parts[3])
