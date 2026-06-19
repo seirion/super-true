@@ -114,8 +114,11 @@ class KisQuoteManager @Inject constructor(
     private fun startQuoteCollect() {
         if (quoteCollectJob != null) return
         quoteCollectJob = MainScope().launch {
+            logD("KisQuoteManager: quoteFlow collect 시작")
             realPriceManager.get().quoteFlow.collect { quote ->
+                logD("KisQuoteManager: 호가 수신 code=${quote.code} currentCode=$currentCode")
                 if (quote.code == currentCode) {
+                    logD("KisQuoteManager: realtimeQuote 업데이트")
                     realtimeQuote.value = quote
                 }
             }
