@@ -55,9 +55,13 @@ class KisQuoteManager @Inject constructor(
     var approvalKey: String = ""
         set(value) {
             field = value
+            logD("KisQuoteManager: approvalKey 세팅 (empty=${value.isEmpty()}) currentCode=$currentCode")
             // key가 새로 세팅될 때 이미 start()된 종목이 있으면 구독 재시도
             if (value.isNotEmpty()) {
-                currentCode?.let { sendQuoteSubscribe(it, subscribe = true) }
+                currentCode?.let {
+                    logD("KisQuoteManager: approvalKey 세팅 후 구독 재시도 code=$it")
+                    sendQuoteSubscribe(it, subscribe = true)
+                }
             }
         }
 
@@ -85,6 +89,7 @@ class KisQuoteManager @Inject constructor(
     }
 
     fun start(code: String) {
+        logD("KisQuoteManager: start code=$code approvalKey=${approvalKey.take(8).ifEmpty { "empty" }}")
         currentCode = code
         quoteData.value = null
         realtimeQuote.value = null
@@ -126,7 +131,10 @@ class KisQuoteManager @Inject constructor(
     }
 
     private fun sendQuoteSubscribe(code: String, subscribe: Boolean) {
-        if (approvalKey.isEmpty()) return
+        if (approvalKey.isEmpty()) {
+            logD("KisQuoteManager: sendQuoteSubscribe 스킵 — approvalKey 없음 (code=$code subscribe=$subscribe)")
+            return
+        }
         val trId = KisRealPriceManager.quoteTransactionId()
         if (subscribe) lastQuoteTrId = trId
         val req = com.trueedu.tong.model.ws.KisWsRequest(
