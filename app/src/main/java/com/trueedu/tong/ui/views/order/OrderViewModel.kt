@@ -225,6 +225,8 @@ class OrderViewModel @Inject constructor(
         val currentCode = code.removePrefix("A")
         val acc = account ?: return
         if (currentCode.isNotBlank()) {
+            // 호가 구독 재시작 (탭 전환 시 누락 방지)
+            kisQuoteManager.start(currentCode)
             viewModelScope.launch {
                 val allAccounts = brokerAccountRepo.getAll().first()
                 val kisAccount = allAccounts.firstOrNull { it.brokerType == com.trueedu.tong.model.BrokerType.KIS }
