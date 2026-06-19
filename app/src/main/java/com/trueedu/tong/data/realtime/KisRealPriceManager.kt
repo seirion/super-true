@@ -443,19 +443,33 @@ class KisRealPriceManager @Inject constructor(
                     val enteringSimultaneous = targetTrId == "H0STEXP0"
                     val leavingSimultaneous = oldTrId == "H0STEXP0"
                     logI("KisRealPriceManager: 체결 TR 전환 $oldTrId → $targetTrId (${codes.size}종목)")
-                    // 동시호가 진입 시: 호가 구독 일시 중단
-                    if (enteringSimultaneous) quoteManager.pauseForSimultaneousQuote()
-                    // 기존 TR 구독 해제 + 새 TR 즉시 구독 (code별 교체로 gap 최소화)
-                    codes.forEach { code ->
-                        logD("KisRealPriceManager: $code 구독 해제($oldTrId) → 구독($targetTrId)")
-                        wsService.send(makeRequest(code, subscribe = false, trId = oldTrId))
-                        wsService.send(makeRequest(code, subscribe = true, trId = targetTrId))
+                    if (leavingSimultaneous) {
+                        // 동시호가 이탈: 기존 연결 끊고 재연결 (swap 시 서버 측 구독 불안정 문제 방지)
+                        logI("KisRealPriceManager: 동시호가 이탈 → WebSocket 재연결")
+                        intentionalDisconnect = true
+                        connected = false
+                        currentSubscribedTrId = targetTrId
+                        lastTradeTrId = targetTrId
+                        wsService.disconnect()
+                        val currentAccount = account ?: return@withLock
+                        delay(500)
+                        val newKey = fetchApprovalKey(currentAccount) ?: return@withLock
+                        approvalKey = newKey
+                        quoteManager.approvalKey = newKey
+                        connect(codes)
+                        quoteManager.resumeAfterSimultaneousQuote()
+                    } else {
+                        // 동시호가 진입: 호가 구독 중단 후 TR swap
+                        if (enteringSimultaneous) quoteManager.pauseForSimultaneousQuote()
+                        codes.forEach { code ->
+                            logD("KisRealPriceManager: $code 구독 해제($oldTrId) → 구독($targetTrId)")
+                            wsService.send(makeRequest(code, subscribe = false, trId = oldTrId))
+                            wsService.send(makeRequest(code, subscribe = true, trId = targetTrId))
+                        }
+                        currentSubscribedTrId = targetTrId
+                        lastTradeTrId = targetTrId
+                        logI("KisRealPriceManager: TR 전환 완료 → $targetTrId")
                     }
-                    currentSubscribedTrId = targetTrId
-                    lastTradeTrId = targetTrId
-                    logI("KisRealPriceManager: TR 전환 완료 → $targetTrId")
-                    // 동시호가 이탈 시: 호가 구독 재개
-                    if (leavingSimultaneous) quoteManager.resumeAfterSimultaneousQuote()
                 }
             }
         }
