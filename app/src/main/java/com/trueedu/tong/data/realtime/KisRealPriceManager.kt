@@ -372,12 +372,12 @@ class KisRealPriceManager @Inject constructor(
     private fun connect(codes: List<String>) {
         wsService.connect(object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                logD("KisRealPriceManager: onOpen")
                 intentionalDisconnect = false
                 connected = true
                 // 현재 시간 기준 올바른 체결 TR로 초기 구독
                 currentSubscribedTrId = currentTradeTrId()
                 lastTradeTrId = currentSubscribedTrId
+                logI("KisRealPriceManager: onOpen trId=$currentSubscribedTrId codes=${codes.size}개")
                 // 연결 후 종목 구독
                 codes.forEach { code ->
                     subscribedCodes.add(code)
@@ -447,11 +447,13 @@ class KisRealPriceManager @Inject constructor(
                     if (enteringSimultaneous) quoteManager.pauseForSimultaneousQuote()
                     // 기존 TR 구독 해제 + 새 TR 즉시 구독 (code별 교체로 gap 최소화)
                     codes.forEach { code ->
+                        logD("KisRealPriceManager: $code 구독 해제($oldTrId) → 구독($targetTrId)")
                         wsService.send(makeRequest(code, subscribe = false, trId = oldTrId))
                         wsService.send(makeRequest(code, subscribe = true, trId = targetTrId))
                     }
                     currentSubscribedTrId = targetTrId
                     lastTradeTrId = targetTrId
+                    logI("KisRealPriceManager: TR 전환 완료 → $targetTrId")
                     // 동시호가 이탈 시: 호가 구독 재개
                     if (leavingSimultaneous) quoteManager.resumeAfterSimultaneousQuote()
                 }
@@ -479,7 +481,9 @@ class KisRealPriceManager @Inject constructor(
                     }
                     "H0STEXP0" -> {
                         // 동시호가 시간대 예상체결
+                        logI("KisRealPriceManager: H0STEXP0 수신 raw=${parts[3].take(80)}")
                         val trade = KisRealTimeTrade.fromExpected(parts[3])
+                        logI("KisRealPriceManager: 예상체결 code=${trade.code} price=${trade.price} rate=${trade.rate}")
                         priceMap[trade.code] = trade
                         scope.launch { _tradeFlow.emit(trade) }
                     }
@@ -502,6 +506,10 @@ class KisRealPriceManager @Inject constructor(
             }
             else -> {
                 logD("KisRealPriceManager: system msg: $text")
+                // 구독 응답(ACK) 로깅 — 특히 H0STEXP0 구독 성공/실패 확인용
+                if (text.contains("H0STEXP0")) {
+                    logI("KisRealPriceManager: H0STEXP0 구독 응답: $text")
+                }
             }
         }
     }
