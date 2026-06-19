@@ -17,13 +17,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import kotlinx.serialization.encodeToString
 import retrofit2.Retrofit
 import com.trueedu.tong.utils.logD
 import com.trueedu.tong.utils.logE
-import com.trueedu.tong.utils.logI
-import com.trueedu.tong.utils.logW
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -55,13 +52,9 @@ class KisQuoteManager @Inject constructor(
     var approvalKey: String = ""
         set(value) {
             field = value
-            logD("KisQuoteManager: approvalKey 세팅 (empty=${value.isEmpty()}) currentCode=$currentCode")
             // key가 새로 세팅될 때 이미 start()된 종목이 있으면 구독 재시도
             if (value.isNotEmpty()) {
-                currentCode?.let {
-                    logD("KisQuoteManager: approvalKey 세팅 후 구독 재시도 code=$it")
-                    sendQuoteSubscribe(it, subscribe = true)
-                }
+                currentCode?.let { sendQuoteSubscribe(it, subscribe = true) }
             }
         }
 
@@ -89,7 +82,6 @@ class KisQuoteManager @Inject constructor(
     }
 
     fun start(code: String) {
-        logD("KisQuoteManager: start code=$code approvalKey=${approvalKey.take(8).ifEmpty { "empty" }}")
         currentCode = code
         quoteData.value = null
         realtimeQuote.value = null
@@ -119,11 +111,8 @@ class KisQuoteManager @Inject constructor(
     private fun startQuoteCollect() {
         if (quoteCollectJob != null) return
         quoteCollectJob = MainScope().launch {
-            logD("KisQuoteManager: quoteFlow collect 시작")
             realPriceManager.get().quoteFlow.collect { quote ->
-                logD("KisQuoteManager: 호가 수신 code=${quote.code} currentCode=$currentCode")
                 if (quote.code == currentCode) {
-                    logD("KisQuoteManager: realtimeQuote 업데이트")
                     realtimeQuote.value = quote
                 }
             }
@@ -131,10 +120,7 @@ class KisQuoteManager @Inject constructor(
     }
 
     private fun sendQuoteSubscribe(code: String, subscribe: Boolean) {
-        if (approvalKey.isEmpty()) {
-            logD("KisQuoteManager: sendQuoteSubscribe 스킵 — approvalKey 없음 (code=$code subscribe=$subscribe)")
-            return
-        }
+        if (approvalKey.isEmpty()) return
         val trId = KisRealPriceManager.quoteTransactionId()
         if (subscribe) lastQuoteTrId = trId
         val req = com.trueedu.tong.model.ws.KisWsRequest(

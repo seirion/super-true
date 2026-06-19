@@ -432,7 +432,6 @@ class KisRealPriceManager @Inject constructor(
                     }
                     "H0STASP0", "H0NXASP0" -> {
                         val quote = com.trueedu.tong.model.ws.KisRealTimeQuote.from(parts[3])
-                        logD("KisRealPriceManager: 호가 수신 code=${quote.code} trId=$trId")
                         scope.launch { _quoteFlow.emit(quote) }
                     }
                     "H0UPCNT0", "H0NXUPC0" -> {
