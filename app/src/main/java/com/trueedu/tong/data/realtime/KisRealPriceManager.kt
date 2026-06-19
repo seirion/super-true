@@ -508,6 +508,12 @@ class KisRealPriceManager @Inject constructor(
                 // PingPong 응답
                 wsService.send(text)
             }
+            text.startsWith("1|") -> {
+                // 암호화 실시간 데이터 — 복호화 미지원, 수신 여부만 로깅
+                val parts = text.split("|")
+                val trId = parts.getOrNull(1) ?: "?"
+                logI("KisRealPriceManager: 암호화 데이터 수신 trId=$trId (복호화 미지원, 원문=${text.take(60)})")
+            }
             else -> {
                 logD("KisRealPriceManager: system msg: $text")
                 // 구독 응답(ACK) 로깅 — 특히 H0STEXP0 구독 성공/실패 확인용
