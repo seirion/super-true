@@ -118,7 +118,11 @@ class KisQuoteManager @Inject constructor(
     }
 
     fun onRealtimeQuote(quote: KisRealTimeQuote) {
-        if (quote.code == currentCode) realtimeQuote.value = quote
+        if (quote.code == currentCode) {
+            scope.launch(Dispatchers.Main) {
+                realtimeQuote.value = quote
+            }
+        }
     }
 
     private suspend fun fetchInitialQuote(account: BrokerAccount, code: String) {
