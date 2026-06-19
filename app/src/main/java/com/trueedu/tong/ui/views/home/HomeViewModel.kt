@@ -71,6 +71,15 @@ class HomeViewModel @Inject constructor(
         local.summaryExpanded = summaryExpanded
     }
 
+    // 평가 모드에서 실시간 가격 반영 여부 (SharedPreferences에 영속 저장)
+    var realtimeEvaluation by mutableStateOf(local.realtimeEvaluation)
+        private set
+
+    fun toggleRealtimeEvaluation() {
+        realtimeEvaluation = !realtimeEvaluation
+        local.realtimeEvaluation = realtimeEvaluation
+    }
+
 
 
     // KIS 실시간 체결가 (종목코드 → 최신 체결). 체결 발생 시 갱신.

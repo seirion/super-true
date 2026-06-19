@@ -43,6 +43,9 @@ class Local @Inject constructor(private val preferences: SharedPreferences) {
     // 홈화면 요약 섹션 펼침 여부
     var summaryExpanded by preferences.boolean(true)
 
+    // 홈화면 평가 모드에서 실시간 가격 반영 여부 (기본 on)
+    var realtimeEvaluation by preferences.boolean(true)
+
     // 주문 탭에서 선택된 종목코드/계좌ID
     var selectedOrderCode by preferences.string("")
     var selectedOrderAccountId by preferences.long(-1L)
