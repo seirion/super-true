@@ -15,8 +15,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
-
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,6 +28,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +37,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +68,12 @@ fun HomeScreen(
     val uiState by vm.uiState.collectAsStateWithLifecycle()
     val realtimePrices by vm.realtimePrices.collectAsStateWithLifecycle()
     val initialPrices by vm.initialPrices.collectAsStateWithLifecycle()
+
+    var showSettings by remember { mutableStateOf(false) }
+
+    if (showSettings) {
+        HomeSettingsBottomSheet(onDismiss = { showSettings = false })
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -144,6 +154,7 @@ fun HomeScreen(
                             expanded = vm.summaryExpanded,
                             onToggle = vm::toggleSummary,
                             onRefresh = vm::refresh,
+                            onSettings = { showSettings = true },
                         )
                         HorizontalDivider()
                     }
@@ -248,6 +259,7 @@ private fun AccountInfoSection(
     expanded: Boolean,
     onToggle: () -> Unit,
     onRefresh: () -> Unit,
+    onSettings: () -> Unit,
 ) {
     // 실시간 데이터가 없으면 초기 현재가(REST)로 fallback
     val hasPrices = realtimePrices.isNotEmpty() || initialPrices.isNotEmpty()
@@ -316,18 +328,32 @@ private fun AccountInfoSection(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            Text(
-                text = profitText,
-                fontSize = 15.sp,
-                color = ChartColor.color(displayProfit),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = profitText,
+                    fontSize = 15.sp,
+                    color = ChartColor.color(displayProfit),
+                    modifier = Modifier.weight(1f),
+                )
+                SettingsIconButton(onClick = onSettings)
+            }
         } else {
-            // 접힘: 수익/수익률만 한 줄
-            Text(
-                text = profitText,
-                fontSize = 15.sp,
-                color = ChartColor.color(displayProfit),
-            )
+            // 접힘: 수익/수익률 + 설정 아이콘
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = profitText,
+                    fontSize = 15.sp,
+                    color = ChartColor.color(displayProfit),
+                    modifier = Modifier.weight(1f),
+                )
+                SettingsIconButton(onClick = onSettings)
+            }
         }
 
         if (expanded) {
@@ -352,6 +378,23 @@ private fun AccountInfoSection(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SettingsIconButton(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Settings,
+            contentDescription = "홈 설정",
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
