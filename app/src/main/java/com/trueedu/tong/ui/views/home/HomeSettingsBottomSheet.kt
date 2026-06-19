@@ -1,6 +1,7 @@
 package com.trueedu.tong.ui.views.home
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -9,15 +10,19 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeSettingsBottomSheet(
+    realtimeEvaluation: Boolean,
+    onToggleRealtimeEvaluation: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState()
@@ -38,14 +43,30 @@ fun HomeSettingsBottomSheet(
                 modifier = Modifier.padding(vertical = 8.dp),
             )
             HorizontalDivider()
-            Spacer(modifier = Modifier.height(16.dp))
-            // TODO: 홈 설정 옵션 추가
-            Text(
-                text = "설정 항목을 준비 중입니다.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "평가 모드 실시간 반영",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = "평가 모드에서 실시간 현재가로 평가금액/손익을 계산합니다",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = realtimeEvaluation,
+                    onCheckedChange = { onToggleRealtimeEvaluation() },
+                )
+            }
         }
     }
 }
