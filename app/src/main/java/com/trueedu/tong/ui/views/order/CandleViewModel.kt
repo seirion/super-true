@@ -221,6 +221,6 @@ class CandleViewModel @Inject constructor(
         BrokerType.KIWOOM -> candleRepo.fetchKiwoom(account, code, period, interval)
         BrokerType.LS -> candleRepo.fetchLs(account, code, period, interval)
         BrokerType.KIS -> candleRepo.fetchKis(account, code, period)
-        BrokerType.TOSS -> Result.failure(UnsupportedOperationException("토스증권 미지원"))
+        BrokerType.TOSS -> candleRepo.fetchToss(account, code, period, interval)
     }
 }

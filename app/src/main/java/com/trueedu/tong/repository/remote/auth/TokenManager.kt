@@ -8,6 +8,7 @@ import com.trueedu.tong.repository.local.CredentialStorage
 import com.trueedu.tong.repository.remote.kis.KisAuthService
 import com.trueedu.tong.repository.remote.kiwoom.KiwoomAuthService
 import com.trueedu.tong.repository.remote.ls.LsAuthService
+import com.trueedu.tong.repository.remote.toss.TossAuthService
 import retrofit2.Retrofit
 import com.trueedu.tong.utils.logD
 import com.trueedu.tong.utils.logE
@@ -23,11 +24,13 @@ class TokenManager @Inject constructor(
     @com.trueedu.tong.di.KisRetrofitQualifier private val kisRetrofit: Retrofit,
     @com.trueedu.tong.di.KiwoomRetrofitQualifier private val kiwoomRetrofit: Retrofit,
     @com.trueedu.tong.di.LsRetrofitQualifier private val lsRetrofit: Retrofit,
+    @com.trueedu.tong.di.TossRetrofitQualifier private val tossRetrofit: Retrofit,
     private val credentialStorage: CredentialStorage,
 ) {
     private val kisAuthService: KisAuthService by lazy { kisRetrofit.create(KisAuthService::class.java) }
     private val kiwoomAuthService: KiwoomAuthService by lazy { kiwoomRetrofit.create(KiwoomAuthService::class.java) }
     private val lsAuthService: LsAuthService by lazy { lsRetrofit.create(LsAuthService::class.java) }
+    private val tossAuthService: TossAuthService by lazy { tossRetrofit.create(TossAuthService::class.java) }
 
     private val bufferMs = 5 * 60 * 1000L // 만료 5분 전 갱신
 
@@ -126,7 +129,18 @@ class TokenManager @Inject constructor(
                 body.accessToken
             }
 
-            BrokerType.TOSS -> error("토스증권 미지원")
+            BrokerType.TOSS -> {
+                val fields = mapOf(
+                    "grant_type" to "client_credentials",
+                    "client_id" to appKey,
+                    "client_secret" to appSecret,
+                )
+                val resp = tossAuthService.getToken(fields)
+                val body = resp.body() ?: error("토스 토큰 발급 실패: ${resp.code()}")
+                val expiredAtMs = System.currentTimeMillis() + body.expiresIn * 1000L
+                credentialStorage.saveToken(account.id, body.accessToken, expiredAtMs)
+                body.accessToken
+            }
         }
     }
 
