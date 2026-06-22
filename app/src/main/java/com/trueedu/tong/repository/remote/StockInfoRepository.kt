@@ -37,17 +37,18 @@ class StockInfoRepository @Inject constructor(
 
     /** 키움증권 ka10001 */
     suspend fun fetchKiwoom(account: BrokerAccount, code: String): Result<StockInfo> = runCatching {
-        val token = tokenManager.getValidToken(account).getOrThrow()
         val shortCode = code.removePrefix("A")
-        val headers = mapOf(
-            "authorization" to "Bearer $token",
-            "api-id" to "ka10001",
-            "content-type" to "application/json;charset=UTF-8",
-            "cont-yn" to "N",
-            "next-key" to "",
-        )
-        val resp = kiwoomService.getStockInfo(headers, mapOf("stk_cd" to shortCode))
-        val body = resp.body() ?: error("키움 종목정보 응답 없음: ${resp.code()}")
+        val body = tokenManager.withTokenRetry(account, { it.returnCode }) { token ->
+            val headers = mapOf(
+                "authorization" to "Bearer $token",
+                "api-id" to "ka10001",
+                "content-type" to "application/json;charset=UTF-8",
+                "cont-yn" to "N",
+                "next-key" to "",
+            )
+            val resp = kiwoomService.getStockInfo(headers, mapOf("stk_cd" to shortCode))
+            resp.body() ?: error("키움 종목정보 응답 없음: ${resp.code()}")
+        }
         if (body.returnCode != 0) error("키움 종목정보 오류: ${body.returnMsg}")
 
         StockInfo(

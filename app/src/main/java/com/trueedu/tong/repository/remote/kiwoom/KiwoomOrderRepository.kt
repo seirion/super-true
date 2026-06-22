@@ -18,9 +18,7 @@ class KiwoomOrderRepository @Inject constructor(
 ) {
     private val service by lazy { retrofit.create(KiwoomOrderService::class.java) }
     suspend fun placeOrder(account: BrokerAccount, request: OrderRequest): Result<OrderResult> = runCatching {
-        val token = tokenManager.getValidToken(account).getOrThrow()
         val apiId = if (request.isBuy) "kt10000" else "kt10001"
-        val headers = mapOf("authorization" to "Bearer $token", "api-id" to apiId, "cont-yn" to "N", "next-key" to "")
         val body = mapOf(
             "stk_cd" to request.code.removePrefix("A"),  // 키움은 A 접두사 없이
             "ord_qty" to request.quantity.toString(),
@@ -28,16 +26,11 @@ class KiwoomOrderRepository @Inject constructor(
             "trde_tp" to if (request.isMarket) "3" else "0", // 0=보통(지정가), 3=시장가
             "dmst_stex_tp" to "SOR",                       // KRX/NXT/SOR
         )
-        val resp = service.order(headers, body)
-        val body2 = resp.body() ?: error("키움 주문 응답 없음")
-        // return_code=3: 토큰 무효 → 강제 갱신 후 1회 재시도
-        val finalBody = if (body2.returnCode == 3) {
-            val newToken = tokenManager.refreshToken(account).getOrThrow()
-            val retryHeaders = headers.toMutableMap().apply { this["authorization"] = "Bearer $newToken" }
-            val retryResp = service.order(retryHeaders, body)
-            retryResp.body() ?: error("키움 주문 재시도 응답 없음")
-        } else {
-            body2
+        // 토큰 무효(return_code=3) 시 강제 갱신 후 1회 재시도
+        val finalBody = tokenManager.withTokenRetry(account, { it.returnCode }) { token ->
+            val headers = mapOf("authorization" to "Bearer $token", "api-id" to apiId, "cont-yn" to "N", "next-key" to "")
+            val resp = service.order(headers, body)
+            resp.body() ?: error("키움 주문 응답 없음")
         }
         if (finalBody.returnCode != 0) error("키움 주문 오류: ${finalBody.returnMsg}")
         OrderResult(success = true, ordNo = finalBody.ordNo, message = finalBody.returnMsg)
