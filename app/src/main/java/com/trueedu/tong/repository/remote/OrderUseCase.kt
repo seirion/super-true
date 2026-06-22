@@ -7,6 +7,7 @@ import com.trueedu.tong.model.dto.order.OrderResult
 import com.trueedu.tong.repository.remote.kis.KisOrderRepository
 import com.trueedu.tong.repository.remote.kiwoom.KiwoomOrderRepository
 import com.trueedu.tong.repository.remote.ls.LsOrderRepository
+import com.trueedu.tong.repository.remote.toss.TossOrderRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -15,6 +16,7 @@ class OrderUseCase @Inject constructor(
     private val kisRepo: KisOrderRepository,
     private val kiwoomRepo: KiwoomOrderRepository,
     private val lsRepo: LsOrderRepository,
+    private val tossRepo: TossOrderRepository,
 ) {
     suspend fun placeOrder(account: BrokerAccount, request: OrderRequest): Result<OrderResult> =
         when (account.brokerType) {
@@ -23,6 +25,6 @@ class OrderUseCase @Inject constructor(
                 .map { message -> OrderResult(success = true, ordNo = "", message = message) }
             BrokerType.KIWOOM -> kiwoomRepo.placeOrder(account, request)
             BrokerType.LS -> lsRepo.placeOrder(account, request)
-            BrokerType.TOSS -> Result.failure(UnsupportedOperationException("토스증권 미지원"))
+            BrokerType.TOSS -> tossRepo.placeOrder(account, request)
         }
 }

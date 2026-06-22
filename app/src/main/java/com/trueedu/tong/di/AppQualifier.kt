@@ -53,3 +53,11 @@ annotation class KiwoomWsOkHttp
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class LsOkHttp
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class TossRetrofitQualifier
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class TossOkHttp

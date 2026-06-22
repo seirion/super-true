@@ -250,4 +250,25 @@ object NetworkModule {
         okHttpClient = okHttpClient,
         json = json,
     )
+
+    // 토스증권
+    @Provides
+    @Singleton
+    @TossOkHttp
+    fun providesTossOkHttpClient(
+        loggingInterceptor: HttpLoggingInterceptor,
+        chuckerInterceptor: ChuckerInterceptor,
+    ): OkHttpClient = buildOkHttpClient(loggingInterceptor, chuckerInterceptor)
+
+    @Provides
+    @Singleton
+    @TossRetrofitQualifier
+    fun providesTossRetrofit(
+        @TossOkHttp okHttpClient: OkHttpClient,
+        json: Json,
+    ): Retrofit = buildRetrofit(
+        baseUrl = "https://openapi.tossinvest.com/",
+        okHttpClient = okHttpClient,
+        json = json,
+    )
 }

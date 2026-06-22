@@ -88,6 +88,6 @@ class StockInfoViewModel @Inject constructor(
         BrokerType.KIWOOM -> stockInfoRepo.fetchKiwoom(account, code)
         BrokerType.KIS -> stockInfoRepo.fetchKis(account, code)
         BrokerType.LS -> stockInfoRepo.fetchLs(account, code)
-        BrokerType.TOSS -> Result.failure(UnsupportedOperationException("토스증권 미지원"))
+        BrokerType.TOSS -> stockInfoRepo.fetchToss(account, code)
     }
 }
