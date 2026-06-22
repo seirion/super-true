@@ -58,7 +58,7 @@ class KisRealPriceManager @Inject constructor(
     private var account: BrokerAccount? = null
     private val subscribedCodes = mutableSetOf<String>()
     private var connectJob: kotlinx.coroutines.Job? = null  // 진행 중인 connect 코루틴 (중복 방지)
-    private var currentSubscribedTrId: String = ""          // 현재 구독 중인 체결 TR ID (H0STCNT0/H0NXCNT0/H0STEXP0)
+    private var currentSubscribedTrId: String = ""          // 현재 구독 중인 체결 TR ID (H0STCNT0/H0NXCNT0/H0STANC0)
     private var transitionJob: kotlinx.coroutines.Job? = null  // 동시호가 ↔ 실시간 체결 전환 스케줄러
 
     // 실시간 체결가 스트림
@@ -422,7 +422,7 @@ class KisRealPriceManager @Inject constructor(
 
     /**
      * 동시호가 시간대(08:50~09:00, 15:20~15:30) 진입/이탈 시점에 체결 구독 TR을
-     * 실시간 체결(H0STCNT0) ↔ 예상체결(H0STEXP0)로 자동 전환한다.
+     * 실시간 체결(H0STCNT0) ↔ 예상체결(H0STANC0)로 자동 전환한다.
      *
      * 전환 경계(08:50, 09:00, 15:20, 15:30)까지 delay 후,
      * 목표 TR이 현재 구독 TR과 다르면 기존 구독을 모두 해제하고 새 TR로 재구독한다.
@@ -440,8 +440,8 @@ class KisRealPriceManager @Inject constructor(
                     if (targetTrId == currentSubscribedTrId) return@withLock
                     val oldTrId = currentSubscribedTrId
                     val codes = subscribedCodes.toList()
-                    val enteringSimultaneous = targetTrId == "H0STEXP0"
-                    val leavingSimultaneous = oldTrId == "H0STEXP0"
+                    val enteringSimultaneous = targetTrId == "H0STANC0"
+                    val leavingSimultaneous = oldTrId == "H0STANC0"
                     logI("KisRealPriceManager: 체결 TR 전환 $oldTrId → $targetTrId (${codes.size}종목)")
                     if (leavingSimultaneous) {
                         // 동시호가 이탈: 기존 연결 끊고 재연결 (swap 시 서버 측 구독 불안정 문제 방지)
@@ -493,9 +493,9 @@ class KisRealPriceManager @Inject constructor(
                             quoteManager.refreshSubscription()
                         }
                     }
-                    "H0STEXP0" -> {
+                    "H0STANC0" -> {
                         // 동시호가 시간대 예상체결
-                        logI("KisRealPriceManager: H0STEXP0 수신 raw=${parts[3].take(80)}")
+                        logI("KisRealPriceManager: H0STANC0 수신 raw=${parts[3].take(80)}")
                         val trade = KisRealTimeTrade.fromExpected(parts[3])
                         logI("KisRealPriceManager: 예상체결 code=${trade.code} price=${trade.price} rate=${trade.rate}")
                         priceMap[trade.code] = trade
@@ -526,9 +526,9 @@ class KisRealPriceManager @Inject constructor(
             }
             else -> {
                 logD("KisRealPriceManager: system msg: $text")
-                // 구독 응답(ACK) 로깅 — 특히 H0STEXP0 구독 성공/실패 확인용
-                if (text.contains("H0STEXP0")) {
-                    logI("KisRealPriceManager: H0STEXP0 구독 응답: $text")
+                // 구독 응답(ACK) 로깅 — 특히 H0STANC0 구독 성공/실패 확인용
+                if (text.contains("H0STANC0")) {
+                    logI("KisRealPriceManager: H0STANC0 구독 응답: $text")
                 }
             }
         }
@@ -591,7 +591,7 @@ class KisRealPriceManager @Inject constructor(
 
         /**
          * 동시호가(단일가) 시간: 08:50~09:00(장 시작), 15:20~15:30(장 마감).
-         * 이 시간엔 실시간 체결이 없으므로 예상체결(H0STEXP0)로 전환한다.
+         * 이 시간엔 실시간 체결이 없으므로 예상체결(H0STANC0)로 전환한다.
          */
         fun isSimultaneousQuoteTime(): Boolean {
             val cal = java.util.Calendar.getInstance()
@@ -602,10 +602,10 @@ class KisRealPriceManager @Inject constructor(
 
         /**
          * 현재 시간 기준 체결 TR ID.
-         * 동시호가 → H0STEXP0(예상체결), NXT 시간 → H0NXCNT0, 그 외 → H0STCNT0.
+         * 동시호가 → H0STANC0(예상체결), NXT 시간 → H0NXCNT0, 그 외 → H0STCNT0.
          */
         fun currentTradeTrId(): String = when {
-            isSimultaneousQuoteTime() -> "H0STEXP0"
+            isSimultaneousQuoteTime() -> "H0STANC0"
             isNxtTradingHour() -> "H0NXCNT0"
             else -> "H0STCNT0"
         }
