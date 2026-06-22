@@ -32,7 +32,7 @@ class AccountSummaryUseCase @Inject constructor(
 
         return when (account.brokerType) {
             BrokerType.KIS    -> kisRepo.getAccountSummary(account, token)
-            BrokerType.KIWOOM -> kiwoomRepo.getAccountSummary(account, token)
+            BrokerType.KIWOOM -> kiwoomRepo.getAccountSummary(account)
             BrokerType.LS     -> lsRepo.getAccountSummary(account, token)
             BrokerType.TOSS   -> Result.failure(UnsupportedOperationException("토스증권 미지원"))
         }

@@ -5,6 +5,7 @@ import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.account.AccountSummary
 import com.trueedu.tong.model.account.HoldingStock
 import com.trueedu.tong.repository.local.CredentialStorage
+import com.trueedu.tong.repository.remote.auth.TokenManager
 import retrofit2.Retrofit
 import com.trueedu.tong.utils.logD
 import com.trueedu.tong.utils.logE
@@ -17,6 +18,7 @@ import javax.inject.Singleton
 class KiwoomAccountRepository @Inject constructor(
     @KiwoomRetrofitQualifier private val retrofit: Retrofit,
     private val credentialStorage: CredentialStorage,
+    private val tokenManager: TokenManager,
 ) {
     private val service: KiwoomAccountService by lazy {
         retrofit.create(KiwoomAccountService::class.java)
@@ -24,16 +26,9 @@ class KiwoomAccountRepository @Inject constructor(
 
     suspend fun getAccountSummary(
         account: BrokerAccount,
-        accessToken: String,
     ): Result<AccountSummary> = runCatching {
         logD("KiwoomAccountRepository: getAccountSummary 시작 - accountId=${account.id}")
         // kt00018 - 잔고/보유종목
-        val balanceHeaders = mapOf(
-            "authorization" to "Bearer $accessToken",
-            "api-id" to "kt00018",
-            "cont-yn" to "N",
-            "next-key" to "",
-        )
         val balanceBody = mapOf(
             "acnt_no" to account.accountNum,
             "acnt_pw" to credentialStorage.getPassword(account.id),
@@ -50,25 +45,35 @@ class KiwoomAccountRepository @Inject constructor(
             "inqr_cond_tp_code" to "0",
             "inqr_sort_tp_code" to "0",
         )
-        val balanceResp = service.getBalance(balanceHeaders, balanceBody)
-        logD("KiwoomAccountRepository: kt00018 응답코드=${balanceResp.code()}, body=${balanceResp.body()}, error=${balanceResp.errorBody()?.string()}")
-        val balanceBody2 = balanceResp.body() ?: error("키움 잔고 응답 없음")
+        val balanceBody2 = tokenManager.withTokenRetry(account, { it.returnCode }) { token ->
+            val balanceHeaders = mapOf(
+                "authorization" to "Bearer $token",
+                "api-id" to "kt00018",
+                "cont-yn" to "N",
+                "next-key" to "",
+            )
+            val balanceResp = service.getBalance(balanceHeaders, balanceBody)
+            logD("KiwoomAccountRepository: kt00018 응답코드=${balanceResp.code()}, body=${balanceResp.body()}, error=${balanceResp.errorBody()?.string()}")
+            balanceResp.body() ?: error("키움 잔고 응답 없음")
+        }
 
         // kt00001 - 예수금
-        val depositHeaders = mapOf(
-            "authorization" to "Bearer $accessToken",
-            "api-id" to "kt00001",
-            "cont-yn" to "N",
-            "next-key" to "",
-        )
         val depositBody = mapOf(
             "acnt_no" to account.accountNum,
             "acnt_prdt_cd" to "01",
             "base_dt" to "",
             "qry_tp" to "0",
         )
-        val depositResp = service.getDeposit(depositHeaders, depositBody)
-        val depositData = depositResp.body() ?: error("키움 예수금 응답 없음")
+        val depositData = tokenManager.withTokenRetry(account, { it.returnCode }) { token ->
+            val depositHeaders = mapOf(
+                "authorization" to "Bearer $token",
+                "api-id" to "kt00001",
+                "cont-yn" to "N",
+                "next-key" to "",
+            )
+            val depositResp = service.getDeposit(depositHeaders, depositBody)
+            depositResp.body() ?: error("키움 예수금 응답 없음")
+        }
 
         logD("KiwoomAccountRepository: kt00018 returnCode=${balanceBody2.returnCode}, holdings=${balanceBody2.holdings.size}개")
         val holdings = balanceBody2.holdings

@@ -8,6 +8,7 @@ import kotlinx.serialization.Serializable
 data class KiwoomDayCandleResponse(
     @SerialName("stk_cd") val code: String = "",
     @SerialName("stk_dt_pole_chart_qry") val candles: List<KiwoomOhlcvItem> = emptyList(),
+    @SerialName("return_code") val returnCode: Int = 0,
 )
 
 // ── 주봉 ka10082 ─────────────────────────────────────────────────────────────
@@ -15,6 +16,7 @@ data class KiwoomDayCandleResponse(
 data class KiwoomWeekCandleResponse(
     @SerialName("stk_cd") val code: String = "",
     @SerialName("stk_stk_pole_chart_qry") val candles: List<KiwoomOhlcvItem> = emptyList(),
+    @SerialName("return_code") val returnCode: Int = 0,
 )
 
 // ── 월봉 ka10083 ─────────────────────────────────────────────────────────────
@@ -22,6 +24,7 @@ data class KiwoomWeekCandleResponse(
 data class KiwoomMonthCandleResponse(
     @SerialName("stk_cd") val code: String = "",
     @SerialName("stk_mth_pole_chart_qry") val candles: List<KiwoomOhlcvItem> = emptyList(),
+    @SerialName("return_code") val returnCode: Int = 0,
 )
 
 // ── 분봉 ka10080 ─────────────────────────────────────────────────────────────
@@ -29,6 +32,7 @@ data class KiwoomMonthCandleResponse(
 data class KiwoomMinuteCandleResponse(
     @SerialName("stk_cd") val code: String = "",
     @SerialName("stk_min_pole_chart_qry") val candles: List<KiwoomMinuteItem> = emptyList(),
+    @SerialName("return_code") val returnCode: Int = 0,
 )
 
 // ── 공통 OHLCV 아이템 (일/주/월봉) ────────────────────────────────────────────
