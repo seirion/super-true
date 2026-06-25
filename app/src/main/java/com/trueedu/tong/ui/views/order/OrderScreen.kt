@@ -292,9 +292,9 @@ private fun OrderEntryTab(
                 modifier = Modifier.weight(1f).fillMaxHeight().padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = !vm.isMarket, onClick = { vm.onMarketToggle(false) }, label = { Text("지정가") })
-                    FilterChip(selected = vm.isMarket, onClick = { vm.onMarketToggle(true) }, label = { Text("시장가") })
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    FilterChip(selected = !vm.isMarket, onClick = { vm.onMarketToggle(false) }, label = { Text("지정가", style = MaterialTheme.typography.labelSmall) })
+                    FilterChip(selected = vm.isMarket, onClick = { vm.onMarketToggle(true) }, label = { Text("시장가", style = MaterialTheme.typography.labelSmall) })
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf("SOR", "KRX", "NXT").forEach { exch ->
