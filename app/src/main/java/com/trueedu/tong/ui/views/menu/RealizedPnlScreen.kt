@@ -269,7 +269,7 @@ internal fun PnlDateRangeRow(vm: OrderStatusViewModel) {
 
 @Composable
 internal fun RealizedPnlRow(item: RealizedPnlItem, showSellAmount: Boolean = false) {
-    val sellAmount = item.sellQty * item.sellPrice
+    val sellAmount = item.totalSellAmount
     Row(
         modifier = Modifier
             .fillMaxWidth()
