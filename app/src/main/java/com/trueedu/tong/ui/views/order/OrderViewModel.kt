@@ -48,6 +48,7 @@ class OrderViewModel @Inject constructor(
     val realtimePrice get() = kisPriceManager.priceMap[code.removePrefix("A")]
 
     var isMarket by mutableStateOf(false); private set
+    var exchangeId by mutableStateOf("SOR"); private set  // KRX / NXT / SOR
     var quantity by mutableStateOf("1"); private set
     var price by mutableStateOf(""); private set
 
@@ -163,6 +164,7 @@ class OrderViewModel @Inject constructor(
     }
 
     fun onMarketToggle(v: Boolean) { isMarket = v }
+    fun onExchangeIdChange(v: String) { exchangeId = v }
     fun onQuantityChange(v: String) { if (v.all { it.isDigit() }) quantity = v }
     fun onPriceChange(v: String) { if (v.all { it.isDigit() }) price = v }
     fun setPrice(p: Double) { price = p.toLong().toString() }
@@ -185,6 +187,7 @@ class OrderViewModel @Inject constructor(
                 price = if (isMarket) 0L else price.toLongOrNull() ?: return@launch,
                 isBuy = isBuy,
                 isMarket = isMarket,
+                exchangeId = exchangeId,
             )
             orderUseCase.placeOrder(acc, req)
                 .onSuccess { orderState = OrderState.Success(if (isBuy) "매수 주문 완료" else "매도 주문 완료") }

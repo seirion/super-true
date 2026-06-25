@@ -45,6 +45,7 @@ class KisOrderRepository @Inject constructor(
             ordDvsn = if (request.isMarket) "01" else "00",
             ordQty = request.quantity.toString(),
             ordUnpr = if (request.isMarket) "0" else request.price.toString(),
+            excgIdDvsnCd = request.exchangeId,
         )
 
         val response = service.orderCash(headers, body)
