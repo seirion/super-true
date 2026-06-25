@@ -106,11 +106,12 @@ class OrderStatusViewModel @Inject constructor(
                     code = group.first().code,
                     name = group.first().name,
                     sellQty = group.sumOf { it.sellQty },
-                    sellPrice = if (group.size == 1) group.first().sellPrice else 0L, // 복수건은 단가 의미없음
+                    sellPrice = if (group.size == 1) group.first().sellPrice else 0L,
                     fee = group.sumOf { it.fee },
                     tax = group.sumOf { it.tax },
                     pnlBeforeCost = group.sumOf { it.pnlBeforeCost },
                     pnlAfterCost = group.sumOf { it.pnlAfterCost },
+                    totalSellAmount = group.sumOf { it.totalSellAmount },
                 )
             }.sortedByDescending { it.pnlBeforeCost }
         }
