@@ -9,4 +9,5 @@ data class OrderRequest(
     val price: Long,
     val isBuy: Boolean,
     val isMarket: Boolean,
+    val exchangeId: String = "SOR", // KRX / NXT / SOR
 )

@@ -296,6 +296,20 @@ private fun OrderEntryTab(
                     FilterChip(selected = !vm.isMarket, onClick = { vm.onMarketToggle(false) }, label = { Text("지정가") })
                     FilterChip(selected = vm.isMarket, onClick = { vm.onMarketToggle(true) }, label = { Text("시장가") })
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    listOf("SOR", "KRX", "NXT").forEach { exch ->
+                        FilterChip(
+                            selected = vm.exchangeId == exch,
+                            onClick = { vm.onExchangeIdChange(exch) },
+                            label = {
+                                Text(
+                                    text = exch,
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            },
+                        )
+                    }
+                }
                 OrderInputRow(
                     label = "가격",
                     value = if (vm.isMarket) "시장가" else vm.price,
