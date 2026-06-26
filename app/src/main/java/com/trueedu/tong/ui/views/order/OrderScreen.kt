@@ -143,8 +143,8 @@ private fun OrderEntryTab(
 
     LaunchedEffect(vm.orderState) {
         when (val s = vm.orderState) {
-            is OrderViewModel.OrderState.Success -> { snackbarHostState.showSnackbar(s.msg); vm.resetState() }
-            is OrderViewModel.OrderState.Error -> { snackbarHostState.showSnackbar("오류: ${s.msg}"); vm.resetState() }
+            is OrderViewModel.OrderState.Success -> { snackbarHostState.showSnackbar(s.msg, actionLabel = "닫기"); vm.resetState() }
+            is OrderViewModel.OrderState.Error -> { snackbarHostState.showSnackbar("오류: ${s.msg}", actionLabel = "닫기"); vm.resetState() }
             else -> {}
         }
     }
