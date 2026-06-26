@@ -2,6 +2,7 @@ package com.trueedu.tong.ui.main
 
 import android.annotation.SuppressLint
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalNavigationDrawer
@@ -36,6 +37,13 @@ fun MainScreen(
     var currentTab by remember { mutableStateOf<BottomNavItem?>(BottomNavItem.Home) }
     // 최상단이 탭이면 현재 탭을 갱신, 상세 화면(AddAccount 등)에서는 직전 탭을 유지
     (backStack.lastOrNull() as? BottomNavItem)?.let { currentTab = it }
+
+    // 홈이 아닌 탭/화면에서 뒤로가기 → 홈으로. 홈에서는 기본 동작(앱 종료)
+    val isNotHome = backStack.lastOrNull() != BottomNavItem.Home
+    BackHandler(enabled = isNotHome) {
+        backStack.clear()
+        backStack.add(BottomNavItem.Home)
+    }
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
