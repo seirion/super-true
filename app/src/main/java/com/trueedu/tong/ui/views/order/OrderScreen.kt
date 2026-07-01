@@ -284,7 +284,7 @@ private fun OrderEntryTab(
                 currentPrice = currentPrice,
                 prevClose = prevClose,
                 onPriceClick = { vm.setPrice(it) },
-                modifier = Modifier.width(160.dp).fillMaxHeight(),
+                modifier = Modifier.width(120.dp).fillMaxHeight(),
             )
             VerticalDivider()
             // 우: 주문 입력
@@ -411,17 +411,18 @@ private fun QuoteRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(28.dp)
+            .height(36.dp)
             .background(bgColor)
             .clickable(onClick = onClick)
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        // 좌: 가격(1줄) + 등락률(2줄)
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = NumberFormatter.formatCash(price),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelSmall,
                 color = priceColor,
                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
             )
@@ -434,9 +435,10 @@ private fun QuoteRow(
                 )
             }
         }
+        // 우: 수량
         Text(
             text = NumberFormatter.formatCash(qty),
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
