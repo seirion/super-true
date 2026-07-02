@@ -1,21 +1,19 @@
 package com.trueedu.tong.ui.views.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.HorizontalDivider
@@ -116,32 +114,29 @@ fun AccountItem(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val bgModifier = if (account.isSelected) {
+        Modifier
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .background(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shape = RoundedCornerShape(8.dp)
+            )
+    } else {
+        Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onSelect)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .then(bgModifier)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Selected indicator
-        if (account.isSelected) {
-            Icon(
-                imageVector = Icons.Filled.CheckCircle,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .size(20.dp)
-                    .padding(end = 4.dp)
-            )
-        } else {
-            Spacer(modifier = Modifier.size(20.dp))
-        }
-        Spacer(modifier = Modifier.width(8.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = account.name,
                 style = MaterialTheme.typography.bodyLarge,
-                color = if (account.isSelected) MaterialTheme.colorScheme.primary
+                color = if (account.isSelected) MaterialTheme.colorScheme.onPrimaryContainer
                         else MaterialTheme.colorScheme.onSurface,
             )
             Text(
