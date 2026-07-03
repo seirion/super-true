@@ -48,17 +48,17 @@ class TossAccountRepository @Inject constructor(
         logD("Toss holdings: count=${holdingsBody.holdings.size}")
 
         val holdings = holdingsBody.holdings
-            .filter { (long(it.quantity) ?: 0L) > 0L }
+            .filter { (num(it.quantity) ?: 0.0) > 0.0 }
             .map { h ->
                 HoldingStock(
                     code = h.symbol,
                     name = h.name,
-                    quantity = long(h.quantity) ?: 0L,
-                    avgPrice = num(h.averagePrice) ?: 0.0,
-                    currentPrice = num(h.currentPrice),
-                    evaluationAmount = num(h.marketValue) ?: 0.0,
-                    profitAmount = num(h.profitLoss) ?: 0.0,
-                    profitRate = num(h.profitLossRate) ?: 0.0,
+                    quantity = num(h.quantity)?.toLong() ?: 0L,
+                    avgPrice = num(h.averagePurchasePrice) ?: 0.0,
+                    currentPrice = num(h.lastPrice),
+                    evaluationAmount = num(h.marketValue?.amount) ?: 0.0,
+                    profitAmount = num(h.profitLoss?.amount) ?: 0.0,
+                    profitRate = (num(h.profitLoss?.rate) ?: 0.0) * 100,
                 )
             }
 
