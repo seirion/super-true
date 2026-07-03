@@ -5,16 +5,20 @@ import kotlinx.serialization.Serializable
 // GET /api/v1/accounts 응답
 @Serializable
 data class TossAccountListResponse(
-    val data: List<TossAccount> = emptyList(),
-)
+    val result: List<TossAccount> = emptyList(),
+) {
+    val data: List<TossAccount> get() = result
+}
 
 @Serializable
 data class TossAccount(
-    val accountSeq: String = "",
-    val accountNumber: String = "",
-    val accountName: String = "",
-    val currency: String = "",
-)
+    val accountSeq: Int = 0,
+    val accountNo: String = "",
+    val accountType: String = "",
+) {
+    val accountNumber: String get() = accountNo
+    val accountSeqStr: String get() = accountSeq.toString()
+}
 
 // GET /api/v1/holdings 응답
 @Serializable
