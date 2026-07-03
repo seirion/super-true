@@ -33,8 +33,8 @@ class TossAccountRepository @Inject constructor(
         if (accounts.isEmpty()) error("토스 계좌목록 없음")
         val matched = accounts.firstOrNull { it.accountNumber == account.accountNum }
             ?: accounts.first()
-        logD("Toss accounts: count=${accounts.size}, accountSeq=${matched.accountSeq}")
-        return matched.accountSeq
+        logD("Toss accounts: count=${accounts.size}, accountSeq=${matched.accountSeqStr}")
+        return matched.accountSeqStr
     }
 
     suspend fun getAccountSummary(
