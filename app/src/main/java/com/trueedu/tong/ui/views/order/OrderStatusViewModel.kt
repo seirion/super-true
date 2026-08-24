@@ -68,9 +68,13 @@ class OrderStatusViewModel @Inject constructor(
         if (pnlLoading) return  // 이미 로딩 중이면 중복 호출 방지
         viewModelScope.launch {
             pnlLoading = true
-            val accountId = local.selectedOrderAccountId
-            val acc = brokerAccountRepo.getAll().first().find { it.id == accountId }
-                ?: brokerAccountRepo.getAll().first().firstOrNull()
+            // 실현수익은 홈 drawer에서 선택한 계좌(isSelected)를 기준으로 조회한다.
+            // selectedOrderAccountId는 주문 탭 진입 시에만 갱신되므로 단독으로 쓰면
+            // drawer에서 계좌를 바꿔도 이전 계좌의 실현수익이 계속 표시된다.
+            val accounts = brokerAccountRepo.getAll().first()
+            val acc = accounts.firstOrNull { it.isSelected }
+                ?: accounts.find { it.id == local.selectedOrderAccountId }
+                ?: accounts.firstOrNull()
                 ?: run { pnlLoading = false; return@launch }
 
             val (start, end) = dateRangeFor(pnlDateRange)
