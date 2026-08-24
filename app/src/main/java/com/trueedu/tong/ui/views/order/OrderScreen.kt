@@ -421,9 +421,10 @@ private fun QuoteRow(
     prevClose: Double = 0.0,
     onClick: () -> Unit,
 ) {
-    val bgColor = if (isSell) ChartColor.fall.copy(alpha = 0.08f) else ChartColor.rise.copy(alpha = 0.08f)
     val priceColor = if (isSell) ChartColor.fall else ChartColor.rise
     val isCurrent = price == currentPrice
+    // 체결가(현재가) 행은 배경을 진하게 해서 bold 처리와 함께 더 눈에 띄게 한다
+    val bgColor = priceColor.copy(alpha = if (isCurrent) 0.28f else 0.08f)
     val rateStr = if (prevClose > 0) {
         val rate = (price - prevClose) / prevClose * 100
         String.format("%.2f%%", rate)
