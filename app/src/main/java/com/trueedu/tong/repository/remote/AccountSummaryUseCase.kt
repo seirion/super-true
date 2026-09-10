@@ -7,6 +7,7 @@ import com.trueedu.tong.repository.remote.auth.TokenManager
 import com.trueedu.tong.repository.remote.kis.KisAccountRepository
 import com.trueedu.tong.repository.remote.kiwoom.KiwoomAccountRepository
 import com.trueedu.tong.repository.remote.ls.LsAccountRepository
+import com.trueedu.tong.repository.remote.toss.TossAccountRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,6 +23,7 @@ class AccountSummaryUseCase @Inject constructor(
     private val kisRepo: KisAccountRepository,
     private val kiwoomRepo: KiwoomAccountRepository,
     private val lsRepo: LsAccountRepository,
+    private val tossRepo: TossAccountRepository,
 ) {
     suspend fun fetch(account: BrokerAccount): Result<AccountSummary> {
         val tokenResult = tokenManager.getValidToken(account)
@@ -34,7 +36,7 @@ class AccountSummaryUseCase @Inject constructor(
             BrokerType.KIS    -> kisRepo.getAccountSummary(account, token)
             BrokerType.KIWOOM -> kiwoomRepo.getAccountSummary(account)
             BrokerType.LS     -> lsRepo.getAccountSummary(account, token)
-            BrokerType.TOSS   -> Result.failure(UnsupportedOperationException("토스증권 미지원"))
+            BrokerType.TOSS   -> tossRepo.getAccountSummary(account, token)
         }
     }
 }

@@ -3,6 +3,7 @@ package com.trueedu.tong.repository.remote
 import com.trueedu.tong.di.KisRetrofitQualifier
 import com.trueedu.tong.di.KiwoomRetrofitQualifier
 import com.trueedu.tong.di.LsRetrofitQualifier
+import com.trueedu.tong.di.TossRetrofitQualifier
 import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.StockInfo
 import com.trueedu.tong.model.dto.stockinfo.LsStockInfoInBlock
@@ -12,6 +13,8 @@ import com.trueedu.tong.repository.remote.auth.TokenManager
 import com.trueedu.tong.repository.remote.kis.KisStockInfoService
 import com.trueedu.tong.repository.remote.kiwoom.KiwoomStockInfoService
 import com.trueedu.tong.repository.remote.ls.LsStockInfoService
+import com.trueedu.tong.repository.remote.toss.TossStockInfoService
+import retrofit2.Response
 import retrofit2.Retrofit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,12 +31,14 @@ class StockInfoRepository @Inject constructor(
     @KiwoomRetrofitQualifier private val kiwoomRetrofit: Retrofit,
     @KisRetrofitQualifier private val kisRetrofit: Retrofit,
     @LsRetrofitQualifier private val lsRetrofit: Retrofit,
+    @TossRetrofitQualifier private val tossRetrofit: Retrofit,
     private val credentialStorage: CredentialStorage,
     private val tokenManager: TokenManager,
 ) {
     private val kiwoomService by lazy { kiwoomRetrofit.create(KiwoomStockInfoService::class.java) }
     private val kisService by lazy { kisRetrofit.create(KisStockInfoService::class.java) }
     private val lsService by lazy { lsRetrofit.create(LsStockInfoService::class.java) }
+    private val tossService by lazy { tossRetrofit.create(TossStockInfoService::class.java) }
 
     /** 키움증권 ka10001 */
     suspend fun fetchKiwoom(account: BrokerAccount, code: String): Result<StockInfo> = runCatching {
@@ -191,6 +196,70 @@ class StockInfoRepository @Inject constructor(
             foreignExhaustionRate = null,
             creditRate = null,
         )
+    }
+
+    /** 토스증권 시세(/api/v1/prices) + 기본정보(/api/v1/stocks) 합산 */
+    suspend fun fetchToss(account: BrokerAccount, code: String): Result<StockInfo> = runCatching {
+        val shortCode = code.removePrefix("A")
+        val params = mapOf("symbols" to shortCode)
+
+        val priceResp = tossRetry(account) { token ->
+            tossService.getPrices(mapOf("Authorization" to "Bearer $token"), params)
+        }
+        val priceBody = priceResp.body() ?: error("토스 시세 응답 없음: ${priceResp.code()}")
+        val price = priceBody.data.firstOrNull { it.symbol == shortCode } ?: priceBody.data.firstOrNull()
+        ?: error("토스 시세 없음: $shortCode")
+
+        val stockResp = tossRetry(account) { token ->
+            tossService.getStocks(mapOf("Authorization" to "Bearer $token"), params)
+        }
+        val stock = stockResp.body()?.data?.firstOrNull { it.symbol == shortCode }
+            ?: stockResp.body()?.data?.firstOrNull()
+
+        StockInfo(
+            code = shortCode,
+            name = stock?.name ?: "",
+            currentPrice = priceOf(price.price),
+            delta = num(price.change) ?: 0.0,
+            rate = num(price.changeRate) ?: 0.0,
+            open = 0.0,
+            high = 0.0,
+            low = 0.0,
+            volume = long(price.volume) ?: 0L,
+            marketCap = null,
+            per = null,
+            pbr = null,
+            eps = null,
+            bps = null,
+            roe = null,
+            ev = null,
+            salesAmount = null,
+            operatingProfit = null,
+            netProfit = null,
+            parValue = null,
+            capital = null,
+            listedShares = null,
+            settlementMonth = null,
+            week52High = null,
+            week52Low = null,
+            upperLimit = null,
+            lowerLimit = null,
+            foreignExhaustionRate = null,
+            creditRate = null,
+        )
+    }
+
+    /** 토스 토큰 오류(HTTP 401) 시 강제 갱신 후 1회 재시도 */
+    private suspend fun <T> tossRetry(
+        account: BrokerAccount,
+        block: suspend (token: String) -> Response<T>,
+    ): Response<T> {
+        val token = tokenManager.getValidToken(account).getOrThrow()
+        val resp = block(token)
+        if (resp.code() != 401) return resp
+        tokenManager.invalidateToken(account.id)
+        val newToken = tokenManager.refreshToken(account).getOrThrow()
+        return block(newToken)
     }
 
     // --- 파싱 헬퍼 ---

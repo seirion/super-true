@@ -3,6 +3,7 @@ package com.trueedu.tong.repository.remote
 import com.trueedu.tong.di.KisRetrofitQualifier
 import com.trueedu.tong.di.KiwoomRetrofitQualifier
 import com.trueedu.tong.di.LsRetrofitQualifier
+import com.trueedu.tong.di.TossRetrofitQualifier
 import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.CandleData
 import com.trueedu.tong.model.CandlePeriod
@@ -15,8 +16,10 @@ import com.trueedu.tong.repository.remote.auth.TokenManager
 import com.trueedu.tong.repository.remote.kis.KisCandleService
 import com.trueedu.tong.repository.remote.kiwoom.KiwoomCandleService
 import com.trueedu.tong.repository.remote.ls.LsCandleService
+import com.trueedu.tong.repository.remote.toss.TossCandleService
 import com.trueedu.tong.utils.logD
 import com.trueedu.tong.utils.logE
+import retrofit2.Response
 import retrofit2.Retrofit
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -35,12 +38,14 @@ class CandleRepository @Inject constructor(
     @KiwoomRetrofitQualifier private val kiwoomRetrofit: Retrofit,
     @KisRetrofitQualifier private val kisRetrofit: Retrofit,
     @LsRetrofitQualifier private val lsRetrofit: Retrofit,
+    @TossRetrofitQualifier private val tossRetrofit: Retrofit,
     private val credentialStorage: CredentialStorage,
     private val tokenManager: TokenManager,
 ) {
     private val kiwoomService by lazy { kiwoomRetrofit.create(KiwoomCandleService::class.java) }
     private val kisService by lazy { kisRetrofit.create(KisCandleService::class.java) }
     private val lsService by lazy { lsRetrofit.create(LsCandleService::class.java) }
+    private val tossService by lazy { tossRetrofit.create(TossCandleService::class.java) }
 
     /** 키움증권 캔들 조회 (기간별 TR/응답 배열키 분기) */
     suspend fun fetchKiwoom(account: BrokerAccount, code: String, period: CandlePeriod = CandlePeriod.DAY, minuteInterval: Int = 1): Result<List<CandleData>> = runCatching {
@@ -213,6 +218,51 @@ class CandleRepository @Inject constructor(
         logD("CandleRepo.fetchKis: parsed ${result.size} candles")
         result
     }.also { r -> r.onFailure { logE("CandleRepo.fetchKis error: ${it.message}") } }
+
+    /** 토스증권 캔들 조회 (/api/v1/candles, candleType: DAY/MINUTE) */
+    suspend fun fetchToss(account: BrokerAccount, code: String, period: CandlePeriod = CandlePeriod.DAY, minuteInterval: Int = 1): Result<List<CandleData>> = runCatching {
+        val shortCode = code.removePrefix("A")
+        val candleType = if (period == CandlePeriod.MINUTE) "MINUTE" else "DAY"
+        logD("CandleRepo.fetchToss: code=$shortCode, period=$period, candleType=$candleType")
+        val params = buildMap {
+            put("symbol", shortCode)
+            put("candleType", candleType)
+            if (period == CandlePeriod.MINUTE) put("interval", minuteInterval.toString())
+        }
+
+        val resp = tossRetry(account) { token ->
+            tossService.getCandles(mapOf("Authorization" to "Bearer $token"), params)
+        }
+        logD("CandleRepo.fetchToss: httpCode=${resp.code()}")
+        val data = resp.body() ?: error("토스 캔들 응답 없음: ${resp.code()}")
+        logD("CandleRepo.fetchToss: count=${data.data.size}")
+
+        val result = data.data.map {
+            CandleData(
+                datetime = it.timestamp,
+                open = priceOf(it.open),
+                high = priceOf(it.high),
+                low = priceOf(it.low),
+                close = priceOf(it.close),
+                volume = long(it.volume) ?: 0L,
+            )
+        }
+        logD("CandleRepo.fetchToss: parsed ${result.size} candles")
+        result
+    }.also { r -> r.onFailure { logE("CandleRepo.fetchToss error: ${it.message}") } }
+
+    /** 토스 토큰 오류(HTTP 401) 시 강제 갱신 후 1회 재시도 */
+    private suspend fun <T> tossRetry(
+        account: BrokerAccount,
+        block: suspend (token: String) -> Response<T>,
+    ): Response<T> {
+        val token = tokenManager.getValidToken(account).getOrThrow()
+        val resp = block(token)
+        if (resp.code() != 401) return resp
+        tokenManager.invalidateToken(account.id)
+        val newToken = tokenManager.refreshToken(account).getOrThrow()
+        return block(newToken)
+    }
 
     // --- 파싱 헬퍼 ---
 
