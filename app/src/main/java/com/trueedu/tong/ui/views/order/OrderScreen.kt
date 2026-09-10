@@ -68,13 +68,16 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.trueedu.tong.model.dto.order.UnfilledOrderItem
+import com.trueedu.tong.ui.main.ScheduleAdd
 import com.trueedu.tong.ui.theme.ChartColor
 import com.trueedu.tong.utils.NumberFormatter
 
 
 @Composable
 fun OrderScreen(
+    backStack: SnapshotStateList<Any>? = null,
     vm: OrderViewModel = hiltViewModel(LocalContext.current as androidx.activity.ComponentActivity),
     statusVm: OrderStatusViewModel = hiltViewModel(LocalContext.current as androidx.activity.ComponentActivity),
     stockInfoVm: StockInfoViewModel = hiltViewModel(LocalContext.current as androidx.activity.ComponentActivity),
@@ -114,7 +117,7 @@ fun OrderScreen(
         }
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when (selectedTab) {
-                0 -> OrderEntryTab(vm, statusVm)
+                0 -> OrderEntryTab(vm, statusVm, backStack)
                 1 -> UnfilledOrderList(statusVm, onModify = { order ->
                     vm.enterModifyMode(order, vm.account?.id ?: -1L)
                     selectedTab = 0
@@ -132,6 +135,7 @@ fun OrderScreen(
 private fun OrderEntryTab(
     vm: OrderViewModel,
     statusVm: OrderStatusViewModel,
+    backStack: SnapshotStateList<Any>? = null,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var showSearch by remember { mutableStateOf(false) }
@@ -332,6 +336,23 @@ private fun OrderEntryTab(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+                // 예약주문: 현재 종목/가격/수량을 그대로 넘겨 등록 화면으로 진입
+                if (backStack != null && !vm.isModifyMode) {
+                    TextButton(
+                        onClick = {
+                            backStack.add(
+                                ScheduleAdd(
+                                    code = vm.code,
+                                    price = if (vm.isMarket) "" else vm.price,
+                                    quantity = vm.quantity,
+                                )
+                            )
+                        },
+                        modifier = Modifier.align(Alignment.End),
+                    ) {
+                        Text("예약주문", style = MaterialTheme.typography.labelMedium)
+                    }
                 }
             }
         }
