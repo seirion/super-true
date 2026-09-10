@@ -346,6 +346,7 @@ private fun OrderEntryTab(
                                     code = vm.code,
                                     price = if (vm.isMarket) "" else vm.price,
                                     quantity = vm.quantity,
+                                    accountId = vm.account?.id ?: -1L,
                                 )
                             )
                         },
