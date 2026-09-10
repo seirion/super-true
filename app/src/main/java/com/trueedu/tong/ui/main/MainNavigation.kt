@@ -15,6 +15,8 @@ import com.trueedu.tong.ui.views.menu.AccountTransferScreen
 import com.trueedu.tong.ui.views.menu.MenuScreen
 import com.trueedu.tong.ui.views.menu.RealizedPnlScreen
 import com.trueedu.tong.ui.views.order.OrderScreen
+import com.trueedu.tong.ui.views.schedule.ScheduleAddScreen
+import com.trueedu.tong.ui.views.schedule.ScheduleOrderScreen
 import com.trueedu.tong.ui.views.watch.WatchScreen
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
@@ -31,6 +33,19 @@ data object AccountTransfer : Parcelable
 @Parcelize
 @Serializable
 data object RealizedPnl : Parcelable
+
+@Parcelize
+@Serializable
+data object ScheduleOrder : Parcelable
+
+/** 예약주문 등록. 주문 화면에서 진입하면 종목/가격/수량이 채워진다. */
+@Parcelize
+@Serializable
+data class ScheduleAdd(
+    val code: String = "",
+    val price: String = "",
+    val quantity: String = "",
+) : Parcelable
 
 @Composable
 fun MainNavigation(
@@ -51,7 +66,7 @@ fun MainNavigation(
                 WatchScreen(backStack = backStack)
             }
             entry<BottomNavItem.Order> {
-                OrderScreen()
+                OrderScreen(backStack = backStack)
             }
             entry<BottomNavItem.Menu> {
                 MenuScreen(backStack = backStack)
@@ -64,6 +79,12 @@ fun MainNavigation(
             }
             entry<RealizedPnl> {
                 RealizedPnlScreen(backStack = backStack)
+            }
+            entry<ScheduleOrder> {
+                ScheduleOrderScreen(backStack = backStack)
+            }
+            entry<ScheduleAdd> { route ->
+                ScheduleAddScreen(route = route, backStack = backStack)
             }
         },
     )

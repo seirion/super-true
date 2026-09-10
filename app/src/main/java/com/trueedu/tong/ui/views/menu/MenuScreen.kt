@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ImportExport
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,6 +37,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.trueedu.tong.ui.main.AccountTransfer
 import com.trueedu.tong.ui.main.RealizedPnl
+import com.trueedu.tong.ui.main.ScheduleOrder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,6 +107,19 @@ fun MenuScreen(
                     colors = itemColors,
                     modifier = Modifier.clickable {
                         backStack?.add(RealizedPnl)
+                    }
+                )
+                HorizontalDivider()
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text("예약주문") },
+                    supportingContent = { Text("장 시작 시 자동 주문될 예약을 관리합니다") },
+                    leadingContent = { Icon(Icons.Filled.Schedule, null) },
+                    trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) },
+                    colors = itemColors,
+                    modifier = Modifier.clickable {
+                        backStack?.add(ScheduleOrder)
                     }
                 )
                 HorizontalDivider()
