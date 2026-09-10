@@ -38,27 +38,40 @@ class ScheduleOrderViewModel @Inject constructor(
 
     var state by mutableStateOf<State>(State.Loading); private set
 
-    /** 예약주문을 수행할 계좌 — 홈 drawer 에서 선택한 계좌 기준 */
+    /** 목록/정정/취소를 수행하는 계좌 — 홈 drawer 에서 선택한 계좌 기준 */
     var account: BrokerAccount? by mutableStateOf(null); private set
+
+    /**
+     * 등록 화면의 계좌.
+     * 주문 화면에서 진입하면 그 화면에 표시된 계좌를, 그 외에는 선택 계좌를 쓴다.
+     */
+    var addAccount: BrokerAccount? by mutableStateOf(null); private set
+
+    /** 등록 화면의 계좌가 예약주문을 지원하는지 */
+    val addSupported: Boolean
+        get() = addAccount?.let { scheduleOrderUseCase.isSupported(it.brokerType) } == true
 
     /** 등록/정정/취소 결과 메시지 (스낵바) */
     var actionMessage: String? by mutableStateOf(null); private set
 
     var submitting by mutableStateOf(false); private set
 
-    private suspend fun resolveAccount(): BrokerAccount? {
+    /** [accountId] 를 주면 그 계좌를, 없거나 못 찾으면 선택 계좌를 반환한다 */
+    private suspend fun resolveAccount(accountId: Long = -1L): BrokerAccount? {
         val accounts = brokerAccountRepo.getAll().first()
-        return accounts.firstOrNull { it.isSelected } ?: accounts.firstOrNull()
+        return accounts.firstOrNull { it.id == accountId }
+            ?: accounts.firstOrNull { it.isSelected }
+            ?: accounts.firstOrNull()
     }
 
-    /** 계좌가 아직 resolve 되지 않은 상태에서 호출될 수 있어 지연 resolve 한다 */
-    private suspend fun requireAccount(): BrokerAccount? =
-        account ?: resolveAccount()?.also { account = it }
-
-    fun load() {
+    /**
+     * 예약주문 목록 조회.
+     * [target] 을 주면 그 계좌로, 없으면 선택 계좌로 조회한다.
+     */
+    fun load(target: BrokerAccount? = null) {
         viewModelScope.launch {
             state = State.Loading
-            val acc = resolveAccount()
+            val acc = target ?: resolveAccount()
             account = acc
             if (acc == null) {
                 state = State.NoAccount
@@ -88,16 +101,25 @@ class ScheduleOrderViewModel @Inject constructor(
     var priceInput by mutableStateOf(""); private set
     var quantityInput by mutableStateOf("1"); private set
 
-    /** 등록 화면 진입 시 초기화. 주문 화면에서 넘어오면 종목/가격/수량이 채워진다. */
-    fun startAdd(code: String, price: String, quantity: String) {
+    /**
+     * 등록 화면 진입 시 초기화. 주문 화면에서 넘어오면 종목/가격/수량이 채워진다.
+     *
+     * 계좌는 진입할 때마다 다시 resolve 한다. 화면이 activity 스코프 ViewModel 을 쓰기 때문에
+     * 캐시된 계좌를 재사용하면 drawer 에서 계좌를 바꾼 뒤에도 이전 계좌로 예약이 등록된다.
+     */
+    fun startAdd(code: String, price: String, quantity: String, accountId: Long = -1L) {
         val target = code.removePrefix("A")
         this.code = target
         priceInput = price
         quantityInput = quantity.ifBlank { "1" }
         stockName = ""
-        if (target.isNotBlank()) {
-            viewModelScope.launch { fillStockName(target) }
-            if (price.isBlank()) viewModelScope.launch { fillCurrentPrice(target) }
+        addAccount = null
+        viewModelScope.launch {
+            addAccount = resolveAccount(accountId)
+            if (target.isNotBlank()) {
+                launch { fillStockName(target) }
+                if (price.isBlank()) launch { fillCurrentPrice(target) }
+            }
         }
     }
 
@@ -115,7 +137,7 @@ class ScheduleOrderViewModel @Inject constructor(
 
     /** 종목 선택 시 현재가를 기본 주문가로 채운다. 실패하면 사용자가 직접 입력한다. */
     private suspend fun fillCurrentPrice(target: String) {
-        val acc = requireAccount() ?: return
+        val acc = addAccount ?: return
         if (!scheduleOrderUseCase.isSupported(acc.brokerType)) return
         stockInfoRepo.fetchKis(acc, target)
             .onSuccess { info ->
@@ -144,13 +166,16 @@ class ScheduleOrderViewModel @Inject constructor(
 
     fun submitAdd(isBuy: Boolean, onSuccess: () -> Unit) {
         if (!addValid || submitting) return
+        val acc = addAccount ?: run {
+            actionMessage = "등록된 계좌가 없습니다"
+            return
+        }
+        if (!scheduleOrderUseCase.isSupported(acc.brokerType)) {
+            actionMessage = "${acc.brokerType.displayName}은 예약주문을 지원하지 않습니다"
+            return
+        }
         viewModelScope.launch {
             submitting = true
-            val acc = requireAccount() ?: run {
-                actionMessage = "등록된 계좌가 없습니다"
-                submitting = false
-                return@launch
-            }
             scheduleOrderUseCase.place(
                 acc,
                 ScheduleOrderRequest(code = code, isBuy = isBuy, price = price, quantity = quantity),
@@ -158,7 +183,8 @@ class ScheduleOrderViewModel @Inject constructor(
                 .onSuccess {
                     actionMessage = if (isBuy) "예약 매수 등록 완료" else "예약 매도 등록 완료"
                     submitting = false
-                    load()
+                    // 등록한 계좌가 목록 계좌와 다를 수 있어 등록 계좌 기준으로 목록을 갱신한다
+                    load(acc)
                     onSuccess()
                 }
                 .onFailure {
@@ -177,17 +203,17 @@ class ScheduleOrderViewModel @Inject constructor(
             actionMessage = "처리 완료된 예약입니다"
             return
         }
+        val acc = account ?: return
         viewModelScope.launch {
-            val acc = requireAccount() ?: return@launch
             scheduleOrderUseCase.cancel(acc, item.seq)
-                .onSuccess { actionMessage = "예약 취소 완료"; load() }
+                .onSuccess { actionMessage = "예약 취소 완료"; load(acc) }
                 .onFailure { actionMessage = it.message ?: "예약 취소 실패" }
         }
     }
 
     fun modify(item: ScheduleOrderItem, newPrice: Long, newQuantity: Long) {
+        val acc = account ?: return
         viewModelScope.launch {
-            val acc = requireAccount() ?: return@launch
             scheduleOrderUseCase.modify(
                 acc,
                 item.seq,
@@ -198,7 +224,7 @@ class ScheduleOrderViewModel @Inject constructor(
                     quantity = newQuantity,
                 ),
             )
-                .onSuccess { actionMessage = "예약 정정 완료"; load() }
+                .onSuccess { actionMessage = "예약 정정 완료"; load(acc) }
                 .onFailure { actionMessage = it.message ?: "예약 정정 실패" }
         }
     }

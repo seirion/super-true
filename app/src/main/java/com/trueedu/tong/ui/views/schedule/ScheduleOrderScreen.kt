@@ -98,7 +98,9 @@ fun ScheduleOrderScreen(
                     actions = {
                         val enabled = vm.state is ScheduleOrderViewModel.State.Success
                         IconButton(
-                            onClick = { backStack.add(ScheduleAdd()) },
+                            onClick = {
+                                backStack.add(ScheduleAdd(accountId = vm.account?.id ?: -1L))
+                            },
                             enabled = enabled,
                         ) {
                             Icon(Icons.Filled.Add, contentDescription = "예약 추가")

@@ -69,7 +69,7 @@ fun ScheduleAddScreen(
     var searchMode by remember { mutableStateOf(route.code.isBlank()) }
 
     LaunchedEffect(route) {
-        vm.startAdd(route.code, route.price, route.quantity)
+        vm.startAdd(route.code, route.price, route.quantity, route.accountId)
         vm.loadStocksForSearch()
     }
 
@@ -85,7 +85,20 @@ fun ScheduleAddScreen(
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text(if (searchMode) "종목 검색" else "예약주문 등록") },
+                    title = {
+                        Column {
+                            Text(if (searchMode) "종목 검색" else "예약주문 등록")
+                            if (!searchMode) {
+                                vm.addAccount?.let {
+                                    Text(
+                                        text = "${it.brokerType.displayName} · ${it.name}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.outline,
+                                    )
+                                }
+                            }
+                        }
+                    },
                     navigationIcon = {
                         IconButton(onClick = {
                             if (searchMode && vm.code.isNotBlank()) searchMode = false
@@ -112,7 +125,7 @@ fun ScheduleAddScreen(
                             onClick = {
                                 vm.submitAdd(isBuy) { backStack.removeLastOrNull() }
                             },
-                            enabled = vm.addValid && !vm.submitting,
+                            enabled = vm.addValid && vm.addSupported && !vm.submitting,
                             modifier = Modifier.weight(1f).height(52.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isBuy) ChartColor.rise else ChartColor.fall
@@ -201,11 +214,21 @@ private fun ScheduleInputBody(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Text(
-            text = "지정가로 예약되며, 예약은 30일 뒤 영업일까지 매일 장 시작 시 주문됩니다.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.outline,
-        )
+        val account = vm.addAccount
+        if (account != null && !vm.addSupported) {
+            Text(
+                text = "${account.brokerType.displayName}은 예약주문을 지원하지 않습니다. " +
+                    "홈에서 한국투자증권 계좌를 선택해주세요.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        } else {
+            Text(
+                text = "지정가로 예약되며, 예약은 30일 뒤 영업일까지 매일 장 시작 시 주문됩니다.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline,
+            )
+        }
     }
 }
 

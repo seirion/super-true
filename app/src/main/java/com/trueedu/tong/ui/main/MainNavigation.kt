@@ -38,13 +38,18 @@ data object RealizedPnl : Parcelable
 @Serializable
 data object ScheduleOrder : Parcelable
 
-/** 예약주문 등록. 주문 화면에서 진입하면 종목/가격/수량이 채워진다. */
+/**
+ * 예약주문 등록. 주문 화면에서 진입하면 종목/가격/수량이 채워진다.
+ *
+ * [accountId] 가 -1L 이면 홈 drawer 에서 선택한 계좌를 쓴다.
+ */
 @Parcelize
 @Serializable
 data class ScheduleAdd(
     val code: String = "",
     val price: String = "",
     val quantity: String = "",
+    val accountId: Long = -1L,
 ) : Parcelable
 
 @Composable
