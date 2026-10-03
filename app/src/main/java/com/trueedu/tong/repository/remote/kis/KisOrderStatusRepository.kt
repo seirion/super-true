@@ -1,5 +1,6 @@
 package com.trueedu.tong.repository.remote.kis
 
+import com.trueedu.tong.utils.kisOrdDvsn
 import com.trueedu.tong.di.KisRetrofitQualifier
 import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.dto.kis.KisFilledOrder
@@ -29,7 +30,7 @@ class KisOrderStatusRepository @Inject constructor(
             "authorization" to "Bearer $token",
             "appkey" to credentialStorage.getAppKey(account.id),
             "appsecret" to credentialStorage.getAppSecret(account.id),
-            "tr_id" to "TTTC8036R",
+            "tr_id" to "TTTC0084R",
             "custtype" to "P",
         )
         val queries = mapOf(
@@ -53,7 +54,7 @@ class KisOrderStatusRepository @Inject constructor(
             "authorization" to "Bearer $token",
             "appkey" to credentialStorage.getAppKey(account.id),
             "appsecret" to credentialStorage.getAppSecret(account.id),
-            "tr_id" to "TTTC8001R",
+            "tr_id" to "TTTC0081R",
             "custtype" to "P",
         )
         val queries = mapOf(
@@ -68,6 +69,7 @@ class KisOrderStatusRepository @Inject constructor(
             "ODNO" to "",
             "INQR_DVSN_3" to "00",
             "INQR_DVSN_1" to "",
+            "EXCG_ID_DVSN_CD" to "ALL",
             "CTX_AREA_FK100" to "",
             "CTX_AREA_NK100" to "",
         )
@@ -154,13 +156,13 @@ class KisOrderStatusRepository @Inject constructor(
         )
     }
 
-    suspend fun cancel(account: BrokerAccount, orgNo: String, ordNo: String, code: String): Result<OrderResult> = runCatching {
+    suspend fun cancel(account: BrokerAccount, orgNo: String, ordNo: String, code: String, exchangeId: String = "KRX"): Result<OrderResult> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
         val headers = mapOf(
             "authorization" to "Bearer $token",
             "appkey" to credentialStorage.getAppKey(account.id),
             "appsecret" to credentialStorage.getAppSecret(account.id),
-            "tr_id" to "TTTC0803U",
+            "tr_id" to "TTTC0013U",
             "custtype" to "P",
         )
         val body = mapOf(
@@ -168,7 +170,8 @@ class KisOrderStatusRepository @Inject constructor(
             "ACNT_PRDT_CD" to account.accountNum.drop(8),
             "KRX_FWDG_ORD_ORGNO" to orgNo,
             "ORGN_ODNO" to ordNo,
-            "ORD_DVSN" to "00",
+            "ORD_DVSN" to kisOrdDvsn(exchangeId, false),
+            "EXCG_ID_DVSN_CD" to exchangeId,  // 원주문과 동일한 거래소 (미입력 시 KRX)
             "RVSE_CNCL_DVSN_CD" to "02",  // 취소
             "ORD_QTY" to "0",
             "ORD_UNPR" to "0",
@@ -180,13 +183,13 @@ class KisOrderStatusRepository @Inject constructor(
         OrderResult(success = true, ordNo = b.output?.odno ?: "", message = b.msg1)
     }
 
-    suspend fun modify(account: BrokerAccount, orgNo: String, ordNo: String, code: String, newPrice: Long, qty: Long): Result<OrderResult> = runCatching {
+    suspend fun modify(account: BrokerAccount, orgNo: String, ordNo: String, code: String, newPrice: Long, qty: Long, exchangeId: String = "KRX"): Result<OrderResult> = runCatching {
         val token = tokenManager.getValidToken(account).getOrThrow()
         val headers = mapOf(
             "authorization" to "Bearer $token",
             "appkey" to credentialStorage.getAppKey(account.id),
             "appsecret" to credentialStorage.getAppSecret(account.id),
-            "tr_id" to "TTTC0803U",
+            "tr_id" to "TTTC0013U",
             "custtype" to "P",
         )
         val body = mapOf(
@@ -194,7 +197,8 @@ class KisOrderStatusRepository @Inject constructor(
             "ACNT_PRDT_CD" to account.accountNum.drop(8),
             "KRX_FWDG_ORD_ORGNO" to orgNo,
             "ORGN_ODNO" to ordNo,
-            "ORD_DVSN" to "00",
+            "ORD_DVSN" to kisOrdDvsn(exchangeId, false),
+            "EXCG_ID_DVSN_CD" to exchangeId,  // 원주문과 동일한 거래소 (미입력 시 KRX)
             "RVSE_CNCL_DVSN_CD" to "01",  // 정정
             "ORD_QTY" to qty.toString(),
             "ORD_UNPR" to newPrice.toString(),

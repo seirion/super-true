@@ -73,6 +73,7 @@ import com.trueedu.tong.model.dto.order.UnfilledOrderItem
 import com.trueedu.tong.ui.main.ScheduleAdd
 import com.trueedu.tong.ui.theme.ChartColor
 import com.trueedu.tong.utils.NumberFormatter
+import com.trueedu.tong.utils.isMarketOrderAllowed
 
 
 @Composable
@@ -298,7 +299,7 @@ private fun OrderEntryTab(
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     FilterChip(selected = !vm.isMarket, onClick = { vm.onMarketToggle(false) }, label = { Text("지정가", style = MaterialTheme.typography.labelSmall) })
-                    FilterChip(selected = vm.isMarket, onClick = { vm.onMarketToggle(true) }, label = { Text("시장가", style = MaterialTheme.typography.labelSmall) })
+                    FilterChip(selected = vm.isMarket, onClick = { vm.onMarketToggle(true) }, enabled = isMarketOrderAllowed(vm.exchangeId), label = { Text("시장가", style = MaterialTheme.typography.labelSmall) })
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf("SOR", "KRX", "NXT").forEach { exch ->

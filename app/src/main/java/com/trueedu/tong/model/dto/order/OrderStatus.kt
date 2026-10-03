@@ -13,7 +13,7 @@ data class UnfilledOrderItem(
     val ordTime: String,
     // 취소/정정용 원주문번호 (KIS: orgNo+ordNo, 키움: ordNo)
     val orgNo: String = "",
-    val stexTp: String = "KRX",   // 거래소구분 (키움 취소/정정 시 필요)
+    val stexTp: String = "KRX",   // 거래소구분 (KIS/키움 취소/정정 시 필요)
 )
 
 data class FilledOrderItem(
