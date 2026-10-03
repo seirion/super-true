@@ -168,8 +168,8 @@ fun HomeScreen(
                             holding = holding,
                             marketPriceMode = vm.marketPriceMode,
                             realtimeEvaluation = vm.realtimeEvaluation,
-                            realtimePrice = realtimePrices[holding.code.removePrefix("A")],
-                            initialPrice = initialPrices[holding.code.removePrefix("A")],
+                            realtimePrice = if (holding.isUsd) null else realtimePrices[holding.code.removePrefix("A")],
+                            initialPrice = if (holding.isUsd) null else initialPrices[holding.code.removePrefix("A")],
                             onClick = {
                                 selectedAccount?.let { acc ->
                                     orderVm.selectStock(holding.code, holding.name, acc.id)
@@ -274,12 +274,17 @@ private fun AccountInfoSection(
     val useRealtimeEval = hasPrices && !marketPriceMode && realtimeEvaluation
 
     // 총 평가금액 (실시간 반영 시 공통 계산)
+    // 미국 주식(USD)은 국내 실시간/초기 시세 대상이 아니므로 보유 정보의 현재가를 쓴다
+    fun HoldingStock.realtimeOrNull(): KisRealTimeTrade? =
+        if (isUsd) null else realtimePrices[code.removePrefix("A")]
+    fun HoldingStock.initialOrNull(): InitialPrice? =
+        if (isUsd) null else initialPrices[code.removePrefix("A")]
+
     fun realtimeStockTotal() = summary.holdings.sumOf { holding ->
-        val code = holding.code.removePrefix("A")
-        val price = realtimePrices[code]?.price
-            ?: initialPrices[code]?.price
+        val price = holding.realtimeOrNull()?.price
+            ?: holding.initialOrNull()?.price
             ?: holding.currentPrice ?: holding.avgPrice
-        price * holding.quantity
+        price * holding.quantity * summary.krwFactor(holding)
     }
 
     val (displayAsset, displayProfit, displayProfitRate) = when {
@@ -289,9 +294,8 @@ private fun AccountInfoSection(
             val deposit2 = summary.depositD2 ?: summary.deposit
             val totalAsset = stockTotal + deposit2
             val dailyProfit = summary.holdings.sumOf { holding ->
-                val code = holding.code.removePrefix("A")
-                val delta = realtimePrices[code]?.delta ?: initialPrices[code]?.delta ?: 0.0
-                delta * holding.quantity
+                val delta = holding.realtimeOrNull()?.delta ?: holding.initialOrNull()?.delta ?: 0.0
+                delta * holding.quantity * summary.krwFactor(holding)
             }
             val prevAsset = totalAsset - dailyProfit
             val dailyRate = if (prevAsset > 0) dailyProfit / prevAsset * 100 else 0.0
@@ -302,7 +306,7 @@ private fun AccountInfoSection(
             val stockTotal = realtimeStockTotal()
             val deposit2 = summary.depositD2 ?: summary.deposit
             val totalAsset = stockTotal + deposit2
-            val totalCost = summary.holdings.sumOf { it.avgPrice * it.quantity }
+            val totalCost = summary.holdings.sumOf { it.avgPrice * it.quantity * summary.krwFactor(it) }
             val totalProfit = stockTotal - totalCost
             val profitRate = if (totalCost > 0) totalProfit / totalCost * 100 else 0.0
             Triple(totalAsset, totalProfit, profitRate)
@@ -468,7 +472,7 @@ private fun HoldingStockItem(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "${NumberFormatter.formatCash(holding.avgPrice)}원 • ${holding.quantity}주",
+                text = "${NumberFormatter.formatMoney(holding.avgPrice, holding.currency)} • ${holding.quantity}주",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -481,7 +485,7 @@ private fun HoldingStockItem(
                 val rate = realtimePrice?.rate ?: initialPrice?.rate
                 Text(
                     text = if (currentPrice != null) {
-                        "${NumberFormatter.formatCash(currentPrice)}원"
+                        NumberFormatter.formatMoney(currentPrice, holding.currency)
                     } else {
                         "-"
                     },
@@ -492,7 +496,7 @@ private fun HoldingStockItem(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = if (delta != null && rate != null) {
-                        "${NumberFormatter.formatCashWithSign(delta)} " +
+                        "${NumberFormatter.formatMoneyWithSign(delta, holding.currency)} " +
                             "(${NumberFormatter.formatRate(rate)})"
                     } else {
                         "-"
@@ -515,14 +519,14 @@ private fun HoldingStockItem(
                     holding.profitRate
                 }
                 Text(
-                    text = "${NumberFormatter.formatCash(evalAmount)}원",
+                    text = NumberFormatter.formatMoney(evalAmount, holding.currency),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "${NumberFormatter.formatCashWithSign(profitAmount)} " +
+                    text = "${NumberFormatter.formatMoneyWithSign(profitAmount, holding.currency)} " +
                         "(${NumberFormatter.formatRate(profitRate)})",
                     style = MaterialTheme.typography.bodySmall,
                     color = ChartColor.color(profitAmount),

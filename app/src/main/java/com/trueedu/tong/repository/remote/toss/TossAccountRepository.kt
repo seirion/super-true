@@ -59,13 +59,24 @@ class TossAccountRepository @Inject constructor(
                     evaluationAmount = num(h.marketValue?.amount) ?: 0.0,
                     profitAmount = num(h.profitLoss?.amount) ?: 0.0,
                     profitRate = (num(h.profitLoss?.rate) ?: 0.0) * 100,
+                    currency = h.currency.ifBlank { "KRW" },
                 )
             }
 
+        // 미국 주식이 있을 때만 환율 조회. 실패하면 원화 종목만 합계에 반영된다
+        val usdKrwRate = if (holdings.any { it.isUsd }) fetchUsdKrwRate(accessToken) else null
+
         val overview = holdingsBody.overview
-        val totalEval = num(overview?.totalMarketValue) ?: holdings.sumOf { it.evaluationAmount }
-        val profitTotal = num(overview?.totalProfitLoss) ?: holdings.sumOf { it.profitAmount }
-        val profitRate = num(overview?.totalProfitLossRate)
+        // 합계는 원화 기준: 국내 합계 + 해외(USD) 합계 × 환율
+        val usdFactor = usdKrwRate ?: 0.0
+        fun krwTotal(krw: String?, usd: String?, itemSum: (HoldingStock) -> Double): Double {
+            val krwPart = num(krw) ?: holdings.filter { !it.isUsd }.sumOf(itemSum)
+            val usdPart = num(usd) ?: holdings.filter { it.isUsd }.sumOf(itemSum)
+            return krwPart + usdPart * usdFactor
+        }
+        val totalEval = krwTotal(overview?.marketValueKrw, overview?.marketValueUsd) { it.evaluationAmount }
+        val profitTotal = krwTotal(overview?.profitLossKrw, overview?.profitLossUsd) { it.profitAmount }
+        val profitRate = num(overview?.profitLossRate)?.let { it * 100 }
             ?: (if (totalEval - profitTotal > 0) profitTotal / (totalEval - profitTotal) * 100 else 0.0)
 
         AccountSummary(
@@ -77,8 +88,15 @@ class TossAccountRepository @Inject constructor(
             totalProfitAmount = profitTotal,
             totalProfitRate = profitRate,
             holdings = holdings,
+            usdKrwRate = usdKrwRate,
         )
     }.also { r -> r.onFailure { logE("TossAccountRepository error: ${it.message}") } }
+
+    /** USD→KRW 매매기준율. 조회 실패 시 null */
+    private suspend fun fetchUsdKrwRate(accessToken: String): Double? = runCatching {
+        val resp = service.getExchangeRate(authHeaders(accessToken), "USD", "KRW")
+        num(resp.body()?.result?.midRate)
+    }.onFailure { logW("Toss exchange-rate error: ${it.message}") }.getOrNull()
 
     companion object {
         fun authHeaders(accessToken: String): Map<String, String> = mapOf(

@@ -141,12 +141,15 @@ class HomeViewModel @Inject constructor(
         val cached = cacheRepo.load(account.id)
         if (cached != null) {
             _uiState.value = UiState.Success(cached)
-            startRealtimeIfKis(cached.holdings.map { it.code })
+            startRealtimeIfKis(cached.kisCodes())
             return
         }
         // 캐시 없으면 API 호출
         fetchAndCache(account)
     }
+
+    // 미국 주식(USD)은 KIS 국내 실시간 시세 구독 대상이 아니다
+    private fun AccountSummary.kisCodes() = holdings.filter { !it.isUsd }.map { it.code }
 
     // 선택된 계좌와 무관하게, KIS 계좌가 하나라도 있으면 해당 계좌로 실시간 시세 구독
     // 종목코드 정규화: 키움 등은 "A000660" 형식 → KIS WebSocket은 "000660" 형식
@@ -165,7 +168,7 @@ class HomeViewModel @Inject constructor(
     fun activateRealtime() {
         val success = uiState.value
         if (success is UiState.Success) {
-            startRealtimeIfKis(success.summary.holdings.map { it.code })
+            startRealtimeIfKis(success.summary.kisCodes())
         }
     }
 
@@ -181,7 +184,7 @@ class HomeViewModel @Inject constructor(
             .onSuccess {
                 cacheRepo.save(it)
                 _uiState.value = UiState.Success(it)
-                startRealtimeIfKis(it.holdings.map { h -> h.code })
+                startRealtimeIfKis(it.kisCodes())
             }
             .onFailure { _uiState.value = UiState.Error(it.message ?: "오류가 발생했습니다") }
     }

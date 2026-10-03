@@ -48,9 +48,21 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `cached_holdings` ADD COLUMN `currency` TEXT NOT NULL DEFAULT 'KRW'"
+        )
+        db.execSQL(
+            "ALTER TABLE `cached_account_summaries` ADD COLUMN `usdKrwRate` REAL"
+        )
+    }
+}
+
 /** 등록된 모든 Migration 목록 */
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_3_4,
     MIGRATION_4_5,
     MIGRATION_5_6,
+    MIGRATION_6_7,
 )

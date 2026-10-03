@@ -23,6 +23,7 @@ class AccountCacheRepository @Inject constructor(
             depositD2 = summary.depositD2,
             totalProfitAmount = summary.totalProfitAmount,
             totalProfitRate = summary.totalProfitRate,
+            usdKrwRate = summary.usdKrwRate,
             holdings = holdings.map {
                 HoldingStock(
                     code = it.code,
@@ -33,6 +34,7 @@ class AccountCacheRepository @Inject constructor(
                     evaluationAmount = it.evaluationAmount,
                     profitAmount = it.profitAmount,
                     profitRate = it.profitRate,
+                    currency = it.currency,
                 )
             },
         )
@@ -48,6 +50,7 @@ class AccountCacheRepository @Inject constructor(
                 depositD2 = summary.depositD2,
                 totalProfitAmount = summary.totalProfitAmount,
                 totalProfitRate = summary.totalProfitRate,
+                usdKrwRate = summary.usdKrwRate,
             )
         )
         dao.deleteHoldings(summary.accountId)
@@ -63,6 +66,7 @@ class AccountCacheRepository @Inject constructor(
                     evaluationAmount = it.evaluationAmount,
                     profitAmount = it.profitAmount,
                     profitRate = it.profitRate,
+                    currency = it.currency,
                 )
             }
         )

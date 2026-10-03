@@ -13,6 +13,7 @@ data class CachedAccountSummary(
     val depositD2: Double?,
     val totalProfitAmount: Double,
     val totalProfitRate: Double,
+    val usdKrwRate: Double? = null,
     val updatedAt: Long = System.currentTimeMillis(),
 )
 
@@ -29,4 +30,5 @@ data class CachedHolding(
     val evaluationAmount: Double,
     val profitAmount: Double,
     val profitRate: Double,
+    val currency: String = "KRW",
 )

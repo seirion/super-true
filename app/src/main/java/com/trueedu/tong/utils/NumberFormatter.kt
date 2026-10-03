@@ -15,6 +15,17 @@ object NumberFormatter {
         return "$prefix${cashFormat.format(value)}"
     }
 
+    private val usdFormat = DecimalFormat("#,##0.00")
+    private val usdSignFormat = DecimalFormat("+#,##0.00;-#,##0.00")
+
+    /** 거래 통화에 맞춘 금액 표기: KRW "1,234원", USD "$1,234.56" */
+    fun formatMoney(value: Double, currency: String): String =
+        if (currency == "USD") "$" + usdFormat.format(value) else formatCash(value) + "원"
+
+    /** 부호 포함 금액 (통화 기호 없음): KRW "+1,234", USD "+1,234.56" */
+    fun formatMoneyWithSign(value: Double, currency: String): String =
+        if (currency == "USD") usdSignFormat.format(value) else formatCashWithSign(value)
+
     // 지수(코스피/코스닥)용 소수점 2자리 포맷
     fun formatIndex(value: Double): String = indexFormat.format(value)
     fun formatIndexWithSign(value: Double): String = indexSignFormat.format(value)
