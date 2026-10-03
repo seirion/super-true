@@ -66,7 +66,7 @@ class LsAccountRepository @Inject constructor(
                 HoldingStock(
                     code = h.code,
                     name = h.name,
-                    quantity = h.quantity,
+                    quantity = h.quantity.toDouble(),
                     avgPrice = h.avgPrice.toDouble(),
                     currentPrice = null,
                     evaluationAmount = h.evalAmount.toDouble(),

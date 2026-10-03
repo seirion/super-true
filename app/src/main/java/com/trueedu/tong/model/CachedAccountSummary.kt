@@ -24,7 +24,7 @@ data class CachedHolding(
     val accountId: Long,         // FK to BrokerAccount.id
     val code: String,
     val name: String,
-    val quantity: Long,
+    val quantity: Double,
     val avgPrice: Double,
     val currentPrice: Double?,
     val evaluationAmount: Double,

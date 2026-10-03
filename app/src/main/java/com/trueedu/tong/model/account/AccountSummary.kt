@@ -34,7 +34,7 @@ data class AccountSummary(
  *
  * @param code 종목코드 (KIS: 6자리, 키움: 6자리, LS: expcode)
  * @param name 종목명
- * @param quantity 보유 수량
+ * @param quantity 보유 수량 (미국 주식은 소수점 수량 가능)
  * @param avgPrice 평균 매입 단가
  * @param currentPrice 현재가 (null이면 미조회)
  * @param evaluationAmount 평가금액
@@ -45,7 +45,7 @@ data class AccountSummary(
 data class HoldingStock(
     val code: String,
     val name: String,
-    val quantity: Long,
+    val quantity: Double,
     val avgPrice: Double,
     val currentPrice: Double?,
     val evaluationAmount: Double,

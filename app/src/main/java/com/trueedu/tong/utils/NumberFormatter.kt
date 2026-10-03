@@ -15,6 +15,11 @@ object NumberFormatter {
         return "$prefix${cashFormat.format(value)}"
     }
 
+    private val quantityFormat = DecimalFormat("#,##0.######")
+
+    /** 수량: 정수는 그대로, 소수점 보유분은 최대 6자리까지 (1.123707) */
+    fun formatQuantity(value: Double): String = quantityFormat.format(value)
+
     private val usdFormat = DecimalFormat("#,##0.00")
     private val usdSignFormat = DecimalFormat("+#,##0.00;-#,##0.00")
 

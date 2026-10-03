@@ -59,7 +59,7 @@ class KisAccountRepository @Inject constructor(
                 HoldingStock(
                     code = h.code,
                     name = h.name,
-                    quantity = h.holdingQty.toLongOrNull() ?: 0L,
+                    quantity = h.holdingQty.toDoubleOrNull() ?: 0.0,
                     avgPrice = h.avgPrice.toDoubleOrNull() ?: 0.0,
                     currentPrice = h.currentPrice.toDoubleOrNull(),
                     evaluationAmount = h.evaluationAmount.toDoubleOrNull() ?: 0.0,

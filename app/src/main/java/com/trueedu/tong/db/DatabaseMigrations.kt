@@ -59,10 +59,46 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
     }
 }
 
+// cached_holdings.quantity 를 소수점 수량(REAL)으로 변경: SQLite 는 컬럼 타입 변경이 불가해 테이블 재생성
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `cached_holdings_new` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `accountId` INTEGER NOT NULL,
+                `code` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `quantity` REAL NOT NULL,
+                `avgPrice` REAL NOT NULL,
+                `currentPrice` REAL,
+                `evaluationAmount` REAL NOT NULL,
+                `profitAmount` REAL NOT NULL,
+                `profitRate` REAL NOT NULL,
+                `currency` TEXT NOT NULL DEFAULT 'KRW'
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            INSERT INTO `cached_holdings_new`
+                (`id`, `accountId`, `code`, `name`, `quantity`, `avgPrice`, `currentPrice`,
+                 `evaluationAmount`, `profitAmount`, `profitRate`, `currency`)
+            SELECT `id`, `accountId`, `code`, `name`, `quantity`, `avgPrice`, `currentPrice`,
+                   `evaluationAmount`, `profitAmount`, `profitRate`, `currency`
+            FROM `cached_holdings`
+            """.trimIndent()
+        )
+        db.execSQL("DROP TABLE `cached_holdings`")
+        db.execSQL("ALTER TABLE `cached_holdings_new` RENAME TO `cached_holdings`")
+    }
+}
+
 /** 등록된 모든 Migration 목록 */
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_3_4,
     MIGRATION_4_5,
     MIGRATION_5_6,
     MIGRATION_6_7,
+    MIGRATION_7_8,
 )
