@@ -31,11 +31,10 @@ class TossOrderRepository @Inject constructor(
         val orderType = if (request.isMarket) "MARKET" else "LIMIT"
         val body = TossOrderCreateRequest(
             symbol = request.code,
-            marketCountry = "KR",
             side = side,
             orderType = orderType,
-            price = if (request.isMarket) "" else request.price.toString(),
-            quantity = request.quantity,
+            price = if (request.isMarket) null else request.price.toString(),
+            quantity = request.quantity.toString(),
         )
 
         val resp = withTokenRetry(account) { token ->
