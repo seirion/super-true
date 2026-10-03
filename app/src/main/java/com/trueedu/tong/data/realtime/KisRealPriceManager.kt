@@ -4,6 +4,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import com.trueedu.tong.di.KisRetrofitQualifier
 import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.dto.auth.KisApprovalKeyRequest
+import com.trueedu.tong.model.ws.KisOverseasTrade
 import com.trueedu.tong.model.ws.KisRealTimeTrade
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,6 +45,7 @@ class KisRealPriceManager @Inject constructor(
     private val credentialStorage: CredentialStorage,
     private val tokenManager: TokenManager,
     private val quoteManager: KisQuoteManager,
+    private val overseasExchangeResolver: KisOverseasExchangeResolver,
     private val json: Json,
 ) {
     private val authService: KisAuthService by lazy { retrofit.create(KisAuthService::class.java) }
@@ -57,6 +59,8 @@ class KisRealPriceManager @Inject constructor(
     private var lastTradeTrId: String = ""     // 마지막 체결 TR ID (KRX↔NXT 전환 감지용)
     private var account: BrokerAccount? = null
     private val subscribedCodes = mutableSetOf<String>()
+    // 미국 종목 구독 키(HDFSCNT0 tr_key: D + 시장 3자리 + 티커, 예: DNASAAPL) → 티커
+    private val subscribedUs = mutableMapOf<String, String>()
     private var connectJob: kotlinx.coroutines.Job? = null  // 진행 중인 connect 코루틴 (중복 방지)
     private var currentSubscribedTrId: String = ""          // 현재 구독 중인 체결 TR ID (H0STCNT0/H0NXCNT0/H0STANC0)
     private var transitionJob: kotlinx.coroutines.Job? = null  // 동시호가 ↔ 실시간 체결 전환 스케줄러
@@ -71,6 +75,11 @@ class KisRealPriceManager @Inject constructor(
 
     // 종목코드 → 최신 체결 데이터
     val priceMap = mutableStateMapOf<String, KisRealTimeTrade>()
+
+    // 미국 종목 실시간 체결 (HDFSCNT0, 무료 0분 지연 시세) — 티커 → 최신 체결
+    private val _usTradeFlow = MutableSharedFlow<KisOverseasTrade>(extraBufferCapacity = 64)
+    val usTradeFlow = _usTradeFlow.asSharedFlow()
+    val usPriceMap = mutableStateMapOf<String, KisOverseasTrade>()
 
     // 종목코드 → REST API 초기 현재가 (WebSocket 첫 체결 전 fallback)
     val initialPriceMap = mutableStateMapOf<String, InitialPrice>()
@@ -139,10 +148,12 @@ class KisRealPriceManager @Inject constructor(
                 transitionJob = null
                 intentionalDisconnect = true
                 subscribedCodes.clear()
+                subscribedUs.clear()
                 currentSubscribedTrId = ""
                 wsService.disconnect()
                 connected = false
                 priceMap.clear()
+                usPriceMap.clear()
                 initialPriceMap.clear()
             }
         }
@@ -171,8 +182,8 @@ class KisRealPriceManager @Inject constructor(
             mutex.withLock {
                 val currentAccount = account ?: return@withLock
                 val codes = subscribedCodes.toList()
-                if (codes.isEmpty()) return@withLock
-                logD("KisRealPriceManager: resume (${codes.size}종목)")
+                if (codes.isEmpty() && subscribedUs.isEmpty()) return@withLock
+                logD("KisRealPriceManager: resume (국내 ${codes.size}종목, 미국 ${subscribedUs.size}종목)")
                 connectJob?.cancel()
                 launch { fetchInitialPrices(currentAccount, codes) }
                 connectJob = launch {
@@ -198,6 +209,60 @@ class KisRealPriceManager @Inject constructor(
                         wsService.send(makeRequest(code, subscribe = true))
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * 미국 종목(티커) 실시간 체결을 구독한다 (기존 WebSocket 세션 공유, full-replace).
+     * 거래소 코드는 KIS REST 로 조회해 캐시하며, 구독 키는 `D` + NAS/NYS/AMS + 티커.
+     * 국내 구독과 합쳐 세션 한도(41건) 안에서만 구독한다.
+     */
+    fun startOverseas(account: BrokerAccount, symbols: List<String>) {
+        scope.launch {
+            val excgMap = overseasExchangeResolver.resolve(account, symbols.distinct())
+            mutex.withLock {
+                this@KisRealPriceManager.account = account
+                val room = (MAX_SESSION_SYMBOLS - subscribedCodes.size).coerceAtLeast(0)
+                val wanted = symbols.distinct().mapNotNull { s -> excgMap[s]?.let { "D$it$s" to s } }
+                    .take(room).toMap()
+                if (symbols.size > wanted.size) {
+                    logW("KisRealPriceManager: 미국 ${symbols.size}종목 중 ${wanted.size}종목만 구독 (거래소 미확인 또는 한도)")
+                }
+                if (connected && approvalKey.isNotEmpty()) {
+                    (subscribedUs.keys - wanted.keys).forEach {
+                        wsService.send(makeUsRequest(it, subscribe = false))
+                    }
+                    (wanted.keys - subscribedUs.keys).forEach {
+                        wsService.send(makeUsRequest(it, subscribe = true))
+                    }
+                }
+                subscribedUs.clear()
+                subscribedUs.putAll(wanted)
+                usPriceMap.keys.retainAll(wanted.values.toSet())
+
+                // 연결이 없으면(국내 구독이 없는 경우) 미국 구독만으로 연결한다
+                if (!connected && connectJob?.isActive != true && subscribedUs.isNotEmpty()) {
+                    connectJob = launch {
+                        val key = fetchApprovalKey(account) ?: return@launch
+                        approvalKey = key
+                        quoteManager.approvalKey = key
+                        connect(subscribedCodes.toList())
+                    }
+                }
+            }
+        }
+    }
+
+    /** 미국 종목 구독을 모두 해제한다 (국내 구독/연결은 유지). */
+    fun stopOverseas() {
+        scope.launch {
+            mutex.withLock {
+                if (connected && approvalKey.isNotEmpty()) {
+                    subscribedUs.keys.forEach { wsService.send(makeUsRequest(it, subscribe = false)) }
+                }
+                subscribedUs.clear()
+                usPriceMap.clear()
             }
         }
     }
@@ -387,6 +452,8 @@ class KisRealPriceManager @Inject constructor(
                     subscribedCodes.add(code)
                     wsService.send(makeRequest(code, subscribe = true, trId = currentSubscribedTrId))
                 }
+                // 미국 종목 구독 (HDFSCNT0)
+                subscribedUs.keys.forEach { key -> wsService.send(makeUsRequest(key, subscribe = true)) }
                 // 지수 구독 복구
                 if (indexSubscribed) {
                     wsService.send(makeIndexRequest(MarketIndex.KIS_KOSPI, subscribe = true))
@@ -411,7 +478,7 @@ class KisRealPriceManager @Inject constructor(
                 logE(t, "KisRealPriceManager: onFailure — reconnecting")
                 val currentAccount = account ?: return
                 val codesToReconnect = subscribedCodes.toList()
-                if (codesToReconnect.isEmpty()) return
+                if (codesToReconnect.isEmpty() && subscribedUs.isEmpty()) return
                 // 재연결 시 approval key 재발급 (ALREADY IN USE 오류 방지)
                 scope.launch {
                     delay(2000)
@@ -497,6 +564,11 @@ class KisRealPriceManager @Inject constructor(
                             quoteManager.refreshSubscription()
                         }
                     }
+                    "HDFSCNT0" -> {
+                        val trade = KisOverseasTrade.from(parts[3]) ?: return
+                        usPriceMap[trade.symbol] = trade
+                        scope.launch { _usTradeFlow.emit(trade) }
+                    }
                     "H0STANC0" -> {
                         // 동시호가 시간대 예상체결
                         logI("KisRealPriceManager: H0STANC0 수신 raw=${parts[3].take(80)}")
@@ -558,6 +630,17 @@ class KisRealPriceManager @Inject constructor(
         return json.encodeToString(req)
     }
 
+    private fun makeUsRequest(key: String, subscribe: Boolean): String {
+        val req = KisWsRequest(
+            header = KisWsHeader(
+                approvalKey = approvalKey,
+                transactionType = if (subscribe) "1" else "2",
+            ),
+            body = KisWsBody(input = KisWsBodyInput(transactionId = US_TRADE_TR_ID, transactionKey = key))
+        )
+        return json.encodeToString(req)
+    }
+
     private fun makeIndexRequest(code: String, subscribe: Boolean): String {
         val req = KisWsRequest(
             header = KisWsHeader(
@@ -581,6 +664,12 @@ class KisRealPriceManager @Inject constructor(
          * 호가는 화면 진입 시 1종목만 사용하므로 체결가용으로 40종목 예약.
          */
         const val MAX_REALTIME_SYMBOLS = 40
+
+        /** KIS WebSocket 1세션 최대 등록 건수 (국내 체결 + 미국 체결 + 호가/지수 등 합산) */
+        const val MAX_SESSION_SYMBOLS = 40
+
+        /** 해외주식 실시간지연체결가 (미국은 0분 지연 무료) */
+        const val US_TRADE_TR_ID = "HDFSCNT0"
 
         /**
          * NXT 운영 시간: 08:00~08:50, 15:30~20:00

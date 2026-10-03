@@ -52,6 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.trueedu.tong.data.realtime.InitialPrice
 import com.trueedu.tong.model.account.AccountSummary
 import com.trueedu.tong.model.account.HoldingStock
+import com.trueedu.tong.model.ws.KisOverseasTrade
 import com.trueedu.tong.model.ws.KisRealTimeTrade
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.trueedu.tong.ui.theme.ChartColor
@@ -68,6 +69,7 @@ fun HomeScreen(
     val uiState by vm.uiState.collectAsStateWithLifecycle()
     val realtimePrices by vm.realtimePrices.collectAsStateWithLifecycle()
     val initialPrices by vm.initialPrices.collectAsStateWithLifecycle()
+    val kisUsPrices by vm.kisUsPrices.collectAsStateWithLifecycle()
 
     var showSettings by remember { mutableStateOf(false) }
 
@@ -156,6 +158,7 @@ fun HomeScreen(
                             realtimeEvaluation = vm.realtimeEvaluation,
                             realtimePrices = realtimePrices,
                             initialPrices = initialPrices,
+                            kisUsPrices = kisUsPrices,
                             expanded = vm.summaryExpanded,
                             onToggle = vm::toggleSummary,
                             onRefresh = vm::refresh,
@@ -170,6 +173,7 @@ fun HomeScreen(
                             realtimeEvaluation = vm.realtimeEvaluation,
                             realtimePrice = if (holding.isUsd) null else realtimePrices[holding.code.removePrefix("A")],
                             initialPrice = if (holding.isUsd) null else initialPrices[holding.code.removePrefix("A")],
+                            usTrade = if (holding.isUsd) kisUsPrices[holding.code] else null,
                             onClick = {
                                 selectedAccount?.let { acc ->
                                     orderVm.selectStock(holding.code, holding.name, acc.id)
@@ -263,13 +267,14 @@ private fun AccountInfoSection(
     realtimeEvaluation: Boolean,
     realtimePrices: Map<String, KisRealTimeTrade>,
     initialPrices: Map<String, InitialPrice>,
+    kisUsPrices: Map<String, KisOverseasTrade>,
     expanded: Boolean,
     onToggle: () -> Unit,
     onRefresh: () -> Unit,
     onSettings: () -> Unit,
 ) {
     // 실시간 데이터가 없으면 초기 현재가(REST)로 fallback
-    val hasPrices = realtimePrices.isNotEmpty() || initialPrices.isNotEmpty()
+    val hasPrices = realtimePrices.isNotEmpty() || initialPrices.isNotEmpty() || kisUsPrices.isNotEmpty()
     val useRealtimeMarket = hasPrices && marketPriceMode
     val useRealtimeEval = hasPrices && !marketPriceMode && realtimeEvaluation
 
@@ -282,6 +287,7 @@ private fun AccountInfoSection(
 
     fun realtimeStockTotal() = summary.holdings.sumOf { holding ->
         val price = holding.realtimeOrNull()?.price
+            ?: (if (holding.isUsd) kisUsPrices[holding.code]?.price else null)
             ?: holding.initialOrNull()?.price
             ?: holding.currentPrice ?: holding.avgPrice
         price * holding.quantity * summary.krwFactor(holding)
@@ -294,7 +300,8 @@ private fun AccountInfoSection(
             val deposit2 = summary.depositD2 ?: summary.deposit
             val totalAsset = stockTotal + deposit2
             val dailyProfit = summary.holdings.sumOf { holding ->
-                val delta = holding.realtimeOrNull()?.delta ?: holding.initialOrNull()?.delta ?: 0.0
+                val delta = holding.realtimeOrNull()?.delta ?: holding.initialOrNull()?.delta
+                    ?: (if (holding.isUsd) kisUsPrices[holding.code]?.delta else null) ?: 0.0
                 delta * holding.quantity * summary.krwFactor(holding)
             }
             val prevAsset = totalAsset - dailyProfit
@@ -455,6 +462,7 @@ private fun HoldingStockItem(
     realtimeEvaluation: Boolean,
     realtimePrice: KisRealTimeTrade?,
     initialPrice: InitialPrice?,
+    usTrade: KisOverseasTrade?,
     onClick: () -> Unit,
 ) {
     Row(
@@ -480,9 +488,9 @@ private fun HoldingStockItem(
         Column(horizontalAlignment = Alignment.End) {
             if (marketPriceMode) {
                 // 시세 모드: 현재가 / 일간등락 / 등락률
-                val currentPrice = realtimePrice?.price ?: initialPrice?.price ?: holding.currentPrice
-                val delta = realtimePrice?.delta ?: initialPrice?.delta
-                val rate = realtimePrice?.rate ?: initialPrice?.rate
+                val currentPrice = usTrade?.price ?: realtimePrice?.price ?: initialPrice?.price ?: holding.currentPrice
+                val delta = realtimePrice?.delta ?: initialPrice?.delta ?: usTrade?.delta
+                val rate = realtimePrice?.rate ?: initialPrice?.rate ?: usTrade?.rate
                 Text(
                     text = if (currentPrice != null) {
                         NumberFormatter.formatMoney(currentPrice, holding.currency)
@@ -507,7 +515,7 @@ private fun HoldingStockItem(
             } else {
                 // 평가 모드: 실시간 반영 on이면 실시간 현재가로 평가금액/손익 재계산
                 val currentPrice = if (realtimeEvaluation) {
-                    realtimePrice?.price ?: initialPrice?.price ?: holding.currentPrice
+                    usTrade?.price ?: realtimePrice?.price ?: initialPrice?.price ?: holding.currentPrice
                 } else {
                     holding.currentPrice
                 }

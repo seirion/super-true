@@ -10,6 +10,7 @@ import com.trueedu.tong.data.realtime.KisRealPriceManager
 import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.BrokerType
 import com.trueedu.tong.model.account.AccountSummary
+import com.trueedu.tong.model.ws.KisOverseasTrade
 import com.trueedu.tong.model.ws.KisRealTimeTrade
 import com.trueedu.tong.repository.AccountCacheRepository
 import com.trueedu.tong.repository.BrokerAccountRepository
@@ -88,6 +89,11 @@ class HomeViewModel @Inject constructor(
         .map { kisRealPriceManager.priceMap.toMap() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
+    // KIS 미국 실시간 체결 (티커 → 최신 체결). 토스 계좌의 미국 종목 전일대비/등락률 보강용.
+    val kisUsPrices: StateFlow<Map<String, KisOverseasTrade>> = kisRealPriceManager.usTradeFlow
+        .map { kisRealPriceManager.usPriceMap.toMap() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
     // KIS 초기 현재가 (WebSocket 첫 체결 전 fallback)
     val initialPrices: StateFlow<Map<String, InitialPrice>> = kisRealPriceManager.initialPriceFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
@@ -136,12 +142,32 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    // 토스 계좌의 미국 종목: 앱에 등록된 KIS 계좌가 있으면 KIS 해외 실시간(미국 0분 지연 무료)으로 구독한다.
+    // 토스 계좌가 아니면 미국 구독을 해제한다.
+    private fun startKisOverseasIfToss(account: BrokerAccount, summary: AccountSummary) {
+        if (account.brokerType != BrokerType.TOSS) {
+            kisRealPriceManager.stopOverseas()
+            return
+        }
+        viewModelScope.launch {
+            val kisAccount = brokerAccountRepo.getAll().first()
+                .firstOrNull { it.brokerType == BrokerType.KIS }
+            val usSymbols = summary.holdings.filter { it.isUsd }.map { it.code }
+            if (kisAccount != null && usSymbols.isNotEmpty()) {
+                kisRealPriceManager.startOverseas(kisAccount, usSymbols)
+            } else {
+                kisRealPriceManager.stopOverseas()
+            }
+        }
+    }
+
     private suspend fun loadFromCacheOrFetch(account: BrokerAccount) {
         // 캐시 먼저 시도
         val cached = cacheRepo.load(account.id)
         if (cached != null) {
             _uiState.value = UiState.Success(cached)
             startRealtimeIfKis(cached.kisCodes())
+            startKisOverseasIfToss(account, cached)
             return
         }
         // 캐시 없으면 API 호출
@@ -169,6 +195,7 @@ class HomeViewModel @Inject constructor(
         val success = uiState.value
         if (success is UiState.Success) {
             startRealtimeIfKis(success.summary.kisCodes())
+            selectedAccount.value?.let { startKisOverseasIfToss(it, success.summary) }
         }
     }
 
@@ -185,6 +212,7 @@ class HomeViewModel @Inject constructor(
                 cacheRepo.save(it)
                 _uiState.value = UiState.Success(it)
                 startRealtimeIfKis(it.kisCodes())
+                startKisOverseasIfToss(account, it)
             }
             .onFailure { _uiState.value = UiState.Error(it.message ?: "오류가 발생했습니다") }
     }
