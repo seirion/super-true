@@ -5,12 +5,11 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class TossOrderCreateRequest(
     val symbol: String,
-    val marketCountry: String = "KR",
     val side: String,       // "BUY" | "SELL"
     val orderType: String,  // "LIMIT" | "MARKET"
-    val price: String = "",
-    val quantity: Int = 0,
-    val clientOrderId: String = "",
+    val price: String? = null,  // MARKET 은 전달 불가 (null 이면 직렬화에서 제외)
+    val quantity: String,
+    val clientOrderId: String? = null,
     val confirmHighValueOrder: Boolean = false,
 )
 
