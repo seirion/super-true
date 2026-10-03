@@ -7,6 +7,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.trueedu.tong.data.realtime.KisRealPriceManager
+import com.trueedu.tong.data.realtime.TossRealtimeManager
 import com.trueedu.tong.data.realtime.MarketIndexManager
 import com.trueedu.tong.repository.local.Local
 import dagger.hilt.EntryPoint
@@ -28,6 +29,7 @@ class App : Application(), LifecycleEventObserver {
     interface InjectModule {
         fun getLocal(): Local
         fun getKisRealPriceManager(): KisRealPriceManager
+        fun getTossRealtimeManager(): TossRealtimeManager
         fun getMarketIndexManager(): MarketIndexManager
     }
 
@@ -41,12 +43,14 @@ class App : Application(), LifecycleEventObserver {
         val injector = entryPointInjector(InjectModule::class.java)
         injector.getLocal().migrate()
         kisRealPriceManager = injector.getKisRealPriceManager()
+        tossRealtimeManager = injector.getTossRealtimeManager()
         marketIndexManager = injector.getMarketIndexManager()
 
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
     }
 
     private lateinit var kisRealPriceManager: KisRealPriceManager
+    private lateinit var tossRealtimeManager: TossRealtimeManager
     private lateinit var marketIndexManager: MarketIndexManager
 
     override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
@@ -56,6 +60,7 @@ class App : Application(), LifecycleEventObserver {
                 Timber.d("app onStart")
                 // 포그라운드 복귀 시 실시간 시세 재개 (마지막 구독 종목으로)
                 kisRealPriceManager.resume()
+                tossRealtimeManager.resume()
                 marketIndexManager.resume()
             }
 
@@ -64,6 +69,7 @@ class App : Application(), LifecycleEventObserver {
                 Timber.d("app onStop")
                 // 백그라운드 진입 시 WebSocket 연결 해제
                 kisRealPriceManager.pause()
+                tossRealtimeManager.pause()
                 marketIndexManager.pause()
             }
 

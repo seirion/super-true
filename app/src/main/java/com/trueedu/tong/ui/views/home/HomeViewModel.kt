@@ -7,10 +7,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trueedu.tong.data.realtime.InitialPrice
 import com.trueedu.tong.data.realtime.KisRealPriceManager
+import com.trueedu.tong.data.realtime.TossRealtimeManager
 import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.BrokerType
 import com.trueedu.tong.model.account.AccountSummary
 import com.trueedu.tong.model.ws.KisRealTimeTrade
+import com.trueedu.tong.model.ws.TossRealTimeTrade
 import com.trueedu.tong.repository.AccountCacheRepository
 import com.trueedu.tong.repository.BrokerAccountRepository
 import com.trueedu.tong.repository.local.Local
@@ -34,6 +36,7 @@ class HomeViewModel @Inject constructor(
     private val accountSummaryUseCase: AccountSummaryUseCase,
     private val cacheRepo: AccountCacheRepository,
     private val kisRealPriceManager: KisRealPriceManager,
+    private val tossRealtimeManager: TossRealtimeManager,
     private val local: Local,
 ) : ViewModel() {
 
@@ -88,6 +91,11 @@ class HomeViewModel @Inject constructor(
         .map { kisRealPriceManager.priceMap.toMap() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
+    // 토스 실시간 체결가 (심볼 → 최신 체결). 토스 계좌 선택 시에만 구독된다.
+    val tossPrices: StateFlow<Map<String, TossRealTimeTrade>> = tossRealtimeManager.tradeFlow
+        .map { tossRealtimeManager.priceMap.toMap() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
     // KIS 초기 현재가 (WebSocket 첫 체결 전 fallback)
     val initialPrices: StateFlow<Map<String, InitialPrice>> = kisRealPriceManager.initialPriceFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
@@ -130,10 +138,24 @@ class HomeViewModel @Inject constructor(
                 else {
                     // 로그아웃 등 계좌 없는 경우에만 완전 정리
                     kisRealPriceManager.stop()
+                    tossRealtimeManager.stop()
                     _uiState.value = UiState.Idle
                 }
             }
         }
+    }
+
+    // 토스 계좌를 선택했을 때만 토스 웹소켓으로 보유 종목(국내/미국)을 구독한다
+    private fun startRealtimeIfToss(account: BrokerAccount, summary: AccountSummary) {
+        if (account.brokerType != BrokerType.TOSS) {
+            tossRealtimeManager.stop()
+            return
+        }
+        tossRealtimeManager.start(
+            account = account,
+            krCodes = summary.holdings.filter { !it.isUsd }.map { it.code },
+            usCodes = summary.holdings.filter { it.isUsd }.map { it.code },
+        )
     }
 
     private suspend fun loadFromCacheOrFetch(account: BrokerAccount) {
@@ -142,6 +164,7 @@ class HomeViewModel @Inject constructor(
         if (cached != null) {
             _uiState.value = UiState.Success(cached)
             startRealtimeIfKis(cached.kisCodes())
+            startRealtimeIfToss(account, cached)
             return
         }
         // 캐시 없으면 API 호출
@@ -169,6 +192,7 @@ class HomeViewModel @Inject constructor(
         val success = uiState.value
         if (success is UiState.Success) {
             startRealtimeIfKis(success.summary.kisCodes())
+            selectedAccount.value?.let { startRealtimeIfToss(it, success.summary) }
         }
     }
 
@@ -185,6 +209,7 @@ class HomeViewModel @Inject constructor(
                 cacheRepo.save(it)
                 _uiState.value = UiState.Success(it)
                 startRealtimeIfKis(it.kisCodes())
+                startRealtimeIfToss(account, it)
             }
             .onFailure { _uiState.value = UiState.Error(it.message ?: "오류가 발생했습니다") }
     }
@@ -192,5 +217,6 @@ class HomeViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         kisRealPriceManager.stop()
+        tossRealtimeManager.stop()
     }
 }
