@@ -82,7 +82,7 @@ class KiwoomAccountRepository @Inject constructor(
                 HoldingStock(
                     code = h.code,
                     name = h.name,
-                    quantity = h.quantity.toLongOrNull() ?: 0L,
+                    quantity = h.quantity.toDoubleOrNull() ?: 0.0,
                     avgPrice = h.avgPrice.toDoubleOrNull() ?: 0.0,
                     currentPrice = h.currentPrice.toDoubleOrNull(),
                     evaluationAmount = h.evalAmount.toDoubleOrNull() ?: 0.0,

@@ -53,7 +53,7 @@ class TossAccountRepository @Inject constructor(
                 HoldingStock(
                     code = h.symbol,
                     name = h.name,
-                    quantity = num(h.quantity)?.toLong() ?: 0L,
+                    quantity = num(h.quantity) ?: 0.0,
                     avgPrice = num(h.averagePurchasePrice) ?: 0.0,
                     currentPrice = num(h.lastPrice),
                     evaluationAmount = num(h.marketValue?.amount) ?: 0.0,

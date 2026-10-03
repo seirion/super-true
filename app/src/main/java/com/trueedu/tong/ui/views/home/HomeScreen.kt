@@ -472,7 +472,7 @@ private fun HoldingStockItem(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "${NumberFormatter.formatMoney(holding.avgPrice, holding.currency)} • ${holding.quantity}주",
+                text = "${NumberFormatter.formatMoney(holding.avgPrice, holding.currency)} • ${NumberFormatter.formatQuantity(holding.quantity)}주",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

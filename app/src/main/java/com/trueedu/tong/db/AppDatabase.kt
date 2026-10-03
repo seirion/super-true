@@ -17,7 +17,7 @@ import com.trueedu.tong.model.WatchlistItem
         StockInfoLocal::class,
         WatchlistItem::class,
     ],
-    version = 7,
+    version = 8,
 )
 @TypeConverters(BrokerTypeConverter::class)
 abstract class AppDatabase : RoomDatabase() {
