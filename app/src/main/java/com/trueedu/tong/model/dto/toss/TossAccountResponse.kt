@@ -27,9 +27,11 @@ data class TossHoldingsResponse(
 ) {
     val overview: TossHoldingsOverview? get() = result?.let {
         TossHoldingsOverview(
-            totalMarketValue = it.marketValue?.amount?.usd ?: "",
-            totalProfitLoss = it.profitLoss?.amount?.usd ?: "",
-            totalProfitLossRate = it.profitLoss?.rate ?: "",
+            marketValueKrw = it.marketValue?.amount?.krw,
+            marketValueUsd = it.marketValue?.amount?.usd,
+            profitLossKrw = it.profitLoss?.amount?.krw,
+            profitLossUsd = it.profitLoss?.amount?.usd,
+            profitLossRate = it.profitLoss?.rate,
         )
     }
     val holdings: List<TossHolding> get() = result?.items ?: emptyList()
@@ -45,8 +47,8 @@ data class TossHoldingsResult(
 
 @Serializable
 data class TossCurrencyAmount(
-    val krw: String = "",
-    val usd: String = "",
+    val krw: String? = null,   // 국내 종목이 없으면 "0"
+    val usd: String? = null,   // 해외 종목이 없으면 null
 )
 
 @Serializable
@@ -86,9 +88,25 @@ data class TossItemProfitLoss(
 
 @Serializable
 data class TossHoldingsOverview(
-    val totalMarketValue: String = "",
-    val totalProfitLoss: String = "",
-    val totalProfitLossRate: String = "",
+    val marketValueKrw: String? = null,
+    val marketValueUsd: String? = null,
+    val profitLossKrw: String? = null,
+    val profitLossUsd: String? = null,
+    val profitLossRate: String? = null,  // 전체를 현재 환율로 원화 환산한 소수비율
+)
+
+// GET /api/v1/exchange-rate 응답
+@Serializable
+data class TossExchangeRateResponse(
+    val result: TossExchangeRate? = null,
+)
+
+@Serializable
+data class TossExchangeRate(
+    val baseCurrency: String = "",
+    val quoteCurrency: String = "",
+    val rate: String = "",       // 매수 환율
+    val midRate: String = "",    // 매매기준율
 )
 
 @Serializable

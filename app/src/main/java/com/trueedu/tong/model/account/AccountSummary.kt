@@ -11,6 +11,7 @@ package com.trueedu.tong.model.account
  * @param totalProfitAmount 평가손익 합계 금액
  * @param totalProfitRate 평가손익 수익률 (%)
  * @param holdings 보유 종목 목록
+ * @param usdKrwRate USD→KRW 환율 (USD 종목을 원화로 환산할 때 사용, null 이면 환율 미조회)
  */
 data class AccountSummary(
     val accountId: Long,
@@ -21,7 +22,12 @@ data class AccountSummary(
     val totalProfitAmount: Double,
     val totalProfitRate: Double,
     val holdings: List<HoldingStock>,
-)
+    val usdKrwRate: Double? = null,
+) {
+    /** 종목 금액(거래 통화)을 원화로 환산하는 배수. 환율을 모르는 USD 종목은 0 (합계에서 제외) */
+    fun krwFactor(holding: HoldingStock): Double =
+        if (holding.isUsd) usdKrwRate ?: 0.0 else 1.0
+}
 
 /**
  * 보유 종목 공통 모델
@@ -34,6 +40,7 @@ data class AccountSummary(
  * @param evaluationAmount 평가금액
  * @param profitAmount 평가손익 금액
  * @param profitRate 평가손익 수익률 (%)
+ * @param currency 거래 통화 (KRW/USD). 가격·금액 필드는 이 통화 기준
  */
 data class HoldingStock(
     val code: String,
@@ -44,4 +51,7 @@ data class HoldingStock(
     val evaluationAmount: Double,
     val profitAmount: Double,
     val profitRate: Double,
-)
+    val currency: String = "KRW",
+) {
+    val isUsd: Boolean get() = currency == "USD"
+}
