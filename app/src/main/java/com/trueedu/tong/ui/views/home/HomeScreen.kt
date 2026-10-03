@@ -53,6 +53,7 @@ import com.trueedu.tong.data.realtime.InitialPrice
 import com.trueedu.tong.model.account.AccountSummary
 import com.trueedu.tong.model.account.HoldingStock
 import com.trueedu.tong.model.ws.KisRealTimeTrade
+import com.trueedu.tong.model.ws.TossRealTimeTrade
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.trueedu.tong.ui.theme.ChartColor
 import com.trueedu.tong.utils.NumberFormatter
@@ -68,6 +69,7 @@ fun HomeScreen(
     val uiState by vm.uiState.collectAsStateWithLifecycle()
     val realtimePrices by vm.realtimePrices.collectAsStateWithLifecycle()
     val initialPrices by vm.initialPrices.collectAsStateWithLifecycle()
+    val tossPrices by vm.tossPrices.collectAsStateWithLifecycle()
 
     var showSettings by remember { mutableStateOf(false) }
 
@@ -156,6 +158,7 @@ fun HomeScreen(
                             realtimeEvaluation = vm.realtimeEvaluation,
                             realtimePrices = realtimePrices,
                             initialPrices = initialPrices,
+                            tossPrices = tossPrices,
                             expanded = vm.summaryExpanded,
                             onToggle = vm::toggleSummary,
                             onRefresh = vm::refresh,
@@ -170,6 +173,7 @@ fun HomeScreen(
                             realtimeEvaluation = vm.realtimeEvaluation,
                             realtimePrice = if (holding.isUsd) null else realtimePrices[holding.code.removePrefix("A")],
                             initialPrice = if (holding.isUsd) null else initialPrices[holding.code.removePrefix("A")],
+                            tossPrice = tossPrices[holding.code.removePrefix("A")]?.price,
                             onClick = {
                                 selectedAccount?.let { acc ->
                                     orderVm.selectStock(holding.code, holding.name, acc.id)
@@ -263,13 +267,14 @@ private fun AccountInfoSection(
     realtimeEvaluation: Boolean,
     realtimePrices: Map<String, KisRealTimeTrade>,
     initialPrices: Map<String, InitialPrice>,
+    tossPrices: Map<String, TossRealTimeTrade>,
     expanded: Boolean,
     onToggle: () -> Unit,
     onRefresh: () -> Unit,
     onSettings: () -> Unit,
 ) {
     // 실시간 데이터가 없으면 초기 현재가(REST)로 fallback
-    val hasPrices = realtimePrices.isNotEmpty() || initialPrices.isNotEmpty()
+    val hasPrices = realtimePrices.isNotEmpty() || initialPrices.isNotEmpty() || tossPrices.isNotEmpty()
     val useRealtimeMarket = hasPrices && marketPriceMode
     val useRealtimeEval = hasPrices && !marketPriceMode && realtimeEvaluation
 
@@ -281,7 +286,8 @@ private fun AccountInfoSection(
         if (isUsd) null else initialPrices[code.removePrefix("A")]
 
     fun realtimeStockTotal() = summary.holdings.sumOf { holding ->
-        val price = holding.realtimeOrNull()?.price
+        val price = tossPrices[holding.code.removePrefix("A")]?.price
+            ?: holding.realtimeOrNull()?.price
             ?: holding.initialOrNull()?.price
             ?: holding.currentPrice ?: holding.avgPrice
         price * holding.quantity * summary.krwFactor(holding)
@@ -455,6 +461,7 @@ private fun HoldingStockItem(
     realtimeEvaluation: Boolean,
     realtimePrice: KisRealTimeTrade?,
     initialPrice: InitialPrice?,
+    tossPrice: Double?,
     onClick: () -> Unit,
 ) {
     Row(
@@ -480,7 +487,7 @@ private fun HoldingStockItem(
         Column(horizontalAlignment = Alignment.End) {
             if (marketPriceMode) {
                 // 시세 모드: 현재가 / 일간등락 / 등락률
-                val currentPrice = realtimePrice?.price ?: initialPrice?.price ?: holding.currentPrice
+                val currentPrice = tossPrice ?: realtimePrice?.price ?: initialPrice?.price ?: holding.currentPrice
                 val delta = realtimePrice?.delta ?: initialPrice?.delta
                 val rate = realtimePrice?.rate ?: initialPrice?.rate
                 Text(
@@ -507,7 +514,7 @@ private fun HoldingStockItem(
             } else {
                 // 평가 모드: 실시간 반영 on이면 실시간 현재가로 평가금액/손익 재계산
                 val currentPrice = if (realtimeEvaluation) {
-                    realtimePrice?.price ?: initialPrice?.price ?: holding.currentPrice
+                    tossPrice ?: realtimePrice?.price ?: initialPrice?.price ?: holding.currentPrice
                 } else {
                     holding.currentPrice
                 }
