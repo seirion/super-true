@@ -9,6 +9,7 @@ import com.trueedu.tong.repository.remote.auth.TokenManager
 import retrofit2.Retrofit
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.trueedu.tong.utils.kisOrdDvsn
 
 @Singleton
 class KisOrderRepository @Inject constructor(
@@ -42,7 +43,7 @@ class KisOrderRepository @Inject constructor(
             cano = account.accountNum.take(8),
             acntPrdtCd = account.accountNum.drop(8),
             pdno = request.code.removePrefix("A"),
-            ordDvsn = if (request.isMarket) "01" else "00",
+            ordDvsn = kisOrdDvsn(request.exchangeId, request.isMarket),
             ordQty = request.quantity.toString(),
             ordUnpr = if (request.isMarket) "0" else request.price.toString(),
             excgIdDvsnCd = request.exchangeId,

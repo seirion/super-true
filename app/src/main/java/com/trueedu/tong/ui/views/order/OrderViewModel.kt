@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trueedu.tong.data.realtime.KisQuoteManager
+import com.trueedu.tong.utils.isMarketOrderAllowed
 import com.trueedu.tong.utils.logD
 import com.trueedu.tong.data.realtime.KisRealPriceManager
 import com.trueedu.tong.model.BrokerAccount
@@ -163,8 +164,11 @@ class OrderViewModel @Inject constructor(
         kisQuoteManager.stop()
     }
 
-    fun onMarketToggle(v: Boolean) { isMarket = v }
-    fun onExchangeIdChange(v: String) { exchangeId = v }
+    fun onMarketToggle(v: Boolean) { isMarket = v && isMarketOrderAllowed(exchangeId) }
+    fun onExchangeIdChange(v: String) {
+        exchangeId = v
+        if (!isMarketOrderAllowed(v)) isMarket = false
+    }
     fun onQuantityChange(v: String) { if (v.all { it.isDigit() }) quantity = v }
     fun onPriceChange(v: String) { if (v.all { it.isDigit() }) price = v }
     fun setPrice(p: Double) { price = p.toLong().toString() }
@@ -178,6 +182,10 @@ class OrderViewModel @Inject constructor(
 
     fun placeOrder(isBuy: Boolean) {
         val acc = account ?: return
+        if (isMarket && !isMarketOrderAllowed(exchangeId)) {
+            orderState = OrderState.Error("현재 거래소/시간대에는 시장가 주문이 불가합니다")
+            return
+        }
         logD("OrderViewModel.placeOrder: code=$code, brokerType=${acc.brokerType}, accountId=${acc.id}")
         viewModelScope.launch {
             orderState = OrderState.Loading

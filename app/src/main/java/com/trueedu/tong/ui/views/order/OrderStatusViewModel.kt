@@ -155,6 +155,7 @@ class OrderStatusViewModel @Inject constructor(
                                 remainQty = o.remainQty.trim().toLongOrNull() ?: 0L,
                                 ordTime = o.ordTime,
                                 orgNo = o.orgNo,
+                                stexTp = o.excgIdDvsnCd.ifBlank { "KRX" },
                             )
                         },
                         filled = filledResult.getOrDefault(emptyList()).map { o ->
@@ -228,7 +229,7 @@ class OrderStatusViewModel @Inject constructor(
             val accountId = local.selectedOrderAccountId
             val acc = brokerAccountRepo.getAll().first().find { it.id == accountId } ?: return@launch
             val result = when (acc.brokerType) {
-                BrokerType.KIS -> kisStatusRepo.cancel(acc, order.orgNo, order.ordNo, order.code)
+                BrokerType.KIS -> kisStatusRepo.cancel(acc, order.orgNo, order.ordNo, order.code, order.stexTp)
                 BrokerType.KIWOOM -> kiwoomStatusRepo.cancel(acc, order.ordNo, order.code, order.stexTp)
                 BrokerType.LS -> lsStatusRepo.cancel(acc, order.ordNo, order.code)
                 else -> return@launch
@@ -245,7 +246,7 @@ class OrderStatusViewModel @Inject constructor(
             val acc = brokerAccountRepo.getAll().first().find { it.id == accountId } ?: return@launch
             val qty = order.remainQty
             val result = when (acc.brokerType) {
-                BrokerType.KIS -> kisStatusRepo.modify(acc, order.orgNo, order.ordNo, order.code, newPrice, qty)
+                BrokerType.KIS -> kisStatusRepo.modify(acc, order.orgNo, order.ordNo, order.code, newPrice, qty, order.stexTp)
                 BrokerType.KIWOOM -> kiwoomStatusRepo.modify(acc, order.ordNo, order.code, newPrice, qty, order.stexTp)
                 BrokerType.LS -> lsStatusRepo.modify(acc, order.ordNo, order.code, newPrice, qty)
                 else -> return@launch

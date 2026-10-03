@@ -30,6 +30,7 @@ data class KisUnfilledOrder(
     @SerialName("psbl_qty") val remainQty: String = "",    // 주문가능수량(미체결)
     @SerialName("sll_buy_dvsn_cd") val sellBuyCode: String = "", // 매도매수구분코드 01:매도 02:매수
     @SerialName("ord_dvsn_cd") val ordDvsnCd: String = "", // 주문구분코드
+    @SerialName("excg_id_dvsn_cd") val excgIdDvsnCd: String = "", // 거래소ID구분코드 (KRX/NXT/SOR)
 )
 
 // TTTC8001R 체결 내역 조회
