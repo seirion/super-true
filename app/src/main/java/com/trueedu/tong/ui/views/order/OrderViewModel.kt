@@ -164,10 +164,14 @@ class OrderViewModel @Inject constructor(
         kisQuoteManager.stop()
     }
 
-    fun onMarketToggle(v: Boolean) { isMarket = v && isMarketOrderAllowed(exchangeId) }
+    // 시장가 제한(NXT, KRX 애프터마켓)은 KIS 주문구분 기준이며, 키움/LS 는 거래소 선택을 쓰지 않는다
+    val isMarketAllowed: Boolean
+        get() = account?.brokerType != com.trueedu.tong.model.BrokerType.KIS || isMarketOrderAllowed(exchangeId)
+
+    fun onMarketToggle(v: Boolean) { isMarket = v && isMarketAllowed }
     fun onExchangeIdChange(v: String) {
         exchangeId = v
-        if (!isMarketOrderAllowed(v)) isMarket = false
+        if (!isMarketAllowed) isMarket = false
     }
     fun onQuantityChange(v: String) { if (v.all { it.isDigit() }) quantity = v }
     fun onPriceChange(v: String) { if (v.all { it.isDigit() }) price = v }
@@ -182,7 +186,7 @@ class OrderViewModel @Inject constructor(
 
     fun placeOrder(isBuy: Boolean) {
         val acc = account ?: return
-        if (isMarket && !isMarketOrderAllowed(exchangeId)) {
+        if (isMarket && !isMarketAllowed) {
             orderState = OrderState.Error("현재 거래소/시간대에는 시장가 주문이 불가합니다")
             return
         }
