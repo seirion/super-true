@@ -14,6 +14,8 @@ data class CachedAccountSummary(
     val totalProfitAmount: Double,
     val totalProfitRate: Double,
     val usdKrwRate: Double? = null,
+    val buyingPowerKrw: Double? = null,
+    val buyingPowerUsd: Double? = null,
     val updatedAt: Long = System.currentTimeMillis(),
 )
 

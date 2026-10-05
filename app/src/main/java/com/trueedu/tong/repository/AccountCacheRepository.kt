@@ -24,6 +24,8 @@ class AccountCacheRepository @Inject constructor(
             totalProfitAmount = summary.totalProfitAmount,
             totalProfitRate = summary.totalProfitRate,
             usdKrwRate = summary.usdKrwRate,
+            buyingPowerKrw = summary.buyingPowerKrw,
+            buyingPowerUsd = summary.buyingPowerUsd,
             holdings = holdings.map {
                 HoldingStock(
                     code = it.code,
@@ -52,6 +54,8 @@ class AccountCacheRepository @Inject constructor(
                 totalProfitAmount = summary.totalProfitAmount,
                 totalProfitRate = summary.totalProfitRate,
                 usdKrwRate = summary.usdKrwRate,
+                buyingPowerKrw = summary.buyingPowerKrw,
+                buyingPowerUsd = summary.buyingPowerUsd,
             )
         )
         dao.deleteHoldings(summary.accountId)

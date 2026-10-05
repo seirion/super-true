@@ -67,6 +67,10 @@ class TossAccountRepository @Inject constructor(
         // 미국 주식이 있을 때만 환율 조회. 실패하면 원화 종목만 합계에 반영된다
         val usdKrwRate = if (holdings.any { it.isUsd }) fetchUsdKrwRate(accessToken) else null
 
+        // 토스는 예수금 API 가 없어 매수 가능 금액(원화/달러)을 대신 보여 준다. 실패하면 null
+        val buyingPowerKrw = fetchBuyingPower(accessToken, accountSeq, "KRW")
+        val buyingPowerUsd = fetchBuyingPower(accessToken, accountSeq, "USD")
+
         val overview = holdingsBody.overview
         // 합계는 원화 기준: 국내 합계 + 해외(USD) 합계 × 환율
         val usdFactor = usdKrwRate ?: 0.0
@@ -90,8 +94,17 @@ class TossAccountRepository @Inject constructor(
             totalProfitRate = profitRate,
             holdings = holdings,
             usdKrwRate = usdKrwRate,
+            buyingPowerKrw = buyingPowerKrw,
+            buyingPowerUsd = buyingPowerUsd,
         )
     }.also { r -> r.onFailure { logE("TossAccountRepository error: ${it.message}") } }
+
+    /** 통화별 현금 매수 가능 금액. 조회 실패 시 null */
+    private suspend fun fetchBuyingPower(accessToken: String, accountSeq: String, currency: String): Double? =
+        runCatching {
+            val resp = service.getBuyingPower(accountHeaders(accessToken, accountSeq), currency)
+            num(resp.body()?.result?.cashBuyingPower)
+        }.onFailure { logW("Toss buying-power($currency) error: ${it.message}") }.getOrNull()
 
     /** USD→KRW 매매기준율. 조회 실패 시 null */
     private suspend fun fetchUsdKrwRate(accessToken: String): Double? = runCatching {

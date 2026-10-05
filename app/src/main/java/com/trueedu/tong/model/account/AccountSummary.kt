@@ -11,6 +11,8 @@ package com.trueedu.tong.model.account
  * @param totalProfitAmount 평가손익 합계 금액
  * @param totalProfitRate 평가손익 수익률 (%)
  * @param holdings 보유 종목 목록
+ * @param buyingPowerKrw 원화 매수 가능 금액 (토스처럼 예수금 API 가 없는 증권사. 총자산에는 더하지 않음)
+ * @param buyingPowerUsd 달러 매수 가능 금액
  * @param usdKrwRate USD→KRW 환율 (USD 종목을 원화로 환산할 때 사용, null 이면 환율 미조회)
  */
 data class AccountSummary(
@@ -23,6 +25,8 @@ data class AccountSummary(
     val totalProfitRate: Double,
     val holdings: List<HoldingStock>,
     val usdKrwRate: Double? = null,
+    val buyingPowerKrw: Double? = null,
+    val buyingPowerUsd: Double? = null,
 ) {
     /** 종목 금액(거래 통화)을 원화로 환산하는 배수. 환율을 모르는 USD 종목은 0 (합계에서 제외) */
     fun krwFactor(holding: HoldingStock): Double =
