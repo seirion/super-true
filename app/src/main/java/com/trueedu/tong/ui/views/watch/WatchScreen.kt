@@ -31,8 +31,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -41,7 +39,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,7 +55,6 @@ import com.trueedu.tong.data.realtime.MarketIndex
 import com.trueedu.tong.model.WatchlistItem
 import com.trueedu.tong.model.ws.KisRealTimeTrade
 import com.trueedu.tong.model.ws.TossRealTimeTrade
-import kotlinx.coroutines.launch
 import com.trueedu.tong.ui.theme.ChartColor
 import com.trueedu.tong.ui.views.home.BottomNavItem
 import com.trueedu.tong.ui.views.order.OrderViewModel
@@ -90,7 +86,6 @@ fun WatchScreen(
     }
 
     val pagerState = rememberPagerState(pageCount = { 2 })
-    val pagerScope = rememberCoroutineScope()
     val currentMarket = if (pagerState.currentPage == 0) WatchlistItem.MARKET_KR else WatchlistItem.MARKET_US
     val currentList = if (currentMarket == WatchlistItem.MARKET_KR) krList else usList
 
@@ -101,7 +96,9 @@ fun WatchScreen(
         contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
-                title = { Text("관심") },
+                title = {
+                    Text(if (currentMarket == WatchlistItem.MARKET_KR) "관심 · 한국" else "관심 · 미국")
+                },
                 actions = {
                     if (currentList.isNotEmpty() || vm.editMode) {
                         IconButton(onClick = { vm.toggleEditMode(currentMarket) }) {
@@ -119,17 +116,6 @@ fun WatchScreen(
         },
     ) { innerPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            TabRow(selectedTabIndex = pagerState.currentPage) {
-                listOf("한국", "미국").forEachIndexed { index, title ->
-                    Tab(
-                        selected = pagerState.currentPage == index,
-                        // 순서 편집 중에는 시장을 바꿀 수 없다
-                        enabled = !vm.editMode,
-                        onClick = { pagerScope.launch { pagerState.animateScrollToPage(index) } },
-                        text = { Text(title) },
-                    )
-                }
-            }
             HorizontalPager(
                 state = pagerState,
                 userScrollEnabled = !vm.editMode,
