@@ -171,9 +171,9 @@ fun HomeScreen(
                             holding = holding,
                             marketPriceMode = vm.marketPriceMode,
                             realtimeEvaluation = vm.realtimeEvaluation,
-                            realtimePrice = if (holding.isUsd) null else realtimePrices[holding.code.removePrefix("A")],
-                            initialPrice = if (holding.isUsd) null else initialPrices[holding.code.removePrefix("A")],
-                            tossPrice = tossPrices[holding.code.removePrefix("A")]?.price,
+                            realtimePrice = if (holding.isUsd) null else realtimePrices[holding.quoteKey],
+                            initialPrice = if (holding.isUsd) null else initialPrices[holding.quoteKey],
+                            tossPrice = tossPrices[holding.quoteKey]?.price,
                             onClick = {
                                 selectedAccount?.let { acc ->
                                     orderVm.selectStock(holding.code, holding.name, acc.id)
@@ -281,12 +281,12 @@ private fun AccountInfoSection(
     // 총 평가금액 (실시간 반영 시 공통 계산)
     // 미국 주식(USD)은 국내 실시간/초기 시세 대상이 아니므로 보유 정보의 현재가를 쓴다
     fun HoldingStock.realtimeOrNull(): KisRealTimeTrade? =
-        if (isUsd) null else realtimePrices[code.removePrefix("A")]
+        if (isUsd) null else realtimePrices[quoteKey]
     fun HoldingStock.initialOrNull(): InitialPrice? =
-        if (isUsd) null else initialPrices[code.removePrefix("A")]
+        if (isUsd) null else initialPrices[quoteKey]
 
     // 종목의 현재 반영 가격: 토스 체결 > KIS 실시간 > KIS 초기가 > 보유 정보의 현재가
-    fun HoldingStock.livePrice(): Double? = tossPrices[code.removePrefix("A")]?.price
+    fun HoldingStock.livePrice(): Double? = tossPrices[quoteKey]?.price
         ?: realtimeOrNull()?.price
         ?: initialOrNull()?.price
         ?: currentPrice

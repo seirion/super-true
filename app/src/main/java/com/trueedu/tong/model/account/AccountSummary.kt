@@ -57,6 +57,13 @@ data class HoldingStock(
 ) {
     val isUsd: Boolean get() = currency == "USD"
 
+    /**
+     * 실시간 시세 맵을 조회하는 키.
+     * 국내 코드는 키움의 "A" 접두사를 떼지만, 미국 티커는 그대로 쓴다
+     * (티커가 A 로 시작하면 "AAPL" → "APL" 처럼 잘못 잘린다).
+     */
+    val quoteKey: String get() = if (isUsd) code else code.removePrefix("A")
+
     /** 전일 종가 대비 등락 (거래 통화). 전일 종가나 가격을 모르면 null */
     fun deltaFrom(price: Double?): Double? =
         if (prevClose != null && price != null) price - prevClose else null
