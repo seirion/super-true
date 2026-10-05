@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -29,6 +31,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -37,10 +41,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -51,6 +57,8 @@ import com.trueedu.tong.data.realtime.InitialPrice
 import com.trueedu.tong.data.realtime.MarketIndex
 import com.trueedu.tong.model.WatchlistItem
 import com.trueedu.tong.model.ws.KisRealTimeTrade
+import com.trueedu.tong.model.ws.TossRealTimeTrade
+import kotlinx.coroutines.launch
 import com.trueedu.tong.ui.theme.ChartColor
 import com.trueedu.tong.ui.views.home.BottomNavItem
 import com.trueedu.tong.ui.views.order.OrderViewModel
@@ -65,10 +73,15 @@ fun WatchScreen(
     vm: WatchViewModel = hiltViewModel(),
     orderVm: OrderViewModel = hiltViewModel(LocalContext.current as ComponentActivity),
 ) {
-    val watchlist by vm.watchlist.collectAsStateWithLifecycle()
+    val krList by vm.krWatchlist.collectAsStateWithLifecycle()
+    val usList by vm.usWatchlist.collectAsStateWithLifecycle()
     val realtimePrices by vm.realtimePrices.collectAsStateWithLifecycle()
     val initialPrices by vm.initialPrices.collectAsStateWithLifecycle()
     val indexMap by vm.indexMap.collectAsStateWithLifecycle()
+    val tossPrices by vm.tossPrices.collectAsStateWithLifecycle()
+    val usLastPrices by vm.usLastPrices.collectAsStateWithLifecycle()
+    val usPrevCloses by vm.usPrevCloses.collectAsStateWithLifecycle()
+    val hasTossAccount by vm.hasTossAccount.collectAsStateWithLifecycle()
 
     // 화면이 처음 그려질 때 실시간 구독 보장
     // (탭 클릭 시 activateRealtime()은 watchlist 로드 전일 수 있으므로 이중 호출)
@@ -76,9 +89,13 @@ fun WatchScreen(
         vm.activateRealtime()
     }
 
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    val pagerScope = rememberCoroutineScope()
+    val currentMarket = if (pagerState.currentPage == 0) WatchlistItem.MARKET_KR else WatchlistItem.MARKET_US
+    val currentList = if (currentMarket == WatchlistItem.MARKET_KR) krList else usList
+
     // 삭제 확인 팝업용 상태
-    var pendingDeleteCode by remember { mutableStateOf<String?>(null) }
-    var pendingDeleteName by remember { mutableStateOf("") }
+    var pendingDelete by remember { mutableStateOf<WatchlistItem?>(null) }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -86,81 +103,54 @@ fun WatchScreen(
             TopAppBar(
                 title = { Text("관심") },
                 actions = {
-                    if (watchlist.isNotEmpty()) {
-                        IconButton(onClick = vm::toggleEditMode) {
+                    if (currentList.isNotEmpty() || vm.editMode) {
+                        IconButton(onClick = { vm.toggleEditMode(currentMarket) }) {
                             Icon(
                                 if (vm.editMode) Icons.Filled.Done else Icons.Filled.Edit,
                                 contentDescription = "편집",
                             )
                         }
                     }
-                    IconButton(onClick = vm::openSearch) {
+                    IconButton(onClick = { vm.openSearch(currentMarket) }, enabled = !vm.editMode) {
                         Icon(Icons.Filled.Search, contentDescription = "종목 검색")
                     }
                 },
             )
         },
     ) { innerPadding ->
-        if (watchlist.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "관심종목을 추가해보세요",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            TabRow(selectedTabIndex = pagerState.currentPage) {
+                listOf("한국", "미국").forEachIndexed { index, title ->
+                    Tab(
+                        selected = pagerState.currentPage == index,
+                        // 순서 편집 중에는 시장을 바꿀 수 없다
+                        enabled = !vm.editMode,
+                        onClick = { pagerScope.launch { pagerState.animateScrollToPage(index) } },
+                        text = { Text(title) },
+                    )
+                }
             }
-        } else {
-            val lazyListState = rememberLazyListState()
-            val reorderState = rememberReorderableLazyListState(lazyListState) { from, to ->
-                vm.reorderWatchlist(from.index, to.index)
-            }
-            // 편집 모드에서는 로컬 임시 순서(editList)를, 평소에는 watchlist를 노출
-            val displayList = if (vm.editMode) vm.editList else watchlist
-
-            LazyColumn(
-                state = lazyListState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-            ) {
-                items(displayList, key = { it.code }) { item ->
-                    val code = item.code.removePrefix("A")
-                    if (vm.editMode) {
-                        ReorderableItem(reorderState, key = item.code) { isDragging ->
-                            val elevation by animateDpAsState(
-                                if (isDragging) 4.dp else 0.dp,
-                                label = "drag-elevation",
-                            )
-                            Surface(shadowElevation = elevation) {
-                                WatchlistRow(
-                                    item = item,
-                                    realtimePrice = realtimePrices[code],
-                                    initialPrice = initialPrices[code],
-                                    marketIndex = indexMap[code],
-                                    editMode = true,
-                                    dragHandle = {
-                                        Icon(
-                                            Icons.Filled.DragHandle,
-                                            contentDescription = "순서 변경",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.draggableHandle(),
-                                        )
-                                    },
-                                )
-                            }
-                        }
-                        HorizontalDivider()
-                    } else {
+            HorizontalPager(
+                state = pagerState,
+                userScrollEnabled = !vm.editMode,
+                modifier = Modifier.fillMaxSize(),
+            ) { page ->
+                if (page == 0) {
+                    WatchlistPage(
+                        market = WatchlistItem.MARKET_KR,
+                        items = krList,
+                        vm = vm,
+                        emptyText = "관심종목을 추가해보세요",
+                        onLongClick = { pendingDelete = it },
+                    ) { item, editMode, dragHandle ->
+                        val code = item.code.removePrefix("A")
                         WatchlistRow(
                             item = item,
                             realtimePrice = realtimePrices[code],
                             initialPrice = initialPrices[code],
                             marketIndex = indexMap[code],
+                            editMode = editMode,
+                            dragHandle = dragHandle,
                             onClick = {
                                 orderVm.selectStock(item.code, item.nameKr, orderVm.account?.id ?: -1L)
                                 backStack?.let { bs ->
@@ -170,12 +160,28 @@ fun WatchScreen(
                                     }
                                 }
                             },
-                            onLongClick = {
-                                pendingDeleteCode = item.code
-                                pendingDeleteName = item.nameKr
-                            },
+                            onLongClick = { pendingDelete = item },
                         )
-                        HorizontalDivider()
+                    }
+                } else {
+                    WatchlistPage(
+                        market = WatchlistItem.MARKET_US,
+                        items = usList,
+                        vm = vm,
+                        emptyText = if (hasTossAccount) "미국 관심종목을 추가해보세요"
+                            else "토스증권 계좌를 등록하면\n미국 종목을 추가할 수 있어요",
+                        onLongClick = { pendingDelete = it },
+                    ) { item, editMode, dragHandle ->
+                        UsWatchlistRow(
+                            item = item,
+                            tossPrice = tossPrices[item.code],
+                            lastPrice = usLastPrices[item.code],
+                            prevClose = usPrevCloses[item.code],
+                            editMode = editMode,
+                            dragHandle = dragHandle,
+                            // 미국 주식은 아직 거래를 지원하지 않아 탭 동작이 없다
+                            onLongClick = { pendingDelete = item },
+                        )
                     }
                 }
             }
@@ -183,21 +189,21 @@ fun WatchScreen(
     }
 
     // 삭제 확인 다이얼로그
-    if (pendingDeleteCode != null) {
+    pendingDelete?.let { target ->
         AlertDialog(
-            onDismissRequest = { pendingDeleteCode = null },
+            onDismissRequest = { pendingDelete = null },
             title = { Text("관심종목 삭제") },
-            text = { Text("'$pendingDeleteName'을(를) 관심종목에서 삭제하시겠어요?") },
+            text = { Text("'${target.nameKr}'을(를) 관심종목에서 삭제하시겠어요?") },
             confirmButton = {
                 TextButton(onClick = {
-                    pendingDeleteCode?.let { vm.removeFromWatchlist(it) }
-                    pendingDeleteCode = null
+                    vm.removeFromWatchlist(target.code, target.market)
+                    pendingDelete = null
                 }) {
                     Text("삭제", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDeleteCode = null }) {
+                TextButton(onClick = { pendingDelete = null }) {
                     Text("취소")
                 }
             },
@@ -206,6 +212,126 @@ fun WatchScreen(
 
     if (vm.showSearch) {
         WatchStockSearchScreen(vm = vm, onDismiss = vm::closeSearch)
+    }
+}
+
+/** 한 시장의 관심종목 목록. 편집(순서 변경) 중이면 편집 대상 시장의 임시 순서를 노출한다. */
+@Composable
+private fun WatchlistPage(
+    market: String,
+    items: List<WatchlistItem>,
+    vm: WatchViewModel,
+    emptyText: String,
+    onLongClick: (WatchlistItem) -> Unit,
+    row: @Composable (item: WatchlistItem, editMode: Boolean, dragHandle: (@Composable () -> Unit)?) -> Unit,
+) {
+    if (items.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = emptyText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+        return
+    }
+    val lazyListState = rememberLazyListState()
+    val reorderState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        vm.reorderWatchlist(from.index, to.index)
+    }
+    val editingThis = vm.editMode && vm.editMarket == market
+    val displayList = if (editingThis) vm.editList else items
+
+    LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
+        items(displayList, key = { it.code }) { item ->
+            if (editingThis) {
+                ReorderableItem(reorderState, key = item.code) { isDragging ->
+                    val elevation by animateDpAsState(
+                        if (isDragging) 4.dp else 0.dp,
+                        label = "drag-elevation",
+                    )
+                    Surface(shadowElevation = elevation) {
+                        row(item, true) {
+                            Icon(
+                                Icons.Filled.DragHandle,
+                                contentDescription = "순서 변경",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.draggableHandle(),
+                            )
+                        }
+                    }
+                }
+            } else {
+                row(item, false, null)
+            }
+            HorizontalDivider()
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun UsWatchlistRow(
+    item: WatchlistItem,
+    tossPrice: TossRealTimeTrade?,
+    lastPrice: Double?,
+    prevClose: Double?,
+    editMode: Boolean,
+    dragHandle: (@Composable () -> Unit)?,
+    onLongClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (editMode) Modifier
+                else Modifier.combinedClickable(onClick = {}, onLongClick = onLongClick)
+            )
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.nameKr,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = item.code,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (editMode) {
+            dragHandle?.invoke()
+            return@Row
+        }
+
+        // 실시간 체결이 있으면 그것을, 없으면 REST 현재가를 쓴다. 등락은 전일 종가 대비.
+        val price = tossPrice?.price ?: lastPrice
+        val delta = if (price != null && prevClose != null) price - prevClose else null
+        val rate = if (delta != null && prevClose != null && prevClose > 0) delta / prevClose * 100 else null
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = price?.let { NumberFormatter.formatMoney(it, "USD") } ?: "-",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = if (delta != null && rate != null) {
+                    "${NumberFormatter.formatMoneyWithSign(delta, "USD")} (${NumberFormatter.formatRate(rate)})"
+                } else {
+                    "-"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = ChartColor.color(delta ?: 0.0),
+            )
+        }
     }
 }
 

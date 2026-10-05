@@ -34,9 +34,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.trueedu.tong.model.StockInfoLocal
+import com.trueedu.tong.model.UsStockLocal
+import com.trueedu.tong.model.WatchlistItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,13 +49,16 @@ fun WatchStockSearchScreen(
 ) {
     BackHandler(onBack = onDismiss)
 
-    LaunchedEffect(Unit) { vm.loadStocksForSearch() }
+    val isUs = vm.searchMarket == WatchlistItem.MARKET_US
+    LaunchedEffect(isUs) {
+        if (isUs) vm.loadUsStocksForSearch() else vm.loadStocksForSearch()
+    }
 
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     val watchlist by vm.watchlist.collectAsStateWithLifecycle()
-    val watchedCodes = watchlist.map { it.code }.toSet()
+    val watchedCodes = watchlist.filter { it.market == vm.searchMarket }.map { it.code }.toSet()
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -74,7 +80,7 @@ fun WatchStockSearchScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .focusRequester(focusRequester),
-                placeholder = { Text("종목명 또는 코드 검색") },
+                placeholder = { Text(if (isUs) "종목명 또는 티커 검색" else "종목명 또는 코드 검색") },
                 singleLine = true,
                 trailingIcon = {
                     if (vm.searchQuery.isNotEmpty()) {
@@ -85,23 +91,57 @@ fun WatchStockSearchScreen(
                 },
             )
             HorizontalDivider()
-            val results = vm.searchResults
-            if (results.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = if (vm.searchQuery.isBlank()) "종목명을 입력하세요" else "검색 결과가 없습니다",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            if (isUs) {
+                UsSearchContent(vm = vm, watchedCodes = watchedCodes, onDismiss = onDismiss)
+            } else {
+                val results = vm.searchResults
+                if (results.isEmpty()) {
+                    SearchMessage(if (vm.searchQuery.isBlank()) "종목명을 입력하세요" else "검색 결과가 없습니다")
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(results, key = { it.code }) { stock ->
+                            WatchStockSearchRow(
+                                stock = stock,
+                                added = stock.code in watchedCodes,
+                                onClick = {
+                                    vm.addToWatchlist(stock.code, stock.nameKr)
+                                    onDismiss()
+                                },
+                            )
+                            HorizontalDivider()
+                        }
+                    }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UsSearchContent(
+    vm: WatchViewModel,
+    watchedCodes: Set<String>,
+    onDismiss: () -> Unit,
+) {
+    when (vm.usSearchState) {
+        WatchViewModel.UsSearchState.Idle,
+        WatchViewModel.UsSearchState.Loading -> SearchMessage("종목 목록을 불러오는 중이에요")
+        WatchViewModel.UsSearchState.NoAccount ->
+            SearchMessage("토스증권 계좌를 등록하면\n미국 종목을 검색할 수 있어요")
+        WatchViewModel.UsSearchState.Error ->
+            SearchMessage("종목 목록을 불러오지 못했어요\n잠시 후 다시 시도해 주세요")
+        WatchViewModel.UsSearchState.Ready -> {
+            val results = vm.usSearchResults
+            if (results.isEmpty()) {
+                SearchMessage(if (vm.searchQuery.isBlank()) "종목명 또는 티커를 입력하세요" else "검색 결과가 없습니다")
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(results, key = { it.code }) { stock ->
-                        WatchStockSearchRow(
+                    items(results, key = { it.symbol }) { stock ->
+                        UsSearchRow(
                             stock = stock,
-                            added = stock.code in watchedCodes,
+                            added = stock.symbol in watchedCodes,
                             onClick = {
-                                vm.addToWatchlist(stock.code, stock.nameKr)
+                                vm.addToWatchlist(stock.symbol, stock.nameKr, WatchlistItem.MARKET_US)
                                 onDismiss()
                             },
                         )
@@ -109,6 +149,60 @@ fun WatchStockSearchScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SearchMessage(text: String) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun UsSearchRow(
+    stock: UsStockLocal,
+    added: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = !added, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stock.nameKr,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = stock.symbol,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (added) {
+            Icon(
+                Icons.Filled.Check,
+                contentDescription = "추가됨",
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        } else {
+            Text(
+                text = stock.market,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline,
+            )
         }
     }
 }
