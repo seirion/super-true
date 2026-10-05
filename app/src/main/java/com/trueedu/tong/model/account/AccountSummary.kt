@@ -41,6 +41,7 @@ data class AccountSummary(
  * @param profitAmount 평가손익 금액
  * @param profitRate 평가손익 수익률 (%)
  * @param currency 거래 통화 (KRW/USD). 가격·금액 필드는 이 통화 기준
+ * @param prevClose 전일 종가 (거래 통화, 증권사가 제공하는 경우만). 실시간 체결가로 일간 등락을 계산할 때 사용
  */
 data class HoldingStock(
     val code: String,
@@ -52,6 +53,15 @@ data class HoldingStock(
     val profitAmount: Double,
     val profitRate: Double,
     val currency: String = "KRW",
+    val prevClose: Double? = null,
 ) {
     val isUsd: Boolean get() = currency == "USD"
+
+    /** 전일 종가 대비 등락 (거래 통화). 전일 종가나 가격을 모르면 null */
+    fun deltaFrom(price: Double?): Double? =
+        if (prevClose != null && price != null) price - prevClose else null
+
+    /** 전일 종가 대비 등락률(%). 전일 종가나 가격을 모르면 null */
+    fun rateFrom(price: Double?): Double? =
+        if (prevClose != null && prevClose > 0 && price != null) (price - prevClose) / prevClose * 100 else null
 }
