@@ -274,7 +274,7 @@ private fun UsWatchlistRow(
                 if (editMode) Modifier
                 else Modifier.combinedClickable(onClick = {}, onLongClick = onLongClick)
             )
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -341,7 +341,7 @@ private fun WatchlistRow(
                 if (editMode) Modifier
                 else Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
             )
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
