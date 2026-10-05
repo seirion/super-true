@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.trueedu.tong.data.realtime.InitialPrice
+import com.trueedu.tong.model.BrokerType
 import com.trueedu.tong.model.account.AccountSummary
 import com.trueedu.tong.model.account.HoldingStock
 import com.trueedu.tong.model.ws.KisRealTimeTrade
@@ -159,6 +160,8 @@ fun HomeScreen(
                             realtimePrices = realtimePrices,
                             initialPrices = initialPrices,
                             tossPrices = tossPrices,
+                            // 토스는 예수금 API 가 없어 매수 가능 금액을 대신 보여 준다
+                            showBuyingPower = selectedAccount?.brokerType == BrokerType.TOSS,
                             expanded = vm.summaryExpanded,
                             onToggle = vm::toggleSummary,
                             onRefresh = vm::refresh,
@@ -268,6 +271,7 @@ private fun AccountInfoSection(
     realtimePrices: Map<String, KisRealTimeTrade>,
     initialPrices: Map<String, InitialPrice>,
     tossPrices: Map<String, TossRealTimeTrade>,
+    showBuyingPower: Boolean,
     expanded: Boolean,
     onToggle: () -> Unit,
     onRefresh: () -> Unit,
@@ -397,21 +401,34 @@ private fun AccountInfoSection(
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(modifier = Modifier.fillMaxWidth()) {
-                DepositColumn(
-                    label = "예수금",
-                    value = summary.deposit,
-                    modifier = Modifier.weight(1f),
-                )
-                DepositColumn(
-                    label = "D+1 예수금",
-                    value = summary.depositD1,
-                    modifier = Modifier.weight(1f),
-                )
-                DepositColumn(
-                    label = "D+2 예수금",
-                    value = summary.depositD2,
-                    modifier = Modifier.weight(1f),
-                )
+                if (showBuyingPower) {
+                    CashColumn(
+                        label = "원화 매수가능",
+                        text = summary.buyingPowerKrw?.let { NumberFormatter.formatCash(it) },
+                        modifier = Modifier.weight(1f),
+                    )
+                    CashColumn(
+                        label = "달러 매수가능",
+                        text = summary.buyingPowerUsd?.let { NumberFormatter.formatMoney(it, "USD") },
+                        modifier = Modifier.weight(1f),
+                    )
+                } else {
+                    DepositColumn(
+                        label = "예수금",
+                        value = summary.deposit,
+                        modifier = Modifier.weight(1f),
+                    )
+                    DepositColumn(
+                        label = "D+1 예수금",
+                        value = summary.depositD1,
+                        modifier = Modifier.weight(1f),
+                    )
+                    DepositColumn(
+                        label = "D+2 예수금",
+                        value = summary.depositD2,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
     }
@@ -440,6 +457,15 @@ private fun DepositColumn(
     value: Double?,
     modifier: Modifier = Modifier,
 ) {
+    CashColumn(label = label, text = value?.let { NumberFormatter.formatCash(it) }, modifier = modifier)
+}
+
+@Composable
+private fun CashColumn(
+    label: String,
+    text: String?,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -451,7 +477,7 @@ private fun DepositColumn(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = if (value != null) NumberFormatter.formatCash(value) else "-",
+            text = text ?: "-",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
