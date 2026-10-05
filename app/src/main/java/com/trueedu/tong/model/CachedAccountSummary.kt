@@ -31,4 +31,5 @@ data class CachedHolding(
     val profitAmount: Double,
     val profitRate: Double,
     val currency: String = "KRW",
+    val prevClose: Double? = null,
 )

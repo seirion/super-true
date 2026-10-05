@@ -60,6 +60,7 @@ class TossAccountRepository @Inject constructor(
                     profitAmount = num(h.profitLoss?.amount) ?: 0.0,
                     profitRate = (num(h.profitLoss?.rate) ?: 0.0) * 100,
                     currency = h.currency.ifBlank { "KRW" },
+                    prevClose = prevClose(h),
                 )
             }
 
@@ -99,6 +100,27 @@ class TossAccountRepository @Inject constructor(
     }.onFailure { logW("Toss exchange-rate error: ${it.message}") }.getOrNull()
 
     companion object {
+        /**
+         * 전일 종가 = 현재가 - (일간 손익 금액 ÷ 수량). 금액이 없으면 일간 손익률로 역산한다.
+         * 토스 holdings 는 종목별 일간 손익(dailyProfitLoss)을 거래 통화 기준으로 내려준다.
+         */
+        fun prevClose(h: com.trueedu.tong.model.dto.toss.TossHolding): Double? {
+            val last = num(h.lastPrice) ?: return null
+            val qty = num(h.quantity) ?: 0.0
+            val amount = num(h.dailyProfitLoss?.amount)
+            val raw = when {
+                amount != null && qty > 0 -> last - amount / qty
+                else -> num(h.dailyProfitLoss?.rate)?.let { last / (1 + it) } ?: return null
+            }
+            if (raw <= 0) return null
+            // 호가 단위에 맞춰 반올림: 원화 정수, 달러 1불 이상 센트, 1불 미만 소수 4자리
+            return when {
+                h.currency == "USD" && last >= 1 -> Math.round(raw * 100) / 100.0
+                h.currency == "USD" -> Math.round(raw * 10000) / 10000.0
+                else -> Math.round(raw).toDouble()
+            }
+        }
+
         fun authHeaders(accessToken: String): Map<String, String> = mapOf(
             "Authorization" to "Bearer $accessToken",
         )

@@ -94,6 +94,12 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
     }
 }
 
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `cached_holdings` ADD COLUMN `prevClose` REAL")
+    }
+}
+
 /** 등록된 모든 Migration 목록 */
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_3_4,
@@ -101,4 +107,5 @@ val ALL_MIGRATIONS = arrayOf(
     MIGRATION_5_6,
     MIGRATION_6_7,
     MIGRATION_7_8,
+    MIGRATION_8_9,
 )

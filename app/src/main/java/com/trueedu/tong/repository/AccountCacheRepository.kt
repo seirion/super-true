@@ -35,6 +35,7 @@ class AccountCacheRepository @Inject constructor(
                     profitAmount = it.profitAmount,
                     profitRate = it.profitRate,
                     currency = it.currency,
+                    prevClose = it.prevClose,
                 )
             },
         )
@@ -67,6 +68,7 @@ class AccountCacheRepository @Inject constructor(
                     profitAmount = it.profitAmount,
                     profitRate = it.profitRate,
                     currency = it.currency,
+                    prevClose = it.prevClose,
                 )
             }
         )

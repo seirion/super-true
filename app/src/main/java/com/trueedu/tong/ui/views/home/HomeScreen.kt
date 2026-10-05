@@ -275,7 +275,7 @@ private fun AccountInfoSection(
 ) {
     // 실시간 데이터가 없으면 초기 현재가(REST)로 fallback
     val hasPrices = realtimePrices.isNotEmpty() || initialPrices.isNotEmpty() || tossPrices.isNotEmpty()
-    val useRealtimeMarket = hasPrices && marketPriceMode
+    val useRealtimeMarket = (hasPrices || summary.holdings.any { it.prevClose != null }) && marketPriceMode
     val useRealtimeEval = hasPrices && !marketPriceMode && realtimeEvaluation
 
     // 총 평가금액 (실시간 반영 시 공통 계산)
@@ -285,12 +285,14 @@ private fun AccountInfoSection(
     fun HoldingStock.initialOrNull(): InitialPrice? =
         if (isUsd) null else initialPrices[code.removePrefix("A")]
 
+    // 종목의 현재 반영 가격: 토스 체결 > KIS 실시간 > KIS 초기가 > 보유 정보의 현재가
+    fun HoldingStock.livePrice(): Double? = tossPrices[code.removePrefix("A")]?.price
+        ?: realtimeOrNull()?.price
+        ?: initialOrNull()?.price
+        ?: currentPrice
+
     fun realtimeStockTotal() = summary.holdings.sumOf { holding ->
-        val price = tossPrices[holding.code.removePrefix("A")]?.price
-            ?: holding.realtimeOrNull()?.price
-            ?: holding.initialOrNull()?.price
-            ?: holding.currentPrice ?: holding.avgPrice
-        price * holding.quantity * summary.krwFactor(holding)
+        (holding.livePrice() ?: holding.avgPrice) * holding.quantity * summary.krwFactor(holding)
     }
 
     val (displayAsset, displayProfit, displayProfitRate) = when {
@@ -300,7 +302,9 @@ private fun AccountInfoSection(
             val deposit2 = summary.depositD2 ?: summary.deposit
             val totalAsset = stockTotal + deposit2
             val dailyProfit = summary.holdings.sumOf { holding ->
-                val delta = holding.realtimeOrNull()?.delta ?: holding.initialOrNull()?.delta ?: 0.0
+                // KIS 실시간 등락이 있으면 그것을, 없으면 전일 종가(토스 일간 손익 역산) 대비로 계산
+                val delta = holding.realtimeOrNull()?.delta ?: holding.initialOrNull()?.delta
+                    ?: holding.deltaFrom(holding.livePrice()) ?: 0.0
                 delta * holding.quantity * summary.krwFactor(holding)
             }
             val prevAsset = totalAsset - dailyProfit
@@ -488,8 +492,8 @@ private fun HoldingStockItem(
             if (marketPriceMode) {
                 // 시세 모드: 현재가 / 일간등락 / 등락률
                 val currentPrice = tossPrice ?: realtimePrice?.price ?: initialPrice?.price ?: holding.currentPrice
-                val delta = realtimePrice?.delta ?: initialPrice?.delta
-                val rate = realtimePrice?.rate ?: initialPrice?.rate
+                val delta = realtimePrice?.delta ?: initialPrice?.delta ?: holding.deltaFrom(currentPrice)
+                val rate = realtimePrice?.rate ?: initialPrice?.rate ?: holding.rateFrom(currentPrice)
                 Text(
                     text = if (currentPrice != null) {
                         NumberFormatter.formatMoney(currentPrice, holding.currency)
