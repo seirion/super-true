@@ -9,14 +9,22 @@ import com.trueedu.tong.data.realtime.InitialPrice
 import com.trueedu.tong.data.realtime.KisRealPriceManager
 import com.trueedu.tong.data.realtime.MarketIndex
 import com.trueedu.tong.data.realtime.MarketIndexManager
+import com.trueedu.tong.data.realtime.TossRealtimeManager
 import com.trueedu.tong.model.BrokerType
+import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.StockInfoLocal
+import com.trueedu.tong.model.UsStockLocal
 import com.trueedu.tong.model.WatchlistItem
 import com.trueedu.tong.model.ws.KisRealTimeTrade
+import com.trueedu.tong.model.ws.TossRealTimeTrade
 import com.trueedu.tong.repository.BrokerAccountRepository
+import com.trueedu.tong.repository.UsStockRepository
 import com.trueedu.tong.repository.WatchlistRepository
+import com.trueedu.tong.repository.remote.toss.TossMarketRepository
 import com.trueedu.tong.repository.local.StockLocal
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -35,11 +43,38 @@ class WatchViewModel @Inject constructor(
     private val kisRealPriceManager: KisRealPriceManager,
     private val marketIndexManager: MarketIndexManager,
     private val brokerAccountRepo: BrokerAccountRepository,
+    private val tossRealtimeManager: TossRealtimeManager,
+    private val tossMarket: TossMarketRepository,
+    private val usStockRepo: UsStockRepository,
 ) : ViewModel() {
 
-    // 관심종목 목록
+    // 관심종목 전체 목록 (한국 + 미국)
     val watchlist: StateFlow<List<WatchlistItem>> = watchlistRepo.getAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    // 시장별 목록
+    val krWatchlist: StateFlow<List<WatchlistItem>> = watchlist
+        .map { list -> list.filter { it.market == WatchlistItem.MARKET_KR } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val usWatchlist: StateFlow<List<WatchlistItem>> = watchlist
+        .map { list -> list.filter { it.market == WatchlistItem.MARKET_US } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    // 토스 계좌 등록 여부 (미국 종목 시세/검색에 필요)
+    val hasTossAccount: StateFlow<Boolean> = brokerAccountRepo.getAll()
+        .map { accounts -> accounts.any { it.brokerType == BrokerType.TOSS } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    // 미국 종목 실시간 체결 (토스 웹소켓). 키: 티커
+    val tossPrices: StateFlow<Map<String, TossRealTimeTrade>> = tossRealtimeManager.tradeFlow
+        .map { tossRealtimeManager.priceMap.toMap() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    // 미국 종목 REST 현재가/전일 종가 (실시간 체결 전 fallback과 등락 계산용). 키: 티커
+    private val _usLastPrices = MutableStateFlow<Map<String, Double>>(emptyMap())
+    val usLastPrices: StateFlow<Map<String, Double>> = _usLastPrices
+    private val _usPrevCloses = MutableStateFlow<Map<String, Double>>(emptyMap())
+    val usPrevCloses: StateFlow<Map<String, Double>> = _usPrevCloses
 
     // 실시간 체결가
     val realtimePrices: StateFlow<Map<String, KisRealTimeTrade>> = kisRealPriceManager.tradeFlow
@@ -67,7 +102,7 @@ class WatchViewModel @Inject constructor(
     init {
         // 관심 탭이 활성화된 동안 watchlist 변경 시 구독 자동 갱신
         viewModelScope.launch {
-            watchlist
+            krWatchlist
                 .distinctUntilChanged { old, new -> old.map { it.code } == new.map { it.code } }
                 .collectLatest { items ->
                     if (isActive && items.isNotEmpty()) {
@@ -75,27 +110,38 @@ class WatchViewModel @Inject constructor(
                     }
                 }
         }
+        viewModelScope.launch {
+            usWatchlist
+                .distinctUntilChanged { old, new -> old.map { it.code } == new.map { it.code } }
+                .collectLatest { items ->
+                    if (isActive) startUsRealtime(items.map { it.code })
+                }
+        }
     }
 
-    // 편집(순서 변경) 모드
+    // 편집(순서 변경) 모드. 편집은 한 시장(editMarket)의 목록에만 적용된다.
     var editMode by mutableStateOf(false)
+        private set
+    var editMarket by mutableStateOf(WatchlistItem.MARKET_KR)
         private set
 
     // 편집 중 임시 순서. 드래그 중에는 DB 대신 이 리스트만 갱신하고, 완료 시 한 번에 저장한다.
     var editList: List<WatchlistItem> by mutableStateOf(emptyList())
         private set
 
-    fun toggleEditMode() {
+    fun toggleEditMode(market: String) {
         if (editMode) {
             // 편집 완료 → 현재 순서를 저장
             val ordered = editList.map { it.code }
+            val savedMarket = editMarket
             editMode = false
             viewModelScope.launch {
-                watchlistRepo.saveOrder(ordered)
+                watchlistRepo.saveOrder(savedMarket, ordered)
             }
         } else {
-            // 편집 시작 → 현재 목록을 스냅샷
-            editList = watchlist.value
+            // 편집 시작 → 해당 시장의 현재 목록을 스냅샷
+            editMarket = market
+            editList = watchlist.value.filter { it.market == market }
             editMode = true
         }
     }
@@ -108,8 +154,21 @@ class WatchViewModel @Inject constructor(
         editList = current
     }
 
-    // 검색 화면 표시 여부
+    // 검색 화면 표시 여부와 대상 시장
     var showSearch by mutableStateOf(false)
+    var searchMarket by mutableStateOf(WatchlistItem.MARKET_KR); private set
+
+    // 미국 종목 검색 (토스 종목 유니버스 로컬 캐시)
+    sealed class UsSearchState {
+        object Idle : UsSearchState()
+        object Loading : UsSearchState()
+        object Ready : UsSearchState()
+        object NoAccount : UsSearchState()   // 토스 계좌도 없고 캐시도 없음
+        object Error : UsSearchState()
+    }
+    var usSearchState: UsSearchState by mutableStateOf(UsSearchState.Idle); private set
+    private var allUsStocks: List<UsStockLocal> = emptyList()
+    var usSearchResults: List<UsStockLocal> by mutableStateOf(emptyList()); private set
 
     // 종목 검색
     private var allStocks: List<StockInfoLocal> = emptyList()
@@ -122,14 +181,13 @@ class WatchViewModel @Inject constructor(
         viewModelScope.launch {
             // watchlist StateFlow가 아직 emptyList()인 경우(구독자 없어 로드 전)
             // 첫 번째 비어있지 않은 값을 기다리거나, 이미 로드됐으면 바로 사용
-            val codes = if (watchlist.value.isNotEmpty()) {
-                watchlist.value.map { it.code }
-            } else {
-                watchlistRepo.getAll().first().map { it.code }
+            val all = if (watchlist.value.isNotEmpty()) watchlist.value else watchlistRepo.getAll().first()
+            val krCodes = all.filter { it.market == WatchlistItem.MARKET_KR }.map { it.code }
+            val usCodes = all.filter { it.market == WatchlistItem.MARKET_US }.map { it.code }
+            if (krCodes.isNotEmpty()) {
+                startRealtimeIfKis(krCodes)
             }
-            if (codes.isNotEmpty()) {
-                startRealtimeIfKis(codes)
-            }
+            startUsRealtime(usCodes)
         }
     }
 
@@ -137,6 +195,37 @@ class WatchViewModel @Inject constructor(
     fun deactivate() {
         isActive = false
         marketIndexManager.stop()
+        tossRealtimeManager.stop(TossRealtimeManager.OWNER_WATCH)
+    }
+
+    /** 토스 계좌: 선택된 계좌가 토스면 그것, 아니면 등록된 첫 토스 계좌 */
+    private suspend fun tossAccount(): BrokerAccount? {
+        val accounts = brokerAccountRepo.getAll().first()
+        return accounts.firstOrNull { it.isSelected && it.brokerType == BrokerType.TOSS }
+            ?: accounts.firstOrNull { it.brokerType == BrokerType.TOSS }
+    }
+
+    /** 미국 관심종목: 토스 웹소켓 구독 + REST 현재가/전일 종가 조회 */
+    private suspend fun startUsRealtime(symbols: List<String>) {
+        if (symbols.isEmpty()) {
+            tossRealtimeManager.stop(TossRealtimeManager.OWNER_WATCH)
+            return
+        }
+        val account = tossAccount() ?: return
+        tossRealtimeManager.start(account, emptyList(), symbols, TossRealtimeManager.OWNER_WATCH)
+        loadUsQuotes(account, symbols)
+    }
+
+    private suspend fun loadUsQuotes(account: BrokerAccount, symbols: List<String>) {
+        val prices = tossMarket.fetchLastPrices(account, symbols)
+        if (prices.isNotEmpty()) _usLastPrices.value = _usLastPrices.value + prices
+        // 전일 종가는 종목마다 일봉을 조회해야 하므로 아직 모르는 종목만 (한도: 초당 20회)
+        for (symbol in symbols.filter { it !in _usPrevCloses.value }) {
+            tossMarket.fetchPrevClose(account, symbol)?.let { prev ->
+                _usPrevCloses.value = _usPrevCloses.value + (symbol to prev)
+            }
+            delay(60)
+        }
     }
 
     private suspend fun startRealtimeIfKis(codes: List<String>) {
@@ -175,6 +264,32 @@ class WatchViewModel @Inject constructor(
     fun onSearchQueryChange(q: String) {
         searchQuery = q
         applySearch()
+        applyUsSearch()
+    }
+
+    /** 미국 종목 유니버스 로드 (캐시가 오래됐으면 토스에서 갱신) */
+    fun loadUsStocksForSearch() {
+        if (usSearchState == UsSearchState.Ready || usSearchState == UsSearchState.Loading) return
+        viewModelScope.launch {
+            usSearchState = UsSearchState.Loading
+            val account = tossAccount()
+            val cached = usStockRepo.getAll()
+            val available = when {
+                account != null -> usStockRepo.refreshIfStale(account)
+                else -> cached.isNotEmpty()
+            }
+            if (!available) {
+                usSearchState = if (account == null) UsSearchState.NoAccount else UsSearchState.Error
+                return@launch
+            }
+            allUsStocks = usStockRepo.getAll()
+            usSearchState = UsSearchState.Ready
+            applyUsSearch()
+        }
+    }
+
+    private fun applyUsSearch() {
+        usSearchResults = UsStockRepository.search(allUsStocks, searchQuery)
     }
 
     private fun applySearch() {
@@ -197,22 +312,25 @@ class WatchViewModel @Inject constructor(
         return result
     }
 
-    fun openSearch() { showSearch = true }
+    fun openSearch(market: String) {
+        searchMarket = market
+        showSearch = true
+    }
 
     fun closeSearch() {
         showSearch = false
         onSearchQueryChange("")
     }
 
-    fun addToWatchlist(code: String, nameKr: String) {
+    fun addToWatchlist(code: String, nameKr: String, market: String = WatchlistItem.MARKET_KR) {
         viewModelScope.launch {
-            watchlistRepo.add(code, nameKr)
+            watchlistRepo.add(code, nameKr, market)
         }
     }
 
-    fun removeFromWatchlist(code: String) {
+    fun removeFromWatchlist(code: String, market: String = WatchlistItem.MARKET_KR) {
         viewModelScope.launch {
-            watchlistRepo.remove(code)
+            watchlistRepo.remove(code, market)
         }
     }
 

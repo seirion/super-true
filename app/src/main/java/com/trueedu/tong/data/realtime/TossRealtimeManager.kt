@@ -57,6 +57,9 @@ class TossRealtimeManager @Inject constructor(
         private const val MAX_TOPICS = 100
         private const val PING_INTERVAL_MS = 60_000L
         private const val MAX_BACKOFF_MS = 30_000L
+
+        const val OWNER_HOME = "home"
+        const val OWNER_WATCH = "watch"
     }
 
     // 웹소켓은 수신이 없는 구간이 길 수 있어 read timeout 을 끈다 (연결 유지는 PING 으로)
@@ -69,6 +72,8 @@ class TossRealtimeManager @Inject constructor(
     private val mutex = Mutex()
 
     private var account: BrokerAccount? = null
+    // 구독 요청자(owner) → (국내 코드, 미국 티커). 실제 구독은 합집합
+    private val owners = mutableMapOf<String, Pair<List<String>, List<String>>>()
     private var krCodes: List<String> = emptyList()
     private var usCodes: List<String> = emptyList()
 
@@ -87,49 +92,55 @@ class TossRealtimeManager @Inject constructor(
     val priceMap = mutableStateMapOf<String, TossRealTimeTrade>()
 
     /**
-     * 구독 종목을 교체한다. 연결이 있으면 선언만 다시 보내고, 없으면 연결한다.
+     * [owner] 의 구독 종목을 교체한다. 여러 화면(홈 보유종목, 관심종목 등)이 같은 연결을 공유하므로
+     * 실제 구독은 모든 owner 의 합집합이다. 연결이 있으면 선언만 다시 보내고, 없으면 연결한다.
      * @param krCodes 국내 6자리 종목코드
      * @param usCodes 미국 티커
      */
-    fun start(account: BrokerAccount, krCodes: List<String>, usCodes: List<String>) {
+    fun start(account: BrokerAccount, krCodes: List<String>, usCodes: List<String>, owner: String = OWNER_HOME) {
         scope.launch {
             mutex.withLock {
-                val kr = krCodes.map { it.removePrefix("A") }.distinct()
-                val us = usCodes.distinct()
-                if (kr.size + us.size > MAX_TOPICS) {
-                    logW("TossRealtimeManager: 종목 ${kr.size + us.size}개 중 ${MAX_TOPICS}개만 구독 (토스 한도)")
-                }
+                owners[owner] = krCodes.map { it.removePrefix("A") }.distinct() to usCodes.distinct()
                 val changedAccount = this@TossRealtimeManager.account?.id != account.id
                 this@TossRealtimeManager.account = account
-                this@TossRealtimeManager.krCodes = kr
-                this@TossRealtimeManager.usCodes = us
-
-                if (kr.isEmpty() && us.isEmpty()) {
-                    closeLocked()
-                    return@withLock
-                }
-                if (changedAccount) closeLocked()
-                priceMap.keys.retainAll((kr + us).toSet())
-
-                if (connected) {
-                    declareLocked()
-                } else if (connectJob?.isActive != true) {
-                    connectLocked()
-                }
+                applyOwnersLocked(changedAccount)
             }
         }
     }
 
-    /** 구독/연결을 모두 정리한다 (계좌 전환·로그아웃). */
-    fun stop() {
+    /** [owner] 의 구독을 해제한다. 남은 owner 가 없으면 연결을 닫는다. */
+    fun stop(owner: String = OWNER_HOME) {
         scope.launch {
             mutex.withLock {
-                krCodes = emptyList()
-                usCodes = emptyList()
-                account = null
-                closeLocked()
-                priceMap.clear()
+                owners.remove(owner)
+                if (owners.isEmpty()) account = null
+                applyOwnersLocked(changedAccount = false)
             }
+        }
+    }
+
+    /** 모든 owner 의 구독을 합쳐 반영한다 (mutex 보유 상태에서 호출). */
+    private fun applyOwnersLocked(changedAccount: Boolean) {
+        val kr = owners.values.flatMap { it.first }.distinct()
+        val us = owners.values.flatMap { it.second }.distinct()
+        if (kr.size + us.size > MAX_TOPICS) {
+            logW("TossRealtimeManager: 종목 ${kr.size + us.size}개 중 ${MAX_TOPICS}개만 구독 (토스 한도)")
+        }
+        krCodes = kr
+        usCodes = us
+
+        if (kr.isEmpty() && us.isEmpty()) {
+            closeLocked()
+            priceMap.clear()
+            return
+        }
+        if (changedAccount) closeLocked()
+        priceMap.keys.retainAll((kr + us).toSet())
+
+        if (connected) {
+            declareLocked()
+        } else if (connectJob?.isActive != true) {
+            connectLocked()
         }
     }
 

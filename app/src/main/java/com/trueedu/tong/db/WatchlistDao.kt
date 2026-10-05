@@ -16,12 +16,12 @@ interface WatchlistDao {
     @Update
     suspend fun update(items: List<WatchlistItem>)
 
-    @Query("DELETE FROM watchlist WHERE code = :code")
-    suspend fun delete(code: String)
+    @Query("DELETE FROM watchlist WHERE code = :code AND market = :market")
+    suspend fun delete(code: String, market: String)
 
     @Query("SELECT * FROM watchlist ORDER BY sortOrder ASC, addedAt DESC")
     fun getAll(): Flow<List<WatchlistItem>>
 
-    @Query("SELECT EXISTS(SELECT 1 FROM watchlist WHERE code = :code)")
-    suspend fun contains(code: String): Boolean
+    @Query("SELECT EXISTS(SELECT 1 FROM watchlist WHERE code = :code AND market = :market)")
+    suspend fun contains(code: String, market: String): Boolean
 }

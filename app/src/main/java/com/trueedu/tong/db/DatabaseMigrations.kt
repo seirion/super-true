@@ -100,6 +100,43 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
     }
 }
 
+// 관심종목에 시장 구분(KR/US)을 추가하고 기본키를 (code, market) 으로 변경: 테이블 재생성. 미국 종목 캐시 테이블 추가
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `watchlist_new` (
+                `code` TEXT NOT NULL,
+                `nameKr` TEXT NOT NULL,
+                `addedAt` INTEGER NOT NULL,
+                `sortOrder` INTEGER NOT NULL,
+                `market` TEXT NOT NULL,
+                PRIMARY KEY(`code`, `market`)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            INSERT INTO `watchlist_new` (`code`, `nameKr`, `addedAt`, `sortOrder`, `market`)
+            SELECT `code`, `nameKr`, `addedAt`, `sortOrder`, 'KR' FROM `watchlist`
+            """.trimIndent()
+        )
+        db.execSQL("DROP TABLE `watchlist`")
+        db.execSQL("ALTER TABLE `watchlist_new` RENAME TO `watchlist`")
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `us_stocks` (
+                `symbol` TEXT NOT NULL,
+                `nameKr` TEXT NOT NULL,
+                `market` TEXT NOT NULL,
+                `securityType` TEXT NOT NULL,
+                PRIMARY KEY(`symbol`)
+            )
+            """.trimIndent()
+        )
+    }
+}
+
 /** 등록된 모든 Migration 목록 */
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_3_4,
@@ -108,4 +145,5 @@ val ALL_MIGRATIONS = arrayOf(
     MIGRATION_6_7,
     MIGRATION_7_8,
     MIGRATION_8_9,
+    MIGRATION_9_10,
 )

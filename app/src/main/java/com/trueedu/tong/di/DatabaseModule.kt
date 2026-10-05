@@ -7,6 +7,7 @@ import com.trueedu.tong.db.ALL_MIGRATIONS
 import com.trueedu.tong.db.AppDatabase
 import com.trueedu.tong.db.BrokerAccountDao
 import com.trueedu.tong.db.StockInfoLocalDao
+import com.trueedu.tong.db.UsStockLocalDao
 import com.trueedu.tong.db.WatchlistDao
 import dagger.Module
 import dagger.Provides
@@ -43,4 +44,9 @@ object DatabaseModule {
     @Singleton
     fun provideWatchlistDao(db: AppDatabase): WatchlistDao =
         db.watchlistDao()
+
+    @Provides
+    @Singleton
+    fun provideUsStockLocalDao(db: AppDatabase): UsStockLocalDao =
+        db.usStockLocalDao()
 }
