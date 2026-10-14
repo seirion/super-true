@@ -54,6 +54,9 @@ class Local @Inject constructor(private val preferences: SharedPreferences) {
     // 주문 화면 마지막 탭 인덱스 (0=주문, 1=미체결, 2=체결, 3=종목정보, 4=차트)
     var lastOrderTabIndex by preferences.int(0)
 
+    // 관심 화면 마지막으로 본 시장 페이지 (0=한국, 1=미국)
+    var watchLastPage by preferences.int(0)
+
     // 분봉 마지막 선택 간격 (1, 3, 5, 10, 30, 60)
     var lastMinuteInterval by preferences.int(1)
 }

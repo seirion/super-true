@@ -39,6 +39,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -85,7 +86,14 @@ fun WatchScreen(
         vm.activateRealtime()
     }
 
-    val pagerState = rememberPagerState(pageCount = { 2 })
+    // 마지막으로 본 시장(한국/미국)에서 시작하고, 페이지가 바뀌면 저장한다
+    val pagerState = rememberPagerState(
+        initialPage = remember { vm.initialPage },
+        pageCount = { WatchViewModel.PAGE_COUNT },
+    )
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }.collect { vm.onPageSettled(it) }
+    }
     val currentMarket = if (pagerState.currentPage == 0) WatchlistItem.MARKET_KR else WatchlistItem.MARKET_US
     val currentList = if (currentMarket == WatchlistItem.MARKET_KR) krList else usList
 
