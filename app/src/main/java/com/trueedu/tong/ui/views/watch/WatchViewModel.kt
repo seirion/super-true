@@ -19,6 +19,7 @@ import com.trueedu.tong.model.ws.KisRealTimeTrade
 import com.trueedu.tong.model.ws.TossRealTimeTrade
 import com.trueedu.tong.repository.BrokerAccountRepository
 import com.trueedu.tong.repository.UsStockRepository
+import com.trueedu.tong.repository.local.Local
 import com.trueedu.tong.repository.WatchlistRepository
 import com.trueedu.tong.repository.remote.toss.TossMarketRepository
 import com.trueedu.tong.repository.local.StockLocal
@@ -46,7 +47,15 @@ class WatchViewModel @Inject constructor(
     private val tossRealtimeManager: TossRealtimeManager,
     private val tossMarket: TossMarketRepository,
     private val usStockRepo: UsStockRepository,
+    private val local: Local,
 ) : ViewModel() {
+
+    // 마지막으로 본 시장 페이지 (0=한국, 1=미국). 앱을 껐다 켜도 유지된다.
+    val initialPage: Int get() = normalizePage(local.watchLastPage)
+
+    fun onPageSettled(page: Int) {
+        local.watchLastPage = normalizePage(page)
+    }
 
     // 관심종목 전체 목록 (한국 + 미국)
     val watchlist: StateFlow<List<WatchlistItem>> = watchlistRepo.getAll()
@@ -335,6 +344,11 @@ class WatchViewModel @Inject constructor(
     }
 
     companion object {
+        const val PAGE_COUNT = 2
+
+        /** 저장된 페이지 값이 범위를 벗어나면 한국(0)으로 되돌린다 */
+        fun normalizePage(page: Int): Int = if (page in 0 until PAGE_COUNT) page else 0
+
         // 지수 전용 검색 항목 (KIS 기준 코드)
         val KOSPI_STOCK = StockInfoLocal(code = "0001", nameKr = "코스피", attributes = "", kospi = true)
         val KOSDAQ_STOCK = StockInfoLocal(code = "1001", nameKr = "코스닥", attributes = "", kospi = false)
