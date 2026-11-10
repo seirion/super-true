@@ -50,7 +50,7 @@ class HomeViewModel @Inject constructor(
         object Idle : UiState()
         object Loading : UiState()
         data class Success(val summary: AccountSummary) : UiState()
-        data class Error(val message: String) : UiState()
+        data class Error(val message: String, val cached: AccountSummary? = null) : UiState()
     }
 
     private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
@@ -202,6 +202,13 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /** 새로고침 실패 시 로컬에 남은 기존 데이터로 홈 화면을 복원 */
+    fun restoreCached() {
+        val cached = (uiState.value as? UiState.Error)?.cached ?: return
+        _uiState.value = UiState.Success(cached)
+        startRealtimeIfKis(cached.holdings.map { it.code })
+    }
+
     private suspend fun fetchAndCache(account: BrokerAccount) {
         _uiState.value = UiState.Loading
         accountSummaryUseCase.fetch(account)
@@ -211,7 +218,12 @@ class HomeViewModel @Inject constructor(
                 startRealtimeIfKis(it.kisCodes())
                 startRealtimeIfToss(account, it)
             }
-            .onFailure { _uiState.value = UiState.Error(it.message ?: "오류가 발생했습니다") }
+            .onFailure {
+                _uiState.value = UiState.Error(
+                    message = it.message ?: "오류가 발생했습니다",
+                    cached = cacheRepo.load(account.id),
+                )
+            }
     }
 
     override fun onCleared() {

@@ -146,8 +146,14 @@ fun HomeScreen(
                 }
 
                 uiState is HomeViewModel.UiState.Error -> {
-                    val message = (uiState as HomeViewModel.UiState.Error).message
-                    item { ErrorHome(message = message, onRetry = vm::refresh) }
+                    val error = uiState as HomeViewModel.UiState.Error
+                    item {
+                        ErrorHome(
+                            message = error.message,
+                            onRetry = vm::refresh,
+                            onRestore = if (error.cached != null) vm::restoreCached else null,
+                        )
+                    }
                 }
 
                 uiState is HomeViewModel.UiState.Success -> {
@@ -229,6 +235,7 @@ private fun LoadingHome() {
 private fun ErrorHome(
     message: String,
     onRetry: () -> Unit,
+    onRestore: (() -> Unit)?,
 ) {
     val clipboard = LocalClipboardManager.current
     Column(
@@ -258,6 +265,12 @@ private fun ErrorHome(
                     modifier = Modifier.padding(end = 4.dp),
                 )
                 Text("복사")
+            }
+        }
+        if (onRestore != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(onClick = onRestore) {
+                Text("기존 데이터로 돌아가기")
             }
         }
     }
