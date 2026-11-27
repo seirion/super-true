@@ -10,6 +10,7 @@ import com.trueedu.tong.model.dto.stockinfo.LsStockInfoInBlock
 import com.trueedu.tong.model.dto.stockinfo.LsStockInfoRequest
 import com.trueedu.tong.repository.local.CredentialStorage
 import com.trueedu.tong.repository.remote.auth.TokenManager
+import com.trueedu.tong.repository.remote.kb.KbMarketRepository
 import com.trueedu.tong.repository.remote.kis.KisStockInfoService
 import com.trueedu.tong.repository.remote.kiwoom.KiwoomStockInfoService
 import com.trueedu.tong.repository.remote.ls.LsStockInfoService
@@ -34,6 +35,7 @@ class StockInfoRepository @Inject constructor(
     @TossRetrofitQualifier private val tossRetrofit: Retrofit,
     private val credentialStorage: CredentialStorage,
     private val tokenManager: TokenManager,
+    private val kbMarketRepository: KbMarketRepository,
 ) {
     private val kiwoomService by lazy { kiwoomRetrofit.create(KiwoomStockInfoService::class.java) }
     private val kisService by lazy { kisRetrofit.create(KisStockInfoService::class.java) }
@@ -248,6 +250,10 @@ class StockInfoRepository @Inject constructor(
             creditRate = null,
         )
     }
+
+    /** KB증권 주식현재가 IVU10140 */
+    suspend fun fetchKb(account: BrokerAccount, code: String): Result<StockInfo> =
+        kbMarketRepository.getStockInfo(account, code.removePrefix("A"))
 
     /** 토스 토큰 오류(HTTP 401) 시 강제 갱신 후 1회 재시도 */
     private suspend fun <T> tossRetry(

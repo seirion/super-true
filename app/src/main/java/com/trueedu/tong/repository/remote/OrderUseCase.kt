@@ -4,6 +4,7 @@ import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.BrokerType
 import com.trueedu.tong.model.dto.order.OrderRequest
 import com.trueedu.tong.model.dto.order.OrderResult
+import com.trueedu.tong.repository.remote.kb.KbOrderRepository
 import com.trueedu.tong.repository.remote.kis.KisOrderRepository
 import com.trueedu.tong.repository.remote.kiwoom.KiwoomOrderRepository
 import com.trueedu.tong.repository.remote.ls.LsOrderRepository
@@ -17,6 +18,7 @@ class OrderUseCase @Inject constructor(
     private val kiwoomRepo: KiwoomOrderRepository,
     private val lsRepo: LsOrderRepository,
     private val tossRepo: TossOrderRepository,
+    private val kbRepo: KbOrderRepository,
 ) {
     suspend fun placeOrder(account: BrokerAccount, request: OrderRequest): Result<OrderResult> =
         when (account.brokerType) {
@@ -26,5 +28,6 @@ class OrderUseCase @Inject constructor(
             BrokerType.KIWOOM -> kiwoomRepo.placeOrder(account, request)
             BrokerType.LS -> lsRepo.placeOrder(account, request)
             BrokerType.TOSS -> tossRepo.placeOrder(account, request)
+            BrokerType.KB -> kbRepo.placeOrder(account, request)
         }
 }

@@ -13,6 +13,7 @@ import com.trueedu.tong.model.dto.candle.LsMinuteCandleInBlock
 import com.trueedu.tong.model.dto.candle.LsMinuteCandleRequest
 import com.trueedu.tong.repository.local.CredentialStorage
 import com.trueedu.tong.repository.remote.auth.TokenManager
+import com.trueedu.tong.repository.remote.kb.KbMarketRepository
 import com.trueedu.tong.repository.remote.kis.KisCandleService
 import com.trueedu.tong.repository.remote.kiwoom.KiwoomCandleService
 import com.trueedu.tong.repository.remote.ls.LsCandleService
@@ -41,6 +42,7 @@ class CandleRepository @Inject constructor(
     @TossRetrofitQualifier private val tossRetrofit: Retrofit,
     private val credentialStorage: CredentialStorage,
     private val tokenManager: TokenManager,
+    private val kbMarketRepository: KbMarketRepository,
 ) {
     private val kiwoomService by lazy { kiwoomRetrofit.create(KiwoomCandleService::class.java) }
     private val kisService by lazy { kisRetrofit.create(KisCandleService::class.java) }
@@ -250,6 +252,10 @@ class CandleRepository @Inject constructor(
         logD("CandleRepo.fetchToss: parsed ${result.size} candles")
         result
     }.also { r -> r.onFailure { logE("CandleRepo.fetchToss error: ${it.message}") } }
+
+    /** KB증권 통합차트 IVS11560 */
+    suspend fun fetchKb(account: BrokerAccount, code: String, period: CandlePeriod = CandlePeriod.DAY, minuteInterval: Int = 1): Result<List<CandleData>> =
+        kbMarketRepository.getCandles(account, code.removePrefix("A"), period, minuteInterval)
 
     /** 토스 토큰 오류(HTTP 401) 시 강제 갱신 후 1회 재시도 */
     private suspend fun <T> tossRetry(

@@ -66,8 +66,8 @@ class CandleViewModel @Inject constructor(
     // 실시간 체결 가격 (KIS WebSocket)
     val realtimePrice get() = kisRealPriceManager.priceMap[currentCode]
 
-    // 키움 → LS → KIS 우선순위
-    private val priority = listOf(BrokerType.KIWOOM, BrokerType.LS, BrokerType.KIS)
+    // 키움 → LS → KIS → KB 우선순위
+    private val priority = listOf(BrokerType.KIWOOM, BrokerType.LS, BrokerType.KIS, BrokerType.KB)
 
     init {
         // 저장된 분봉 간격 복원
@@ -222,5 +222,6 @@ class CandleViewModel @Inject constructor(
         BrokerType.LS -> candleRepo.fetchLs(account, code, period, interval)
         BrokerType.KIS -> candleRepo.fetchKis(account, code, period)
         BrokerType.TOSS -> candleRepo.fetchToss(account, code, period, interval)
+        BrokerType.KB -> candleRepo.fetchKb(account, code, period, interval)
     }
 }

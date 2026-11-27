@@ -61,3 +61,11 @@ annotation class TossRetrofitQualifier
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class TossOkHttp
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class KbRetrofitQualifier
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class KbOkHttp
