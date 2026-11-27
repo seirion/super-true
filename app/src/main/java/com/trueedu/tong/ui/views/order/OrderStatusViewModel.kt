@@ -13,6 +13,7 @@ import com.trueedu.tong.model.dto.order.RealizedPnlSummary
 import com.trueedu.tong.model.dto.order.UnfilledOrderItem
 import com.trueedu.tong.repository.BrokerAccountRepository
 import com.trueedu.tong.repository.local.Local
+import com.trueedu.tong.repository.remote.kb.KbOrderStatusRepository
 import com.trueedu.tong.repository.remote.kis.KisOrderStatusRepository
 import com.trueedu.tong.repository.remote.kiwoom.KiwoomOrderStatusRepository
 import com.trueedu.tong.repository.remote.ls.LsOrderStatusRepository
@@ -29,6 +30,7 @@ class OrderStatusViewModel @Inject constructor(
     private val kisStatusRepo: KisOrderStatusRepository,
     private val kiwoomStatusRepo: KiwoomOrderStatusRepository,
     private val lsStatusRepo: LsOrderStatusRepository,
+    private val kbStatusRepo: KbOrderStatusRepository,
     private val local: Local,
 ) : ViewModel() {
 
@@ -82,6 +84,7 @@ class OrderStatusViewModel @Inject constructor(
                 BrokerType.KIS -> kisStatusRepo.getRealizedPnl(acc, start, end)
                 BrokerType.KIWOOM -> kiwoomStatusRepo.getRealizedPnl(acc, start, end)
                 BrokerType.LS -> lsStatusRepo.getRealizedPnl(acc, start, end)
+                BrokerType.KB -> kbStatusRepo.getRealizedPnl(acc, start, end)
                 else -> null
             }
             pnlSummary = result?.getOrNull()
@@ -217,6 +220,18 @@ class OrderStatusViewModel @Inject constructor(
                         filled = filledResult.getOrDefault(emptyList()),
                     )
                 }
+                BrokerType.KB -> {
+                    val unfilledResult = kbStatusRepo.getUnfilled(acc)
+                    val filledResult = kbStatusRepo.getFilled(acc)
+                    if (unfilledResult.isFailure) {
+                        state = StatusState.Error(unfilledResult.exceptionOrNull()?.message ?: "오류")
+                        return@launch
+                    }
+                    state = StatusState.Success(
+                        unfilled = unfilledResult.getOrDefault(emptyList()),
+                        filled = filledResult.getOrDefault(emptyList()),
+                    )
+                }
                 else -> {
                     state = StatusState.Error("${acc.brokerType.displayName}은 미체결/체결 조회를 지원하지 않습니다")
                 }
@@ -232,6 +247,7 @@ class OrderStatusViewModel @Inject constructor(
                 BrokerType.KIS -> kisStatusRepo.cancel(acc, order.orgNo, order.ordNo, order.code, order.stexTp)
                 BrokerType.KIWOOM -> kiwoomStatusRepo.cancel(acc, order.ordNo, order.code, order.stexTp)
                 BrokerType.LS -> lsStatusRepo.cancel(acc, order.ordNo, order.code)
+                BrokerType.KB -> kbStatusRepo.cancel(acc, order.ordNo, order.code)
                 else -> return@launch
             }
             result
@@ -249,6 +265,7 @@ class OrderStatusViewModel @Inject constructor(
                 BrokerType.KIS -> kisStatusRepo.modify(acc, order.orgNo, order.ordNo, order.code, newPrice, qty, order.stexTp)
                 BrokerType.KIWOOM -> kiwoomStatusRepo.modify(acc, order.ordNo, order.code, newPrice, qty, order.stexTp)
                 BrokerType.LS -> lsStatusRepo.modify(acc, order.ordNo, order.code, newPrice, qty)
+                BrokerType.KB -> kbStatusRepo.modify(acc, order.ordNo, order.code, newPrice, order.stexTp)
                 else -> return@launch
             }
             result

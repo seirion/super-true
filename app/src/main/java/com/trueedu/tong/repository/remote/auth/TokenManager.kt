@@ -5,6 +5,8 @@ import com.trueedu.tong.model.BrokerType
 import com.trueedu.tong.model.dto.auth.KisTokenRequest
 import com.trueedu.tong.model.dto.auth.KiwoomTokenRequest
 import com.trueedu.tong.repository.local.CredentialStorage
+import com.trueedu.tong.model.dto.kb.KbRequest
+import com.trueedu.tong.repository.remote.kb.KbAuthService
 import com.trueedu.tong.repository.remote.kis.KisAuthService
 import com.trueedu.tong.repository.remote.kiwoom.KiwoomAuthService
 import com.trueedu.tong.repository.remote.ls.LsAuthService
@@ -25,12 +27,14 @@ class TokenManager @Inject constructor(
     @com.trueedu.tong.di.KiwoomRetrofitQualifier private val kiwoomRetrofit: Retrofit,
     @com.trueedu.tong.di.LsRetrofitQualifier private val lsRetrofit: Retrofit,
     @com.trueedu.tong.di.TossRetrofitQualifier private val tossRetrofit: Retrofit,
+    @com.trueedu.tong.di.KbRetrofitQualifier private val kbRetrofit: Retrofit,
     private val credentialStorage: CredentialStorage,
 ) {
     private val kisAuthService: KisAuthService by lazy { kisRetrofit.create(KisAuthService::class.java) }
     private val kiwoomAuthService: KiwoomAuthService by lazy { kiwoomRetrofit.create(KiwoomAuthService::class.java) }
     private val lsAuthService: LsAuthService by lazy { lsRetrofit.create(LsAuthService::class.java) }
     private val tossAuthService: TossAuthService by lazy { tossRetrofit.create(TossAuthService::class.java) }
+    private val kbAuthService: KbAuthService by lazy { kbRetrofit.create(KbAuthService::class.java) }
 
     private val bufferMs = 5 * 60 * 1000L // 만료 5분 전 갱신
 
@@ -140,6 +144,23 @@ class TokenManager @Inject constructor(
                 val expiredAtMs = System.currentTimeMillis() + body.expiresIn * 1000L
                 credentialStorage.saveToken(account.id, body.accessToken, expiredAtMs)
                 body.accessToken
+            }
+
+            BrokerType.KB -> {
+                val resp = kbAuthService.getToken(
+                    KbRequest(
+                        dataBody = mapOf(
+                            "grantType" to "client_credentials",
+                            "appKey" to appKey,
+                            "appSecret" to appSecret,
+                        )
+                    )
+                )
+                val body = resp.body() ?: error("KB 토큰 발급 실패: ${resp.code()}")
+                if (body.dataHeader.resultCode != "200") error("KB 토큰 오류: ${body.dataHeader.resultMessage}")
+                val token = body.dataBody.accessToken.ifBlank { error("KB 토큰 응답에 access_token 없음") }
+                credentialStorage.saveToken(account.id, token, System.currentTimeMillis() + body.dataBody.expiresIn * 1000L)
+                token
             }
         }
     }

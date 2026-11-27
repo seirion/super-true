@@ -4,6 +4,7 @@ import com.trueedu.tong.model.BrokerAccount
 import com.trueedu.tong.model.BrokerType
 import com.trueedu.tong.model.account.AccountSummary
 import com.trueedu.tong.repository.remote.auth.TokenManager
+import com.trueedu.tong.repository.remote.kb.KbAccountRepository
 import com.trueedu.tong.repository.remote.kis.KisAccountRepository
 import com.trueedu.tong.repository.remote.kiwoom.KiwoomAccountRepository
 import com.trueedu.tong.repository.remote.ls.LsAccountRepository
@@ -24,6 +25,7 @@ class AccountSummaryUseCase @Inject constructor(
     private val kiwoomRepo: KiwoomAccountRepository,
     private val lsRepo: LsAccountRepository,
     private val tossRepo: TossAccountRepository,
+    private val kbRepo: KbAccountRepository,
 ) {
     suspend fun fetch(account: BrokerAccount): Result<AccountSummary> {
         val tokenResult = tokenManager.getValidToken(account)
@@ -37,6 +39,7 @@ class AccountSummaryUseCase @Inject constructor(
             BrokerType.KIWOOM -> kiwoomRepo.getAccountSummary(account)
             BrokerType.LS     -> lsRepo.getAccountSummary(account, token)
             BrokerType.TOSS   -> tossRepo.getAccountSummary(account, token)
+            BrokerType.KB     -> kbRepo.getAccountSummary(account)
         }
     }
 }

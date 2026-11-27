@@ -38,8 +38,8 @@ class StockInfoViewModel @Inject constructor(
     // 마지막으로 로드한 종목코드 (중복 호출 방지)
     private var loadedCode: String? = null
 
-    // 키움 → KIS → LS 우선순위
-    private val priority = listOf(BrokerType.KIWOOM, BrokerType.KIS, BrokerType.LS)
+    // 키움 → KIS → LS → KB 우선순위
+    private val priority = listOf(BrokerType.KIWOOM, BrokerType.KIS, BrokerType.LS, BrokerType.KB)
 
     /** 종목정보 로드. 우선순위대로 appKey 가 있는 계좌를 찾아 호출한다. */
     fun load(code: String, force: Boolean = false) {
@@ -89,5 +89,6 @@ class StockInfoViewModel @Inject constructor(
         BrokerType.KIS -> stockInfoRepo.fetchKis(account, code)
         BrokerType.LS -> stockInfoRepo.fetchLs(account, code)
         BrokerType.TOSS -> stockInfoRepo.fetchToss(account, code)
+        BrokerType.KB -> stockInfoRepo.fetchKb(account, code)
     }
 }

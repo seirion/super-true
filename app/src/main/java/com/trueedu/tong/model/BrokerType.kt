@@ -5,4 +5,5 @@ enum class BrokerType(val displayName: String) {
     KIWOOM("키움증권"),
     LS("LS증권"),
     TOSS("토스증권"),
+    KB("KB증권"),
 }

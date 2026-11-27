@@ -271,4 +271,25 @@ object NetworkModule {
         okHttpClient = okHttpClient,
         json = json,
     )
+
+    // KB증권
+    @Provides
+    @Singleton
+    @KbOkHttp
+    fun providesKbOkHttpClient(
+        loggingInterceptor: HttpLoggingInterceptor,
+        chuckerInterceptor: ChuckerInterceptor,
+    ): OkHttpClient = buildOkHttpClient(loggingInterceptor, chuckerInterceptor)
+
+    @Provides
+    @Singleton
+    @KbRetrofitQualifier
+    fun providesKbRetrofit(
+        @KbOkHttp okHttpClient: OkHttpClient,
+        json: Json,
+    ): Retrofit = buildRetrofit(
+        baseUrl = "https://developer.kbsec.com:32484/",
+        okHttpClient = okHttpClient,
+        json = json,
+    )
 }
